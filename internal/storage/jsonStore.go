@@ -5,10 +5,79 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
 )
+
+// JSONStore implementats Storage interface - for JSON file storage
+type jsonStore struct {
+	configPath string
+	filePath   string
+	mu         sync.RWMutex
+}
+
+type fileData struct {
+	Expenses []*Expense `json:"expenses"`
+}
+
+type fileConfig struct {
+	Categories []string `json:"categories"`
+	Currency   string   `json:"currency"`
+	StartDate  int      `json:"startDate"`
+}
+
+// initializes the JSON storage backend
+func InitializeJsonStore() (*jsonStore, error) {
+	customDir := os.Getenv("JSON_DIR")
+	if customDir == "" {
+		customDir = "data" // default directory
+	}
+	customDir = filepath.Join(customDir)
+	configPath := filepath.Join(customDir, "config.json")
+	filePath := filepath.Join(customDir, "expenses.json")
+	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+		return nil, fmt.Errorf("failed to create storage directory: %v", err)
+	}
+
+	// create expenses file if it doesn't exist
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		initialData := fileData{Expenses: []*Expense{}}
+		data, err := json.Marshal(initialData)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal initial data: %v", err)
+		}
+		if err := os.WriteFile(filePath, data, 0644); err != nil {
+			return nil, fmt.Errorf("failed to create storage file: %v", err)
+		}
+		log.Println("Created expense storage file")
+	} else {
+		log.Println("Found existing expense storage file")
+	}
+
+	// create config file if it doesn't exist
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		initialConfig := Config{}
+		initialConfig.SetBaseConfig()
+		data, err := json.Marshal(initialConfig)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal initial config: %v", err)
+		}
+		if err := os.WriteFile(configPath, data, 0644); err != nil {
+			return nil, fmt.Errorf("failed to create config file: %v", err)
+		}
+		log.Println("Created expense storage config")
+	} else {
+		log.Println("Found existing expense storage config")
+	}
+
+	return &jsonStore{
+		configPath: configPath,
+		filePath:   filePath,
+	}, nil
+}
 
 // no-ops for JSON storage since it's file based
 func (s *jsonStore) Initialize() error {
