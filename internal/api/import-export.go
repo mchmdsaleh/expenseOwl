@@ -179,9 +179,7 @@ func (h *Handler) ImportCSV(w http.ResponseWriter, r *http.Request) {
 			"01/02/06",            // US date (short year)
 			"1/2/2006",            // US date (no leading zero)
 			"1/2/06",              // US date (short year no leading zero)
-			"02/01/2006",          // European date
 			"Jan 2, 2006",         // Month name format
-			"2 Jan 2006",          // European month name
 			"January 2, 2006",     // Full month name
 			"2006-01-02T15:04:05", // ISO without timezone
 		}
@@ -205,7 +203,7 @@ func (h *Handler) ImportCSV(w http.ResponseWriter, r *http.Request) {
 			Date:     date,
 		}
 
-		if err := h.storage.SaveExpense(expense); err != nil {
+		if err := h.storage.AddExpense(expense); err != nil {
 			log.Printf("Error saving expense from row %d: %v\n", i, err)
 			continue
 		}
@@ -217,7 +215,7 @@ func (h *Handler) ImportCSV(w http.ResponseWriter, r *http.Request) {
 	// Update the config with new categories if any
 	if len(newCategories) > 0 {
 		updatedCategories := append(h.config.Categories, newCategories...)
-		if err := h.config.UpdateCategories(updatedCategories); err != nil {
+		if err := h.storage.UpdateCategories(updatedCategories); err != nil {
 			log.Printf("Warning: Failed to update categories: %v\n", err)
 		}
 	}
@@ -309,7 +307,7 @@ func (h *Handler) ImportJSON(w http.ResponseWriter, r *http.Request) {
 
 		// Save the expense
 		expense.ID = "" // Ensure new ID value
-		if err := h.storage.SaveExpense(expense); err != nil {
+		if err := h.storage.AddExpense(expense); err != nil {
 			log.Printf("Error saving expense %d: %v\n", i+1, err)
 			continue
 		}
@@ -321,7 +319,7 @@ func (h *Handler) ImportJSON(w http.ResponseWriter, r *http.Request) {
 	// Update the config with new categories if any
 	if len(newCategories) > 0 {
 		updatedCategories := append(h.config.Categories, newCategories...)
-		if err := h.config.UpdateCategories(updatedCategories); err != nil {
+		if err := h.storage.UpdateCategories(updatedCategories); err != nil {
 			log.Printf("Warning: Failed to update categories: %v\n", err)
 		}
 	}

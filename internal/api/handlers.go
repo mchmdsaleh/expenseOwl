@@ -65,7 +65,7 @@ func (h *Handler) EditCategories(w http.ResponseWriter, r *http.Request) {
 		log.Printf("HTTP ERROR: Failed to decode request body: %v\n", err)
 		return
 	}
-	h.config.UpdateCategories(categories)
+	h.storage.UpdateCategories(categories)
 	writeJSON(w, http.StatusOK, map[string]string{"status": "success"})
 	log.Println("HTTP: Updated categories")
 }
@@ -82,7 +82,7 @@ func (h *Handler) EditCurrency(w http.ResponseWriter, r *http.Request) {
 		log.Printf("HTTP ERROR: Failed to decode request body: %v\n", err)
 		return
 	}
-	h.config.UpdateCurrency(currency)
+	h.storage.UpdateCurrency(currency)
 	writeJSON(w, http.StatusOK, map[string]string{"status": "success"})
 	log.Println("HTTP: Updated currency")
 }
@@ -99,7 +99,7 @@ func (h *Handler) EditStartDate(w http.ResponseWriter, r *http.Request) {
 		log.Printf("HTTP ERROR: Failed to decode request body: %v\n", err)
 		return
 	}
-	h.config.UpdateStartDate(startDate)
+	h.storage.UpdateStartDate(startDate)
 	writeJSON(w, http.StatusOK, map[string]string{"status": "success"})
 	log.Println("HTTP: Updated start date")
 }
@@ -130,7 +130,7 @@ func (h *Handler) AddExpense(w http.ResponseWriter, r *http.Request) {
 		log.Printf("HTTP ERROR: Failed to validate expense: %v\n", err)
 		return
 	}
-	if err := h.storage.SaveExpense(expense); err != nil {
+	if err := h.storage.AddExpense(expense); err != nil {
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to save expense"})
 		log.Printf("HTTP ERROR: Failed to save expense: %v\n", err)
 		return
@@ -171,7 +171,7 @@ func (h *Handler) EditExpense(w http.ResponseWriter, r *http.Request) {
 		log.Printf("HTTP ERROR: Failed to validate expense: %v\n", err)
 		return
 	}
-	if err := h.storage.EditExpense(expense); err != nil {
+	if err := h.storage.UpdateExpense(id, expense); err != nil {
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to edit expense"})
 		log.Printf("HTTP ERROR: Failed to edit expense: %v\n", err)
 		return
@@ -235,7 +235,7 @@ func (h *Handler) DeleteExpense(w http.ResponseWriter, r *http.Request) {
 		log.Println("HTTP ERROR: ID parameter is required")
 		return
 	}
-	if err := h.storage.DeleteExpense(id); err != nil {
+	if err := h.storage.RemoveExpense(id); err != nil {
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to delete expense"})
 		log.Printf("HTTP ERROR: Failed to delete expense: %v\n", err)
 		return

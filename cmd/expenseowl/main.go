@@ -53,8 +53,8 @@ func runServer() {
 			return
 		}
 	})
-	log.Printf("Starting server on port %s...\n", cfg.ServerPort)
-	if err := http.ListenAndServe(":"+cfg.ServerPort, nil); err != nil {
+	log.Printf("Starting server on port 8080...\n")
+	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatalf("Server failed to start: %v", err)
 	}
 }
