@@ -487,6 +487,13 @@
             }
         });
         document.addEventListener('DOMContentLoaded', initialize);
+
+        // event listener to remove the - from the name input when the user clicks on the input
+        document.getElementById('name').addEventListener('click', (e) => {
+            if (e.target.value === '-') {
+                e.target.value = '';
+            }
+        });
     </script>
 </body>
 </html>
