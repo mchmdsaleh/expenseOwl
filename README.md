@@ -202,6 +202,10 @@ If setting up for the first time, an environment variable can be used for ease. 
 CURRENCY=eur ./expenseowl
 ```
 
+> [!NOTE]
+> Expense Owl started off by onlying allowing positive values but now allows for negative values (see https://github.com/Tanq16/ExpenseOwl/pull/39). Positive values as an expense will indicate money going out, while negative values can be used to indicate a return or reimbursment of an expense (money coming back in).
+> This project undestands that this choice is subjective so we hope to introduce more functionality to configure this. 
+
 ExpenseOwl also supports custom categories. A default set is pre-loaded in the config for ease of use and can be easily changed within the UI.
 
 Like currency, if setting up for the first time, categories can be specified in an environment variable like so:
