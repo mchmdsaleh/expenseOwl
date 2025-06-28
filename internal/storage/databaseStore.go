@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"slices"
+	"strings"
 
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
@@ -18,7 +19,8 @@ type databaseStore struct {
 
 // initializes the PostgreSQL storage backend
 func InitializePostgresStore(baseConfig SystemConfig) (*databaseStore, error) {
-	db, err := sql.Open("postgres", baseConfig.StorageURL)
+	dbURL := makeDBURL(baseConfig)
+	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open PostgreSQL database: %v", err)
 	}
@@ -28,6 +30,14 @@ func InitializePostgresStore(baseConfig SystemConfig) (*databaseStore, error) {
 	log.Println("Connected to PostgreSQL database")
 	createTables(db)
 	return &databaseStore{db: db}, nil
+}
+
+func makeDBURL(baseConfig SystemConfig) string {
+	dbURL := strings.ReplaceAll(baseConfig.StorageURL, "postgres://", "")
+	dbURL = strings.ReplaceAll(dbURL, "@", "")
+	dbURL = strings.ReplaceAll(dbURL, "/", "")
+	dbURL = fmt.Sprintf("postgres://%s:%s@%s", dbURL, baseConfig.StorageUser, baseConfig.StoragePass)
+	return dbURL
 }
 
 // primitive methods

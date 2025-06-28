@@ -85,7 +85,7 @@ func (s *jsonStore) readExpensesFile(path string) (*expensesFileData, error) {
 }
 
 func (s *jsonStore) writeExpensesFile(path string, data *expensesFileData) error {
-	content, err := json.MarshalIndent(data, "", "    ")
+	content, err := json.Marshal(data)
 	if err != nil {
 		return err
 	}
@@ -107,7 +107,7 @@ func (s *jsonStore) readConfigFile(path string) (*Config, error) {
 }
 
 func (s *jsonStore) writeConfigFile(path string, data *Config) error {
-	content, err := json.MarshalIndent(data, "", "    ")
+	content, err := json.Marshal(data)
 	if err != nil {
 		return err
 	}
@@ -168,26 +168,6 @@ func (s *jsonStore) UpdateCurrency(currency string) error {
 	return s.writeConfigFile(s.configPath, data)
 }
 
-func (s *jsonStore) GetStartDate() (int, error) {
-	data, err := s.readConfigFile(s.configPath)
-	if err != nil {
-		return 0, fmt.Errorf("failed to read config file: %v", err)
-	}
-	return data.StartDate, nil
-}
-
-func (s *jsonStore) UpdateStartDate(startDate int) error {
-	if startDate < 0 || startDate > 31 {
-		return fmt.Errorf("invalid start date: %d", startDate)
-	}
-	data, err := s.readConfigFile(s.configPath)
-	if err != nil {
-		return fmt.Errorf("failed to read config file: %v", err)
-	}
-	data.StartDate = startDate
-	return s.writeConfigFile(s.configPath, data)
-}
-
 func (s *jsonStore) GetTags() ([]string, error) {
 	data, err := s.readConfigFile(s.configPath)
 	if err != nil {
@@ -205,20 +185,23 @@ func (s *jsonStore) UpdateTags(tags []string) error {
 	return s.writeConfigFile(s.configPath, data)
 }
 
-func (s *jsonStore) GetDefaultTags() ([]string, error) {
+func (s *jsonStore) GetStartDate() (int, error) {
 	data, err := s.readConfigFile(s.configPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read config file: %v", err)
+		return 0, fmt.Errorf("failed to read config file: %v", err)
 	}
-	return data.DefaultTags, nil
+	return data.StartDate, nil
 }
 
-func (s *jsonStore) UpdateDefaultTags(tags []string) error {
+func (s *jsonStore) UpdateStartDate(startDate int) error {
+	if startDate < 0 || startDate > 31 {
+		return fmt.Errorf("invalid start date: %d", startDate)
+	}
 	data, err := s.readConfigFile(s.configPath)
 	if err != nil {
 		return fmt.Errorf("failed to read config file: %v", err)
 	}
-	data.DefaultTags = tags
+	data.StartDate = startDate
 	return s.writeConfigFile(s.configPath, data)
 }
 
@@ -267,6 +250,20 @@ func (s *jsonStore) RemoveRecurringExpense(id string) error {
 }
 
 func (s *jsonStore) UpdateRecurringExpense(id string, recurringExpense *RecurringExpense) error {
+	data, err := s.readConfigFile(s.configPath)
+	if err != nil {
+		return fmt.Errorf("failed to read config file: %v", err)
+	}
+	for i, r := range data.RecurringExpenses {
+		if r.ID == id {
+			data.RecurringExpenses[i] = *recurringExpense
+			return s.writeConfigFile(s.configPath, data)
+		}
+	}
+	return fmt.Errorf("recurring expense with ID %s not found", id)
+}
+
+func (s *jsonStore) UpdateRecurringExpenseFrom(id string, recurringExpense *RecurringExpense, date time.Time) error {
 	data, err := s.readConfigFile(s.configPath)
 	if err != nil {
 		return fmt.Errorf("failed to read config file: %v", err)

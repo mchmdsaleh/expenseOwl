@@ -14,22 +14,19 @@ type Storage interface {
 
 	GetCategories() ([]string, error)
 	UpdateCategories(categories []string) error
+	GetTags() ([]string, error)
+	UpdateTags(tags []string) error
 
 	GetCurrency() (string, error)
 	UpdateCurrency(currency string) error
 	GetStartDate() (int, error)
 	UpdateStartDate(startDate int) error
 
-	GetTags() ([]string, error)
-	UpdateTags(tags []string) error
-	GetDefaultTags() ([]string, error)
-	UpdateDefaultTags(tags []string) error
-
 	GetRecurringExpenses() ([]RecurringExpense, error)
 	GetRecurringExpense(id string) (*RecurringExpense, error)
 	AddRecurringExpense(recurringExpense *RecurringExpense) error
-	RemoveRecurringExpense(id string) error
-	UpdateRecurringExpense(id string, recurringExpense *RecurringExpense) error
+	RemoveRecurringExpense(id string, removeAll bool) error
+	UpdateRecurringExpense(id string, recurringExpense *RecurringExpense, updateAll bool) error
 
 	GetAllExpenses() ([]*Expense, error)
 	GetExpense(id string) (*Expense, error)
@@ -44,14 +41,14 @@ type Config struct {
 	Currency          string             `json:"currency"`
 	StartDate         int                `json:"startDate"`
 	Tags              []string           `json:"tags"`
-	DefaultTags       []string           `json:"defaultTags"`
 	RecurringExpenses []RecurringExpense `json:"recurringExpenses"`
 }
 
 type RecurringExpense struct {
 	ID          string    `json:"id"`
-	Expense     Expense   `json:"expense"`
-	Date        time.Time `json:"date"`        // date of the first occurrence
+	Name        string    `json:"name"`
+	Amount      float64   `json:"amount"`
+	StartDate   time.Time `json:"startDate"`   // date of the first occurrence
 	Interval    string    `json:"interval"`    // daily, weekly, monthly, yearly
 	Occurrences int       `json:"occurrences"` // 0 for 10 years (heuristic), 10 for 10 occurrences
 }
@@ -63,12 +60,11 @@ const (
 	BackendTypePostgres BackendType = "postgres"
 )
 
-// expense impact tells if the expense is an addition or subtraction from the balance
-type ExpenseImpact string
+type ExpenseType string
 
 const (
-	EIGain ExpenseImpact = "gain"
-	EILoss ExpenseImpact = "loss"
+	ExpenseTypeRecurring    ExpenseType = "recurring"
+	ExpenseTypeInstantiated ExpenseType = "instantiated"
 )
 
 // config for the storage backend
@@ -81,13 +77,13 @@ type SystemConfig struct {
 
 // expense struct
 type Expense struct {
-	ID       string        `json:"id"`
-	Name     string        `json:"name"`
-	Tags     []string      `json:"tags"`
-	Impact   ExpenseImpact `json:"impact"`
-	Category string        `json:"category"`
-	Amount   float64       `json:"amount"`
-	Date     time.Time     `json:"date"`
+	ID          string      `json:"id"`
+	ExpenseType ExpenseType `json:"expenseType"`
+	Name        string      `json:"name"`
+	Tags        []string    `json:"tags"`
+	Category    string      `json:"category"`
+	Amount      float64     `json:"amount"`
+	Date        time.Time   `json:"date"`
 }
 
 func (e *Expense) Validate() error {
@@ -108,7 +104,6 @@ func (c *Config) SetBaseConfig() {
 	c.Currency = "usd"
 	c.StartDate = 1
 	c.Tags = []string{}
-	c.DefaultTags = []string{}
 	c.RecurringExpenses = []RecurringExpense{}
 }
 
