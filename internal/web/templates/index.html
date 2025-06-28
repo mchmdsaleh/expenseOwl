@@ -354,9 +354,6 @@
         // Update month display and navigation buttons
         function updateMonthDisplay() {
             document.getElementById('currentMonth').textContent = formatMonth(currentDate);
-            const now = new Date();
-            const isCurrentMonth = currentDate.getMonth() === now.getMonth() && currentDate.getFullYear() === now.getFullYear();
-            document.getElementById('nextMonth').disabled = isCurrentMonth;
         }
         // Get start and end of month
         function getMonthBounds(date) {

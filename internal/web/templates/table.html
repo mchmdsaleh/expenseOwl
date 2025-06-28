@@ -137,9 +137,6 @@
 
         function updateMonthDisplay() {
             document.getElementById('currentMonth').textContent = formatMonth(currentDate);
-            const now = new Date();
-            const isCurrentMonth = currentDate.getMonth() === now.getMonth() && currentDate.getFullYear() === now.getFullYear();
-            document.getElementById('nextMonth').disabled = isCurrentMonth;
         }
         function getMonthBounds(date) {
             const localDate = new Date(date);
