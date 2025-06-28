@@ -49,7 +49,7 @@
                 
                 <div class="form-group">
                     <label for="amount">Amount</label>
-                    <input type="number" id="amount" step="0.01" min="0.01" required>
+                    <input type="number" id="amount" step="0.01" required>
                 </div>
                 
                 <div class="form-group">
@@ -137,9 +137,6 @@
 
         function updateMonthDisplay() {
             document.getElementById('currentMonth').textContent = formatMonth(currentDate);
-            const now = new Date();
-            const isCurrentMonth = currentDate.getMonth() === now.getMonth() && currentDate.getFullYear() === now.getFullYear();
-            document.getElementById('nextMonth').disabled = isCurrentMonth;
         }
         function getMonthBounds(date) {
             const localDate = new Date(date);
@@ -383,6 +380,13 @@
             }
         });
         document.addEventListener('DOMContentLoaded', initialize);
+
+        // event listener to remove the - from the name input when the user clicks on the input
+        document.getElementById('name').addEventListener('click', (e) => {
+            if (e.target.value === '-') {
+                e.target.value = '';
+            }
+        });
     </script>
 </body>
 </html>

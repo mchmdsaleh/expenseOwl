@@ -163,7 +163,7 @@ func (h *Handler) ImportCSV(w http.ResponseWriter, r *http.Request) {
 		}
 		// Handle amount (skipping regex since parsing as float)
 		amount, err := strconv.ParseFloat(strings.TrimSpace(record[amountIdx]), 64)
-		if err != nil || amount <= 0 {
+		if err != nil {
 			log.Printf("Warning: Skipping row %d due to invalid amount: %s\n", i, record[amountIdx])
 			continue
 		}
