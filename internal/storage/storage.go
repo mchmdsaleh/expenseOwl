@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -12,27 +11,30 @@ type Storage interface {
 	Close() error
 	GetConfig() (*Config, error)
 
+	// Basic Config Updates
 	GetCategories() ([]string, error)
 	UpdateCategories(categories []string) error
 	GetTags() ([]string, error)
 	UpdateTags(tags []string) error
-
 	GetCurrency() (string, error)
 	UpdateCurrency(currency string) error
 	GetStartDate() (int, error)
 	UpdateStartDate(startDate int) error
 
+	// Recurring Expenses
 	GetRecurringExpenses() ([]RecurringExpense, error)
-	GetRecurringExpense(id string) (*RecurringExpense, error)
-	AddRecurringExpense(recurringExpense *RecurringExpense) error
+	GetRecurringExpense(id string) (RecurringExpense, error)
+	AddRecurringExpense(recurringExpense RecurringExpense) error
 	RemoveRecurringExpense(id string, removeAll bool) error
-	UpdateRecurringExpense(id string, recurringExpense *RecurringExpense, updateAll bool) error
+	UpdateRecurringExpense(id string, recurringExpense RecurringExpense, updateAll bool) error
 
-	GetAllExpenses() ([]*Expense, error)
-	GetExpense(id string) (*Expense, error)
-	AddExpense(expense *Expense) error
+	// Expenses
+	GetAllExpenses() ([]Expense, error)
+	GetExpense(id string) (Expense, error)
+	AddExpense(expense Expense) error
 	RemoveExpense(id string) error
-	UpdateExpense(id string, expense *Expense) error
+	RemoveMultipleExpenses(ids []string) error
+	UpdateExpense(id string, expense Expense) error
 }
 
 // config for expense data
@@ -60,13 +62,6 @@ const (
 	BackendTypePostgres BackendType = "postgres"
 )
 
-type ExpenseType string
-
-const (
-	ExpenseTypeRecurring    ExpenseType = "recurring"
-	ExpenseTypeInstantiated ExpenseType = "instantiated"
-)
-
 // config for the storage backend
 type SystemConfig struct {
 	StorageURL  string
@@ -77,26 +72,13 @@ type SystemConfig struct {
 
 // expense struct
 type Expense struct {
-	ID          string      `json:"id"`
-	ExpenseType ExpenseType `json:"expenseType"`
-	Name        string      `json:"name"`
-	Tags        []string    `json:"tags"`
-	Category    string      `json:"category"`
-	Amount      float64     `json:"amount"`
-	Date        time.Time   `json:"date"`
-}
-
-func (e *Expense) Validate() error {
-	if e.Name == "" {
-		return errors.New("expense name is required")
-	}
-	if e.Category == "" {
-		return errors.New("category is required")
-	}
-	if e.Amount <= 0 {
-		return errors.New("amount must be greater than 0")
-	}
-	return nil
+	ID          string    `json:"id"`
+	RecurringID string    `json:"recurringID"`
+	Name        string    `json:"name"`
+	Tags        []string  `json:"tags"`
+	Category    string    `json:"category"`
+	Amount      float64   `json:"amount"`
+	Date        time.Time `json:"date"`
 }
 
 func (c *Config) SetBaseConfig() {

@@ -11,6 +11,7 @@ import (
 
 func runServer() {
 	storage, err := storage.InitializeStorage()
+	defer storage.Close()
 	if err != nil {
 		log.Fatalf("Failed to initialize storage: %v", err)
 	}
