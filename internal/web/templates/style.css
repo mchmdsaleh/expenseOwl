@@ -535,6 +535,25 @@ header {
     margin-top: 0.5rem;
 }
 
+.info-field {
+    text-align: center;
+    margin-bottom: 1.5rem;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+.info-field a {
+    color: var(--text-primary);
+    text-decoration: underline;
+    cursor: pointer
+}
+.info-field a:hover {
+    transform: scale(1.1);
+}
+.info-field .separator {
+    color: var(--border);
+    margin: 0 0.5rem;
+}
+
 .currency-selector, .start-date-manager {
     display: flex;
     align-items: center;
@@ -619,8 +638,8 @@ header {
     }
 
     .cashflow-container {
-        flex-direction: column;
-        gap: 0.5rem;
+        flex-direction: row;
+        justify-content: space-around;
     }
     
     .cashflow-item {
@@ -638,6 +657,10 @@ header {
     .settings-container {
         flex-direction: column;
     }
+
+    .expense-form {
+        grid-template-columns: 1fr;
+    }
 }
 
 .form-container {
@@ -649,7 +672,7 @@ header {
 
 .expense-form {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: 1rem;
     align-items: end;
 }
@@ -699,6 +722,7 @@ header {
     opacity: 1;
     border-radius: 4px;
     text-align: center;
+    grid-column: 1 / -1;
 }
 
 .form-message.success {
@@ -709,4 +733,46 @@ header {
 .form-message.error {
     background-color: rgba(239, 68, 68, 0.1);
     color: #EF4444;
+}
+
+.form-group-checkbox {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
+.form-group-checkbox label {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.styled-checkbox {
+    width: 1.25rem;
+    height: 1.25rem;
+    cursor: pointer;
+}
+
+.table-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.table-controls label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background-color: var(--bg-secondary);
+    transition: background-color 0.2s;
+}
+
+.table-controls label:hover {
+    background-color: var(--accent);
 }

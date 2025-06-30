@@ -9,6 +9,8 @@ import (
 	"github.com/tanq16/expenseowl/internal/web"
 )
 
+var version = "dev"
+
 func runServer() {
 	storage, err := storage.InitializeStorage()
 	if err != nil {
@@ -16,6 +18,16 @@ func runServer() {
 	}
 	defer storage.Close()
 	handler := api.NewHandler(storage)
+
+	// Version Handler
+	http.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		w.Header().Set("Content-Type", "text/plain")
+		w.Write([]byte(version))
+	})
 
 	// UI Handlers
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

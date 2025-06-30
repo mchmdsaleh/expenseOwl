@@ -26,6 +26,14 @@
             </div>
         </header>
 
+        <div class="info-field">
+            Version: <a id="version-link" href="https://github.com/tanq16/expenseowl/releases" target="_blank" rel="noopener noreferrer">dev</a>
+            <span class="separator">|</span>
+            <a href="https://github.com/tanq16/expenseowl/blob/main/README.md" target="_blank" rel="noopener noreferrer">Documentation</a>
+            <span class="separator">|</span>
+            <a href="https://github.com/tanq16/expenseowl" target="_blank" rel="noopener noreferrer">GitHub</a>
+        </div>
+
         <div class="form-container">
             <h2 align="center">Category Settings</h2>
             <div id="categories-manager">
@@ -343,6 +351,20 @@
                 renderCategories();
                 populateCurrencySelect();
                 populateStartDateInput();
+
+                fetch('/version').then(response => {
+                    if (response.ok) return response.text();
+                    throw new Error('Network response was not ok.');
+                }).then(version => {
+                    const versionLink = document.getElementById('version-link');
+                    versionLink.textContent = version;
+                    if (version !== 'dev') {
+                        versionLink.href = `https://github.com/tanq16/expenseowl/releases/tag/${version}`;
+                    }
+                }).catch(error => {
+                    console.error('Failed to fetch version:', error);
+                });
+
             } catch (error) {
                 console.error('Failed to initialize settings:', error);
                 showMessage('categoriesMessage', 'Failed to load settings', false);

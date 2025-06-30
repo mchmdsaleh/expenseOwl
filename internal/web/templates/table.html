@@ -31,6 +31,12 @@
             <div class="current-month" id="currentMonth"></div>
             <button id="nextMonth" class="nav-button"><i class="fa-solid fa-arrow-right"></i></button>
         </div>
+        
+        <div class="table-controls">
+            <label for="showAllToggle">
+                <input type="checkbox" id="showAllToggle" class="styled-checkbox"> Show All Transactions
+            </label>
+        </div>
 
         <div class="form-container">
             <form id="expenseForm" class="expense-form">
@@ -48,7 +54,7 @@
                 
                 <div class="form-group">
                     <label for="amount">Amount</label>
-                    <input type="number" id="amount" step="0.01" required>
+                    <input type="number" id="amount" step="0.01" min="0" required>
                 </div>
                 
                 <div class="form-group">
@@ -64,10 +70,14 @@
                     </script>
                 </div>
                 
+                <div class="form-group form-group-checkbox">
+                    <label for="reportGain">Report Gain</label>
+                    <input type="checkbox" id="reportGain" class="styled-checkbox">
+                </div>
+
                 <button type="submit" class="nav-button">Add Expense</button>
                 <div id="formMessage" class="form-message"></div>
             </form>
-            <div id="formMessage" class="form-message"></div>
         </div>
 
         <div id="tableContainer">
@@ -124,16 +134,22 @@
 
         function formatCurrency(amount) {
             const behavior = currencyBehaviors[currentCurrency] || { symbol: '$', useComma: false, useDecimals: true };
+            const isNegative = amount < 0;
+            const absAmount = Math.abs(amount);
+
             const options = {
                 minimumFractionDigits: behavior.useDecimals ? 2 : 0,
                 maximumFractionDigits: behavior.useDecimals ? 2 : 0,
             };
-            let formattedAmount = new Intl.NumberFormat(behavior.useComma ? 'de-DE' : 'en-US', options).format(amount);
+            let formattedAmount = new Intl.NumberFormat(behavior.useComma ? 'de-DE' : 'en-US', options).format(absAmount);
             const postfixCurrencies = new Set(['kr', 'kr.', 'Fr', 'zł']);
+            let result;
             if (postfixCurrencies.has(behavior.symbol)) {
-                return `${formattedAmount} ${behavior.symbol}`;
+                result = `${formattedAmount} ${behavior.symbol}`;
+            } else {
+                result = `${behavior.symbol}${formattedAmount}`;
             }
-            return `${behavior.symbol} ${formattedAmount}`;
+            return isNegative ? `-${result}` : result;
         }
 
         function formatMonth(date) {
@@ -221,7 +237,10 @@
 
         function createTable(expenses) {
             if (expenses.length === 0) {
-                return `<div class="no-data">No expenses recorded for this month</div>`;
+                const message = document.getElementById('showAllToggle').checked ? 
+                                'No transactions found' : 
+                                'No expenses recorded for this month';
+                return `<div class="no-data">${message}</div>`;
             }
             return `
                 <table class="expense-table">
@@ -257,24 +276,38 @@
         }
 
         function updateTable() {
-            const monthExpenses = getMonthExpenses(allExpenses);
+            const showAll = document.getElementById('showAllToggle').checked;
+            document.getElementById('prevMonth').disabled = showAll;
+            document.getElementById('nextMonth').disabled = showAll;
+            document.getElementById('currentMonth').style.visibility = showAll ? 'hidden' : 'visible';
+
+            const expensesToShow = showAll
+                ? allExpenses.slice().sort((a, b) => new Date(b.date) - new Date(a.date))
+                : getMonthExpenses(allExpenses);
+            
             const tableContainer = document.getElementById('tableContainer');
-            tableContainer.innerHTML = createTable(monthExpenses);
+            tableContainer.innerHTML = createTable(expensesToShow);
         }
 
         function editExpense(id, name, category, amount, date) {
+            const isGain = amount < 0;
             document.getElementById('name').value = name;
             document.getElementById('category').value = category;
-            document.getElementById('amount').value = amount;
+            document.getElementById('amount').value = Math.abs(amount);
+            document.getElementById('reportGain').checked = isGain;
+            
             const localDate = new Date(date);
             const year = localDate.getFullYear();
             const month = String(localDate.getMonth() + 1).padStart(2, '0');
             const day = String(localDate.getDate()).padStart(2, '0');
             document.getElementById('date').value = `${year}-${month}-${day}`;
+            
             const form = document.getElementById('expenseForm');
             form.dataset.editId = id;
             const submitButton = form.querySelector('button[type="submit"]');
             submitButton.textContent = 'Update Expense';
+            
+            form.scrollIntoView({ behavior: 'smooth' });
         }
 
         async function initialize() {
@@ -301,6 +334,8 @@
                     '<div class="no-data">Failed to load expenses</div>';
             }
         }
+
+        document.getElementById('showAllToggle').addEventListener('change', updateTable);
 
         document.getElementById('prevMonth').addEventListener('click', () => {
             currentDate.setMonth(currentDate.getMonth() - 1);
@@ -353,10 +388,16 @@
             e.preventDefault();
             const form = e.target;
             const editId = form.dataset.editId;
+            const isGain = document.getElementById('reportGain').checked;
+            let amount = parseFloat(document.getElementById('amount').value);
+            if (isGain) {
+                amount *= -1;
+            }
+
             const formData = {
                 name: document.getElementById('name').value,
                 category: document.getElementById('category').value,
-                amount: parseFloat(document.getElementById('amount').value),
+                amount: amount,
                 date: getISODateWithLocalTime(document.getElementById('date').value)
             };
             try {
@@ -397,7 +438,6 @@
         });
         document.addEventListener('DOMContentLoaded', initialize);
 
-        // event listener to remove the - from the name input when the user clicks on the input
         document.getElementById('name').addEventListener('click', (e) => {
             if (e.target.value === '-') {
                 e.target.value = '';
