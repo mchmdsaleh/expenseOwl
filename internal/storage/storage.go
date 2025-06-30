@@ -104,18 +104,16 @@ func backendTypeFromEnv(env string) BackendType {
 		return BackendTypeJSON
 	case "postgres":
 		return BackendTypePostgres
+	default:
+		return BackendTypeJSON
 	}
-	return BackendTypeJSON
 }
 
 func backendURLFromEnv(env string) string {
-	switch env {
-	case "json":
+	if env == "" {
 		return "data"
-	case "postgres":
-		return "" // not sure about default url
 	}
-	return "data"
+	return env
 }
 
 // initializes the storage backend
