@@ -34,6 +34,7 @@ func runServer() {
 	http.HandleFunc("/settings", handler.ServeSettingsPage)
 
 	// Static File Handlers
+	http.HandleFunc("/functions.js", handler.ServeStaticFile)
 	http.HandleFunc("/manifest.json", handler.ServeStaticFile)
 	http.HandleFunc("/sw.js", handler.ServeStaticFile)
 	http.HandleFunc("/pwa/", handler.ServeStaticFile)
