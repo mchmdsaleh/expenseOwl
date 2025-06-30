@@ -85,7 +85,7 @@ func (s *jsonStore) readExpensesFile(path string) (*expensesFileData, error) {
 }
 
 func (s *jsonStore) writeExpensesFile(path string, data *expensesFileData) error {
-	content, err := json.Marshal(data)
+	content, err := json.MarshalIndent(data, "", "    ")
 	if err != nil {
 		return err
 	}
@@ -107,7 +107,7 @@ func (s *jsonStore) readConfigFile(path string) (*Config, error) {
 }
 
 func (s *jsonStore) writeConfigFile(path string, data *Config) error {
-	content, err := json.Marshal(data)
+	content, err := json.MarshalIndent(data, "", "    ")
 	if err != nil {
 		return err
 	}
@@ -124,24 +124,24 @@ func (s *jsonStore) Close() error {
 }
 
 func (s *jsonStore) GetConfig() (*Config, error) {
-	data, err := s.readConfigFile(s.configPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read config file: %v", err)
-	}
-	return data, nil
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.readConfigFile(s.configPath)
 }
 
 // Basic Config Updates
 
 func (s *jsonStore) GetCategories() ([]string, error) {
-	data, err := s.readConfigFile(s.configPath)
+	config, err := s.GetConfig()
 	if err != nil {
-		return nil, fmt.Errorf("failed to read config file: %v", err)
+		return nil, err
 	}
-	return data.Categories, nil
+	return config.Categories, nil
 }
 
 func (s *jsonStore) UpdateCategories(categories []string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	data, err := s.readConfigFile(s.configPath)
 	if err != nil {
 		return fmt.Errorf("failed to read config file: %v", err)
@@ -151,17 +151,19 @@ func (s *jsonStore) UpdateCategories(categories []string) error {
 }
 
 func (s *jsonStore) GetCurrency() (string, error) {
-	data, err := s.readConfigFile(s.configPath)
+	config, err := s.GetConfig()
 	if err != nil {
-		return "", fmt.Errorf("failed to read config file: %v", err)
+		return "", err
 	}
-	return data.Currency, nil
+	return config.Currency, nil
 }
 
 func (s *jsonStore) UpdateCurrency(currency string) error {
 	if !slices.Contains(supportedCurrencies, currency) {
 		return fmt.Errorf("invalid currency: %s", currency)
 	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	data, err := s.readConfigFile(s.configPath)
 	if err != nil {
 		return fmt.Errorf("failed to read config file: %v", err)
@@ -171,14 +173,16 @@ func (s *jsonStore) UpdateCurrency(currency string) error {
 }
 
 func (s *jsonStore) GetTags() ([]string, error) {
-	data, err := s.readConfigFile(s.configPath)
+	config, err := s.GetConfig()
 	if err != nil {
-		return nil, fmt.Errorf("failed to read config file: %v", err)
+		return nil, err
 	}
-	return data.Tags, nil
+	return config.Tags, nil
 }
 
 func (s *jsonStore) UpdateTags(tags []string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	data, err := s.readConfigFile(s.configPath)
 	if err != nil {
 		return fmt.Errorf("failed to read config file: %v", err)
@@ -188,17 +192,19 @@ func (s *jsonStore) UpdateTags(tags []string) error {
 }
 
 func (s *jsonStore) GetStartDate() (int, error) {
-	data, err := s.readConfigFile(s.configPath)
+	config, err := s.GetConfig()
 	if err != nil {
-		return 0, fmt.Errorf("failed to read config file: %v", err)
+		return 0, err
 	}
-	return data.StartDate, nil
+	return config.StartDate, nil
 }
 
 func (s *jsonStore) UpdateStartDate(startDate int) error {
-	if startDate < 0 || startDate > 31 {
+	if startDate < 1 || startDate > 31 {
 		return fmt.Errorf("invalid start date: %d", startDate)
 	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	data, err := s.readConfigFile(s.configPath)
 	if err != nil {
 		return fmt.Errorf("failed to read config file: %v", err)
@@ -209,92 +215,161 @@ func (s *jsonStore) UpdateStartDate(startDate int) error {
 
 // Recurring Expenses
 
-func (s *jsonStore) GetRecurringExpenses() ([]RecurringExpense, error) {
-	data, err := s.readConfigFile(s.configPath)
-	if err != nil {
-		return []RecurringExpense{}, fmt.Errorf("failed to read config file: %v", err)
+func generateExpensesFromRecurring(recExp RecurringExpense, fromToday bool) []Expense {
+	var expenses []Expense
+	currentDate := recExp.StartDate
+	today := time.Now()
+	occurrencesToGenerate := recExp.Occurrences
+	if fromToday {
+		for currentDate.Before(today) && occurrencesToGenerate > 0 {
+			switch recExp.Interval {
+			case "daily":
+				currentDate = currentDate.AddDate(0, 0, 1)
+			case "weekly":
+				currentDate = currentDate.AddDate(0, 0, 7)
+			case "monthly":
+				currentDate = currentDate.AddDate(0, 1, 0)
+			case "yearly":
+				currentDate = currentDate.AddDate(1, 0, 0)
+			default:
+				return expenses // Stop if interval is invalid
+			}
+			occurrencesToGenerate--
+		}
 	}
-	return data.RecurringExpenses, nil
+	for i := 0; i < occurrencesToGenerate; i++ {
+		expense := Expense{
+			ID:          uuid.New().String(),
+			RecurringID: recExp.ID,
+			Name:        recExp.Name,
+			Category:    recExp.Category,
+			Amount:      recExp.Amount,
+			Date:        currentDate,
+			Tags:        recExp.Tags,
+		}
+		expenses = append(expenses, expense)
+		switch recExp.Interval {
+		case "daily":
+			currentDate = currentDate.AddDate(0, 0, 1)
+		case "weekly":
+			currentDate = currentDate.AddDate(0, 0, 7)
+		case "monthly":
+			currentDate = currentDate.AddDate(0, 1, 0)
+		case "yearly":
+			currentDate = currentDate.AddDate(1, 0, 0)
+		default:
+			return expenses
+		}
+	}
+	return expenses
+}
+
+func (s *jsonStore) addMultipleExpenses(expensesToAdd []Expense) error {
+	if len(expensesToAdd) == 0 {
+		return nil
+	}
+	data, err := s.readExpensesFile(s.filePath)
+	if err != nil {
+		return fmt.Errorf("failed to read storage file: %v", err)
+	}
+	data.Expenses = append(data.Expenses, expensesToAdd...)
+	log.Printf("Added %d new recurring expense instances\n", len(expensesToAdd))
+	return s.writeExpensesFile(s.filePath, data)
+}
+
+func (s *jsonStore) GetRecurringExpenses() ([]RecurringExpense, error) {
+	config, err := s.GetConfig()
+	if err != nil {
+		return nil, err
+	}
+	return config.RecurringExpenses, nil
 }
 
 func (s *jsonStore) GetRecurringExpense(id string) (RecurringExpense, error) {
-	data, err := s.readConfigFile(s.configPath)
+	recurringExpenses, err := s.GetRecurringExpenses()
 	if err != nil {
-		return RecurringExpense{}, fmt.Errorf("failed to read config file: %v", err)
+		return RecurringExpense{}, err
 	}
-	for i, r := range data.RecurringExpenses {
+	for _, r := range recurringExpenses {
 		if r.ID == id {
-			return data.RecurringExpenses[i], nil
+			return r, nil
 		}
 	}
 	return RecurringExpense{}, fmt.Errorf("recurring expense with ID %s not found", id)
 }
 
 func (s *jsonStore) AddRecurringExpense(recurringExpense RecurringExpense) error {
-	data, err := s.readConfigFile(s.configPath)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	config, err := s.readConfigFile(s.configPath)
 	if err != nil {
 		return fmt.Errorf("failed to read config file: %v", err)
 	}
 	if recurringExpense.ID == "" {
 		recurringExpense.ID = uuid.New().String()
 	}
-	data.RecurringExpenses = append(data.RecurringExpenses, recurringExpense)
-	return s.writeConfigFile(s.configPath, data)
+	config.RecurringExpenses = append(config.RecurringExpenses, recurringExpense)
+	if err := s.writeConfigFile(s.configPath, config); err != nil {
+		return fmt.Errorf("failed to write config file: %v", err)
+	}
+	expensesToAdd := generateExpensesFromRecurring(recurringExpense, false)
+	return s.addMultipleExpenses(expensesToAdd)
 }
 
 func (s *jsonStore) RemoveRecurringExpense(id string, removeAll bool) error {
-	data, err := s.readConfigFile(s.configPath)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	config, err := s.readConfigFile(s.configPath)
 	if err != nil {
 		return fmt.Errorf("failed to read config file: %v", err)
 	}
-	found := false
-	for i, r := data.RecurringExpenses {
+	var found bool
+	var updatedRecurringExpenses []RecurringExpense
+	for _, r := range config.RecurringExpenses {
 		if r.ID == id {
-			err := s.deleteMultipleHelper(id, removeAll)
-			if err != nil {
-				return err
-			}
-			data.RecurringExpenses = slices.Delete(data.RecurringExpenses, i, i+1)
 			found = true
-			break
+		} else {
+			updatedRecurringExpenses = append(updatedRecurringExpenses, r)
 		}
 	}
 	if !found {
 		return fmt.Errorf("recurring expense with ID %s not found", id)
 	}
-	return s.writeConfigFile(s.configPath, data)
-}
-
-func (s *jsonStore) deleteMultipleHelper(id string, removeAll bool) error {
-	data, err := s.readExpensesFile(s.filePath)
+	config.RecurringExpenses = updatedRecurringExpenses
+	expensesData, err := s.readExpensesFile(s.filePath)
 	if err != nil {
 		return fmt.Errorf("failed to read storage file: %v", err)
 	}
+	var updatedExpenses []Expense
 	today := time.Now()
-	for i, exp := range data.Expenses {
-		if exp.RecurringID == id {
-			if removeAll {
-				data.Expenses = slices.Delete(data.Expenses, i, i+1)
-			} else {
-				if exp.Date.After(today) {
-					data.Expenses = slices.Delete(data.Expenses, i, i+1)
-				}
-			}
+	for _, exp := range expensesData.Expenses {
+		if exp.RecurringID != id {
+			updatedExpenses = append(updatedExpenses, exp)
+			continue
+		}
+		if !removeAll && !exp.Date.After(today) {
+			updatedExpenses = append(updatedExpenses, exp)
 		}
 	}
-	return s.writeExpensesFile(s.filePath, data)
+	expensesData.Expenses = updatedExpenses
+	if err := s.writeExpensesFile(s.filePath, expensesData); err != nil {
+		return err
+	}
+	return s.writeConfigFile(s.configPath, config)
 }
 
 func (s *jsonStore) UpdateRecurringExpense(id string, recurringExpense RecurringExpense, updateAll bool) error {
-	data, err := s.readConfigFile(s.configPath)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	config, err := s.readConfigFile(s.configPath)
 	if err != nil {
 		return fmt.Errorf("failed to read config file: %v", err)
 	}
-	found := false
-	for i, r := range data.RecurringExpenses {
+	var found bool
+	for i, r := range config.RecurringExpenses {
 		if r.ID == id {
-			data.RecurringExpenses[i] = recurringExpense
-			data.RecurringExpenses[i].ID = id
+			recurringExpense.ID = id // Ensure ID is preserved
+			config.RecurringExpenses[i] = recurringExpense
 			found = true
 			break
 		}
@@ -302,34 +377,28 @@ func (s *jsonStore) UpdateRecurringExpense(id string, recurringExpense Recurring
 	if !found {
 		return fmt.Errorf("recurring expense with ID %s not found", id)
 	}
-	if err := s.updateMultipleHelper(id, recurringExpense, updateAll); err != nil {
-		return err
-	}
-	return s.writeConfigFile(s.configPath, data)
-}
-
-func (s *jsonStore) updateMultipleHelper(id string, recExp RecurringExpense, updateAll bool) error {
-	data, err := s.readExpensesFile(s.filePath)
+	expensesData, err := s.readExpensesFile(s.filePath)
 	if err != nil {
 		return fmt.Errorf("failed to read storage file: %v", err)
 	}
+	var remainingExpenses []Expense
 	today := time.Now()
-	for i, exp := range data.Expenses {
-		if exp.RecurringID == id {
-			if updateAll {
-				exp.Amount = recExp.Amount
-				exp.Name = recExp.Name
-				data.Expenses[i] = exp
-			} else {
-				if exp.Date.After(today) {
-					exp.Amount = recExp.Amount
-					exp.Name = recExp.Name
-					data.Expenses[i] = exp
-				}
-			}
+	for _, exp := range expensesData.Expenses {
+		if exp.RecurringID != id {
+			remainingExpenses = append(remainingExpenses, exp)
+			continue
+		}
+		if !updateAll && !exp.Date.After(today) {
+			remainingExpenses = append(remainingExpenses, exp)
 		}
 	}
-	return s.writeExpensesFile(s.filePath, data)
+	expensesData.Expenses = remainingExpenses
+	expensesToAdd := generateExpensesFromRecurring(recurringExpense, !updateAll)
+	expensesData.Expenses = append(expensesData.Expenses, expensesToAdd...)
+	if err := s.writeExpensesFile(s.filePath, expensesData); err != nil {
+		return err
+	}
+	return s.writeConfigFile(s.configPath, config)
 }
 
 // Expenses

@@ -47,9 +47,11 @@ type Config struct {
 }
 
 type RecurringExpense struct {
-	ID          string    `json:"id"`
-	Name        string    `json:"name"`
-	Amount      float64   `json:"amount"`
+	ID          string  `json:"id"`
+	Name        string  `json:"name"`
+	Amount      float64 `json:"amount"`
+	Tags        []string
+	Category    string
 	StartDate   time.Time `json:"startDate"`   // date of the first occurrence
 	Interval    string    `json:"interval"`    // daily, weekly, monthly, yearly
 	Occurrences int       `json:"occurrences"` // 0 for 10 years (heuristic), 10 for 10 occurrences
@@ -127,6 +129,30 @@ func InitializeStorage() (Storage, error) {
 		return InitializePostgresStore(baseConfig)
 	}
 	return nil, fmt.Errorf("invalid data store: %s", baseConfig.StorageType)
+}
+
+func (e *Expense) Validate() error {
+	if e.Amount == 0 || e.Name == "" || e.Category == "" {
+		return fmt.Errorf("missing required fields")
+	}
+	return nil
+}
+
+func (e *RecurringExpense) Validate() error {
+	if e.Amount == 0 || e.Name == "" || e.Category == "" {
+		return fmt.Errorf("missing required fields")
+	} else if e.Occurrences < 0 {
+		return fmt.Errorf("unexpected value for occurrences")
+	}
+	switch e.Interval {
+	case "daily":
+	case "weekly":
+	case "monthly":
+	case "yearly":
+	default:
+		return fmt.Errorf("invalid valude for interval")
+	}
+	return nil
 }
 
 // variables

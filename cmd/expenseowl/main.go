@@ -11,37 +11,13 @@ import (
 
 func runServer() {
 	storage, err := storage.InitializeStorage()
-	defer storage.Close()
 	if err != nil {
 		log.Fatalf("Failed to initialize storage: %v", err)
 	}
-	cfg, err := storage.GetConfig()
-	if err != nil {
-		log.Fatalf("Failed to get config: %v", err)
-	}
-	handler := api.NewHandler(storage, cfg)
-	http.HandleFunc("/categories", handler.GetCategories)
-	http.HandleFunc("/categories/edit", handler.EditCategories)
-	http.HandleFunc("/currency", handler.EditCurrency)
-	http.HandleFunc("/startdate", handler.EditStartDate)
-	http.HandleFunc("/expense", handler.AddExpense)
-	http.HandleFunc("/expenses", handler.GetExpenses)
-	http.HandleFunc("/expense/edit", handler.EditExpense)
-	http.HandleFunc("/table", handler.ServeTableView)
-	http.HandleFunc("/settings", handler.ServeSettingsPage)
-	http.HandleFunc("/expense/delete", handler.DeleteExpense)
-	http.HandleFunc("/export/json", handler.ExportJSON)
-	http.HandleFunc("/import/csv", handler.ImportCSV)
-	http.HandleFunc("/import/json", handler.ImportJSON)
-	http.HandleFunc("/export/csv", handler.ExportCSV)
-	http.HandleFunc("/manifest.json", handler.ServeStaticFile)
-	http.HandleFunc("/sw.js", handler.ServeStaticFile)
-	http.HandleFunc("/pwa/", handler.ServeStaticFile)
-	http.HandleFunc("/style.css", handler.ServeStaticFile)
-	http.HandleFunc("/favicon.ico", handler.ServeStaticFile)
-	http.HandleFunc("/chart.min.js", handler.ServeStaticFile)
-	http.HandleFunc("/fa.min.css", handler.ServeStaticFile)
-	http.HandleFunc("/webfonts/", handler.ServeStaticFile)
+	defer storage.Close()
+	handler := api.NewHandler(storage)
+
+	// UI Handlers
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
 			http.NotFound(w, r)
@@ -54,7 +30,44 @@ func runServer() {
 			return
 		}
 	})
-	log.Printf("Starting server on port 8080...\n")
+	http.HandleFunc("/table", handler.ServeTableView)
+	http.HandleFunc("/settings", handler.ServeSettingsPage)
+
+	// Static File Handlers
+	http.HandleFunc("/manifest.json", handler.ServeStaticFile)
+	http.HandleFunc("/sw.js", handler.ServeStaticFile)
+	http.HandleFunc("/pwa/", handler.ServeStaticFile)
+	http.HandleFunc("/style.css", handler.ServeStaticFile)
+	http.HandleFunc("/favicon.ico", handler.ServeStaticFile)
+	http.HandleFunc("/chart.min.js", handler.ServeStaticFile)
+	http.HandleFunc("/fa.min.css", handler.ServeStaticFile)
+	http.HandleFunc("/webfonts/", handler.ServeStaticFile)
+
+	// Config
+	http.HandleFunc("/config", handler.GetConfig)
+	http.HandleFunc("/categories/edit", handler.UpdateCategories)
+	http.HandleFunc("/currency", handler.UpdateCurrency)
+	http.HandleFunc("/startdate", handler.UpdateStartDate)
+	http.HandleFunc("/tags/edit", handler.UpdateTags)
+
+	// Expenses
+	http.HandleFunc("/expense", handler.AddExpense)                     // PUT for add
+	http.HandleFunc("/expenses", handler.GetExpenses)                   // GET all
+	http.HandleFunc("/expense/edit", handler.EditExpense)               // PUT for edit
+	http.HandleFunc("/expense/delete", handler.DeleteExpense)           // DELETE for single
+	http.HandleFunc("/expenses/delete", handler.DeleteMultipleExpenses) // DELETE for multiple
+
+	// Recurring Expenses
+	http.HandleFunc("/recurring-expense", handler.AddRecurringExpense)           // PUT for add
+	http.HandleFunc("/recurring-expenses", handler.GetRecurringExpenses)         // GET all
+	http.HandleFunc("/recurring-expense/edit", handler.UpdateRecurringExpense)   // PUT for edit
+	http.HandleFunc("/recurring-expense/delete", handler.DeleteRecurringExpense) // DELETE
+
+	// Import/Export
+	// http.HandleFunc("/export/csv", handler.ExportCSV)
+	// http.HandleFunc("/import/csv", handler.ImportCSV)
+
+	log.Println("Starting server on port 8080...")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatalf("Server failed to start: %v", err)
 	}
