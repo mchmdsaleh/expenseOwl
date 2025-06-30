@@ -51,6 +51,15 @@
                         <option value="">categories</option>
                     </select>
                 </div>
+
+                <div class="form-group">
+                    <label for="tags-input">Tags</label>
+                    <div class="tags-input-container">
+                        <div id="selected-tags" class="selected-tags"></div>
+                        <input type="text" id="tags-input" placeholder="Add tags...">
+                    </div>
+                    <div id="tags-dropdown" class="tags-dropdown"></div>
+                </div>
                 
                 <div class="form-group">
                     <label for="amount">Amount</label>
@@ -100,6 +109,9 @@
         let currentDate = new Date();
         let allExpenses = [];
         let startDate = 1;
+
+        let allTags = new Set();
+        let selectedTags = new Set();
 
         const currencyBehaviors = {
             "usd": { symbol: "$", useComma: false, useDecimals: true },
@@ -248,6 +260,7 @@
                         <tr>
                             <th>Name</th>
                             <th>Category</th>
+                            <th>Tags</th>
                             <th>Amount</th>
                             <th class="date-header">Date</th>
                             <th></th>
@@ -258,10 +271,11 @@
                             <tr>
                                 <td>${expense.name}</td>
                                 <td>${expense.category}</td>
+                                <td>${(expense.tags || []).join(', ')}</td>
                                 <td class="amount">${formatCurrency(expense.amount)}</td>
                                 <td class="date-column">${formatDateFromUTC(expense.date)}</td>
                                 <td>
-                                    <button class="delete-button" onclick="editExpense('${expense.id}', '${expense.name}', '${expense.category}', ${expense.amount}, '${expense.date}')">
+                                    <button class="delete-button" onclick="editExpense('${expense.id}', '${expense.name}', '${expense.category}', ${expense.amount}, '${JSON.stringify(expense.tags || [])}', '${expense.date}')">
                                         <i class="fa-solid fa-pen-to-square"></i>
                                     </button>
                                     <button class="delete-button" onclick="handleDeleteClick(event, '${expense.id}')">
@@ -289,12 +303,35 @@
             tableContainer.innerHTML = createTable(expensesToShow);
         }
 
-        function editExpense(id, name, category, amount, date) {
+        function renderSelectedTags(tags) {
+            const selectedContainer = document.getElementById('selected-tags');
+            selectedContainer.innerHTML = '';
+            selectedTags.clear();
+            (tags || []).forEach(tag => {
+                selectedTags.add(tag);
+                const pill = document.createElement('div');
+                pill.className = 'tag-pill';
+                pill.textContent = tag;
+                const removeBtn = document.createElement('span');
+                removeBtn.className = 'remove-tag';
+                removeBtn.textContent = '×';
+                removeBtn.onclick = () => {
+                    selectedTags.delete(tag);
+                    pill.remove();
+                };
+                pill.appendChild(removeBtn);
+                selectedContainer.appendChild(pill);
+            });
+        }
+
+        function editExpense(id, name, category, amount, tagsJSON, date) {
+            const tags = JSON.parse(tagsJSON);
             const isGain = amount < 0;
             document.getElementById('name').value = name;
             document.getElementById('category').value = category;
             document.getElementById('amount').value = Math.abs(amount);
             document.getElementById('reportGain').checked = isGain;
+            renderSelectedTags(tags);
             
             const localDate = new Date(date);
             const year = localDate.getFullYear();
@@ -308,6 +345,79 @@
             submitButton.textContent = 'Update Expense';
             
             form.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function setupTagInput() {
+            const container = document.getElementById('tags-input-container');
+            const input = document.getElementById('tags-input');
+            const dropdown = document.getElementById('tags-dropdown');
+            const selectedContainer = document.getElementById('selected-tags');
+
+            const addTag = (tag) => {
+                tag = tag.trim();
+                if (tag && !selectedTags.has(tag)) {
+                    selectedTags.add(tag);
+                    renderSelectedTags(Array.from(selectedTags));
+                }
+                input.value = '';
+                dropdown.style.display = 'none';
+            };
+
+            input.addEventListener('focus', () => {
+                dropdown.innerHTML = '';
+                const availableTags = [...allTags].filter(tag => !selectedTags.has(tag));
+                if (availableTags.length > 0) {
+                    availableTags.forEach(tag => {
+                        const item = document.createElement('div');
+                        item.textContent = tag;
+                        item.onclick = () => addTag(tag);
+                        dropdown.appendChild(item);
+                    });
+                    dropdown.style.display = 'block';
+                }
+            });
+
+            input.addEventListener('input', () => {
+                const value = input.value.trim().toLowerCase();
+                dropdown.innerHTML = '';
+                const filteredTags = [...allTags].filter(tag => tag.toLowerCase().includes(value) && !selectedTags.has(tag));
+                
+                if(value && !allTags.has(value) && !selectedTags.has(value)) {
+                    const newItem = document.createElement('div');
+                    newItem.textContent = `+ Create "${value}"`;
+                    newItem.className = 'new-tag';
+                    newItem.onclick = () => addTag(value);
+                    dropdown.appendChild(newItem);
+                }
+
+                if (filteredTags.length > 0) {
+                    filteredTags.forEach(tag => {
+                        const item = document.createElement('div');
+                        item.textContent = tag;
+                        item.onclick = () => addTag(tag);
+                        dropdown.appendChild(item);
+                    });
+                }
+                
+                dropdown.style.display = 'block';
+                if (dropdown.children.length === 0) dropdown.style.display = 'none';
+            });
+
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (input.value.trim()) {
+                        addTag(input.value.trim());
+                    }
+                }
+            });
+
+            container.addEventListener('click', () => input.focus());
+            document.addEventListener('click', (e) => {
+                if (!container.contains(e.target)) {
+                    dropdown.style.display = 'none';
+                }
+            });
         }
 
         async function initialize() {
@@ -326,8 +436,16 @@
                 if (!response.ok) throw new Error('Failed to fetch data');
                 allExpenses = await response.json();
                 
+                allTags.clear();
+                allExpenses.forEach(exp => {
+                    if (exp.tags) {
+                        exp.tags.forEach(tag => allTags.add(tag));
+                    }
+                });
+
                 updateMonthDisplay();
                 updateTable();
+                setupTagInput();
             } catch (error) {
                 console.error('Failed to initialize table:', error);
                 document.getElementById('tableContainer').innerHTML = 
@@ -407,7 +525,8 @@
                 name: document.getElementById('name').value,
                 category: document.getElementById('category').value,
                 amount: amount,
-                date: getISODateWithLocalTime(document.getElementById('date').value)
+                date: getISODateWithLocalTime(document.getElementById('date').value),
+                tags: Array.from(selectedTags)
             };
             try {
                 const url = editId ? `/expense/edit?id=${editId}` : '/expense';
@@ -421,6 +540,8 @@
                     messageDiv.textContent = editId ? 'Expense updated successfully!' : 'Expense added successfully!';
                     messageDiv.className = 'form-message success';
                     form.reset();
+                    document.getElementById('selected-tags').innerHTML = '';
+                    selectedTags.clear();
                     delete form.dataset.editId;
                     form.querySelector('button[type="submit"]').textContent = 'Add Expense';
                     await initialize();

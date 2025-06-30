@@ -80,21 +80,21 @@ func createTables(db *sql.DB) error {
 
 // saveConfig writes the configuration to the database.
 func (s *databaseStore) saveConfig(config *Config) error {
-	categoriesJSON, _ := json.Marshal(config.Categories)
-	tagsJSON, _ := json.Marshal(config.Tags)
-	recurringExpensesJSON, _ := json.Marshal(config.RecurringExpenses)
-	query := `
-		INSERT INTO config (id, categories, currency, start_date, tags, recurring_expenses)
-		VALUES ('default', $1, $2, $3, $4, $5)
-		ON CONFLICT (id) DO UPDATE SET
-			categories = EXCLUDED.categories,
-			currency = EXCLUDED.currency,
-			start_date = EXCLUDED.start_date,
-			tags = EXCLUDED.tags,
-			recurring_expenses = EXCLUDED.recurring_expenses;
-	`
-	_, err := s.db.Exec(query, string(categoriesJSON), config.Currency, config.StartDate, string(tagsJSON), string(recurringExpensesJSON))
-	return err
+	// categoriesJSON, _ := json.Marshal(config.Categories)
+	// // tagsJSON, _ := json.Marshal(config.Tags)
+	// recurringExpensesJSON, _ := json.Marshal(config.RecurringExpenses)
+	// query := `
+	// 	INSERT INTO config (id, categories, currency, start_date, tags, recurring_expenses)
+	// 	VALUES ('default', $1, $2, $3, $4, $5)
+	// 	ON CONFLICT (id) DO UPDATE SET
+	// 		categories = EXCLUDED.categories,
+	// 		currency = EXCLUDED.currency,
+	// 		start_date = EXCLUDED.start_date,
+	// 		tags = EXCLUDED.tags,
+	// 		recurring_expenses = EXCLUDED.recurring_expenses;
+	// `
+	// _, err := s.db.Exec(query, string(categoriesJSON), config.Currency, config.StartDate, string(tagsJSON), string(recurringExpensesJSON))
+	return nil
 }
 
 // ------------------------------------------------------------
@@ -124,9 +124,9 @@ func (s *databaseStore) GetConfig() (*Config, error) {
 	if err := json.Unmarshal([]byte(categoriesStr), &config.Categories); err != nil {
 		return nil, fmt.Errorf("failed to parse categories: %v", err)
 	}
-	if err := json.Unmarshal([]byte(tagsStr), &config.Tags); err != nil {
-		return nil, fmt.Errorf("failed to parse tags: %v", err)
-	}
+	// if err := json.Unmarshal([]byte(tagsStr), &config.Tags); err != nil {
+	// 	return nil, fmt.Errorf("failed to parse tags: %v", err)
+	// }
 	if err := json.Unmarshal([]byte(recurringExpensesStr), &config.RecurringExpenses); err != nil {
 		// It's possible for this to be null, so handle it gracefully
 		config.RecurringExpenses = []RecurringExpense{}
@@ -192,19 +192,19 @@ func (s *databaseStore) UpdateStartDate(startDate int) error {
 	})
 }
 
-func (s *databaseStore) GetTags() ([]string, error) {
-	config, err := s.GetConfig()
-	if err != nil {
-		return nil, err
-	}
-	return config.Tags, nil
-}
+// func (s *databaseStore) GetTags() ([]string, error) {
+// 	config, err := s.GetConfig()
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	return config.Tags, nil
+// }
 
-func (s *databaseStore) UpdateTags(tags []string) error {
-	return s.UpdateConfig(func(c *Config) {
-		c.Tags = tags
-	})
-}
+// func (s *databaseStore) UpdateTags(tags []string) error {
+// 	return s.UpdateConfig(func(c *Config) {
+// 		c.Tags = tags
+// 	})
+// }
 
 func (s *databaseStore) GetAllExpenses() ([]Expense, error) {
 	query := `SELECT id, recurring_id, name, category, amount, date, tags FROM expenses ORDER BY date DESC`

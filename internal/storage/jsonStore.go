@@ -172,24 +172,24 @@ func (s *jsonStore) UpdateCurrency(currency string) error {
 	return s.writeConfigFile(s.configPath, data)
 }
 
-func (s *jsonStore) GetTags() ([]string, error) {
-	config, err := s.GetConfig()
-	if err != nil {
-		return nil, err
-	}
-	return config.Tags, nil
-}
+// func (s *jsonStore) GetTags() ([]string, error) {
+// 	config, err := s.GetConfig()
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	return config.Tags, nil
+// }
 
-func (s *jsonStore) UpdateTags(tags []string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	data, err := s.readConfigFile(s.configPath)
-	if err != nil {
-		return fmt.Errorf("failed to read config file: %v", err)
-	}
-	data.Tags = tags
-	return s.writeConfigFile(s.configPath, data)
-}
+// func (s *jsonStore) UpdateTags(tags []string) error {
+// 	s.mu.Lock()
+// 	defer s.mu.Unlock()
+// 	data, err := s.readConfigFile(s.configPath)
+// 	if err != nil {
+// 		return fmt.Errorf("failed to read config file: %v", err)
+// 	}
+// 	data.Tags = tags
+// 	return s.writeConfigFile(s.configPath, data)
+// }
 
 func (s *jsonStore) GetStartDate() (int, error) {
 	config, err := s.GetConfig()

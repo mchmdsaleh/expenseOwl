@@ -64,8 +64,8 @@ func runServer() {
 	http.HandleFunc("/currency/edit", handler.UpdateCurrency)
 	http.HandleFunc("/startdate", handler.GetStartDate)
 	http.HandleFunc("/startdate/edit", handler.UpdateStartDate)
-	http.HandleFunc("/tags", handler.GetTags)
-	http.HandleFunc("/tags/edit", handler.UpdateTags)
+	// http.HandleFunc("/tags", handler.GetTags)
+	// http.HandleFunc("/tags/edit", handler.UpdateTags)
 
 	// Expenses
 	http.HandleFunc("/expense", handler.AddExpense)                     // PUT for add
