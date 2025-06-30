@@ -48,6 +48,20 @@
             </div>
         </div>
 
+        <div class="form-container">
+            <h2 align="center">Tag Settings</h2>
+            <div id="tags-manager">
+                <div id="tags-list" class="categories-list">
+                </div>
+                <div class="category-input-container">
+                    <input type="text" id="newTag" placeholder="Add new tag">
+                    <button id="addTag" class="nav-button">Add</button>
+                </div>
+                <button id="saveTags" class="nav-button">Save Tags</button>
+                <div id="tagsMessage" class="form-message"></div>
+            </div>
+        </div>
+
         <div class="settings-container">
             <div class="form-container half-width">
                 <h2 align="center">Currency Settings</h2>
@@ -68,27 +82,73 @@
                 <div id="startDateMessage" class="form-message"></div>
             </div>
         </div>
+        
+        <div class="form-container">
+            <h2 align="center">Recurring Expenses</h2>
+            <form id="recurringExpenseForm" class="expense-form recurring-expense-form">
+                <div class="form-group">
+                    <label for="recurringName">Name</label>
+                    <input type="text" id="recurringName" required>
+                </div>
+                <div class="form-group">
+                    <label for="recurringAmount">Amount</label>
+                    <input type="number" id="recurringAmount" step="0.01" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label for="recurringCategory">Category</label>
+                    <select id="recurringCategory" required></select>
+                </div>
+                <div class="form-group">
+                    <label for="recurringTags">Tags (comma-separated)</label>
+                    <input type="text" id="recurringTags">
+                </div>
+                <div class="form-group">
+                    <label for="recurringInterval">Interval</label>
+                    <select id="recurringInterval" required>
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                        <option value="yearly">Yearly</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="recurringStartDate">Start Date</label>
+                    <input type="date" id="recurringStartDate" required>
+                </div>
+                <div class="form-group">
+                    <label for="recurringOccurrences">Occurrences (0 for indefinite)</label>
+                    <input type="number" id="recurringOccurrences" min="0" value="0" required>
+                </div>
+                <div class="form-group form-group-checkbox">
+                    <label for="recurringReportGain">Report Gain</label>
+                    <input type="checkbox" id="recurringReportGain" class="styled-checkbox">
+                </div>
+                <button type="submit" class="nav-button">Add Recurring Expense</button>
+            </form>
+            <div id="recurringExpenseMessage" class="form-message"></div>
+            <h3 align="center" style="margin-top: 2rem;">Existing Recurring Expenses</h3>
+            <div id="recurring-expenses-list">
+            </div>
+        </div>
 
         <div class="form-container">
             <h2 align="center">Import/Export Data</h2>
             <div class="export-buttons">
-                <!-- <a href="/export/csv" class="nav-button" download="expenses.csv">
-                    <i class="fa-solid fa-file-csv"></i> Export CSV
-                </a>
-                <a href="/export/json" class="nav-button" download="expenses.json">
-                    <i class="fa-solid fa-file-code"></i> Export JSON
-                </a>
-                <label for="csvFile" class="nav-button">
-                    <i class="fa-solid fa-file-csv"></i> Import CSV
-                </label>
-                <input type="file" id="csvFile" accept=".csv" style="display: none;">
-                <label for="jsonFile" class="nav-button">
-                    <i class="fa-solid fa-file-code"></i> Import JSON
-                </label>
-                <input type="file" id="jsonFile" accept=".json" style="display: none;"> -->
             </div>
             <div id="importMessage" class="form-message"></div>
             <div id="importSummary" class="import-summary" style="display: none;"></div>
+        </div>
+    </div>
+
+    <div id="deleteRecurringModal" class="modal">
+        <div class="modal-content">
+            <h3>Delete Recurring Expense</h3>
+            <p>Do you want to delete all instances of this expense, or only future ones?</p>
+            <div class="modal-buttons">
+                <button class="modal-button" onclick="closeRecurringDeleteModal()">Cancel</button>
+                <button class="modal-button" onclick="confirmRecurringDelete(false)">Delete Future</button>
+                <button class="modal-button confirm" onclick="confirmRecurringDelete(true)">Delete All</button>
+            </div>
         </div>
     </div>
 
@@ -125,9 +185,11 @@
         };
 
         let categories = [];
+        let tags = [];
         let currentCurrency = "usd";
         let currentStartDate = 1;
         let draggedItem = null;
+        let recurringExpenseToDelete = null;
 
         function showMessage(elementId, message, isSuccess) {
             const messageDiv = document.getElementById(elementId);
@@ -139,6 +201,7 @@
             }, 3000);
         }
 
+        // --- Category Management ---
         function renderCategories() {
             const list = document.getElementById('categories-list');
             list.innerHTML = '';
@@ -156,13 +219,11 @@
                         <i class="fa-solid fa-times"></i>
                     </button>
                 `;
-                
                 item.addEventListener('dragstart', handleDragStart);
                 item.addEventListener('dragover', handleDragOver);
                 item.addEventListener('dragleave', handleDragLeave);
                 item.addEventListener('dragend', handleDragEnd);
                 item.addEventListener('drop', handleDrop);
-                
                 list.appendChild(item);
             });
         }
@@ -195,23 +256,13 @@
             return false;
         }
 
-        function handleDragLeave(e) {
-            this.classList.remove('drag-over');
-        }
-
-        function handleDragEnd(e) {
+        function handleDragLeave() { this.classList.remove('drag-over'); }
+        function handleDragEnd() {
             this.classList.remove('dragging');
-            document.querySelectorAll('.category-item').forEach(item => {
-                item.classList.remove('drag-over');
-            });
+            document.querySelectorAll('.category-item, .tag-item').forEach(item => item.classList.remove('drag-over'));
             removePlaceholders();
         }
-        
-        function removePlaceholders() {
-            document.querySelectorAll('.placeholder').forEach(placeholder => {
-                placeholder.remove();
-            });
-        }
+        function removePlaceholders() { document.querySelectorAll('.placeholder').forEach(p => p.remove()); }
 
         function handleDrop(e) {
             e.stopPropagation();
@@ -220,22 +271,14 @@
             if (draggedItem !== this) {
                 const fromIndex = parseInt(draggedItem.dataset.index, 10);
                 let toIndex = parseInt(this.dataset.index, 10);
-                
                 const rect = this.getBoundingClientRect();
-                const clientY = e.clientY;
-                const threshold = rect.top + (rect.height / 2);
-                const isBefore = clientY < threshold;
-
-                if (!isBefore) {
-                    toIndex++;
-                }
-                if (fromIndex < toIndex) {
-                    toIndex--;
-                }
-
-                const movedItem = categories.splice(fromIndex, 1)[0];
-                categories.splice(toIndex, 0, movedItem);
-                renderCategories();
+                const isBefore = e.clientY < rect.top + rect.height / 2;
+                if (!isBefore) toIndex++;
+                if (fromIndex < toIndex) toIndex--;
+                const list = draggedItem.closest('#categories-list') ? categories : tags;
+                const movedItem = list.splice(fromIndex, 1)[0];
+                list.splice(toIndex, 0, movedItem);
+                if (list === categories) renderCategories(); else renderTags();
             }
             return false;
         }
@@ -268,29 +311,70 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(categories)
                 });   
-                if (response.ok) {
-                    showMessage('categoriesMessage', 'Categories saved successfully', true);
-                } else {
-                    showMessage('categoriesMessage', 'Failed to save categories', false);
-                }
+                showMessage('categoriesMessage', response.ok ? 'Categories saved successfully' : 'Failed to save categories', response.ok);
             } catch (error) {
                 console.error('Error saving categories:', error);
                 showMessage('categoriesMessage', 'Error saving categories', false);
             }
         }
 
+        // --- Tag Management ---
+        function renderTags() {
+            const list = document.getElementById('tags-list');
+            list.innerHTML = '';
+            tags.forEach((tag, index) => {
+                const item = document.createElement('div');
+                item.className = 'category-item tag-item'; // Re-use category-item style
+                item.dataset.index = index;
+                item.innerHTML = `
+                    <span>${tag}</span>
+                    <button class="delete-button" onclick="removeTag(${index})">
+                        <i class="fa-solid fa-times"></i>
+                    </button>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        function addTag() {
+            const input = document.getElementById('newTag');
+            const tag = input.value.trim();
+            if (tag && !tags.includes(tag)) {
+                tags.push(tag);
+                renderTags();
+                input.value = '';
+            } else if (tags.includes(tag)) {
+                showMessage('tagsMessage', 'Tag already exists', false);
+            }
+        }
+
+        function removeTag(index) {
+            tags.splice(index, 1);
+            renderTags();
+        }
+
+        async function saveTags() {
+            try {
+                const response = await fetch('/tags/edit', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(tags)
+                });
+                showMessage('tagsMessage', response.ok ? 'Tags saved successfully' : 'Failed to save tags', response.ok);
+            } catch (error) {
+                console.error('Error saving tags:', error);
+                showMessage('tagsMessage', 'Error saving tags', false);
+            }
+        }
+
+        // --- Currency & Start Date ---
         function populateCurrencySelect() {
             const select = document.getElementById('currencySelect');
-            select.innerHTML = '';
-            for (const code in currencyBehaviors) {
-                const option = document.createElement('option');
-                option.value = code;
-                option.textContent = `${code.toUpperCase()} (${currencyBehaviors[code].symbol})`;
-                if (code === currentCurrency) {
-                    option.selected = true;
-                }
-                select.appendChild(option);
-            }
+            select.innerHTML = Object.keys(currencyBehaviors).map(code => 
+                `<option value="${code}" ${code === currentCurrency ? 'selected' : ''}>
+                    ${code.toUpperCase()} (${currencyBehaviors[code].symbol})
+                </option>`
+            ).join('');
         }
         
         async function saveCurrency() {
@@ -314,8 +398,7 @@
         }
 
         function populateStartDateInput() {
-            const input = document.getElementById("startDate");
-            input.value = currentStartDate;
+            document.getElementById("startDate").value = currentStartDate;
         }
 
         async function saveStartDate() {
@@ -326,44 +409,145 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(parseInt(startDateValue, 10))
                 });
-                if (response.ok) {
-                    showMessage('startDateMessage', 'Start date saved successfully', true);
-                } else {
-                    showMessage('startDateMessage', 'Failed to save start date', false);
-                }
+                showMessage('startDateMessage', response.ok ? 'Start date saved successfully' : 'Failed to save start date', response.ok);
             } catch (error) {
                 console.error('Error saving start date:', error);
                 showMessage('startDateMessage', 'Error saving start date', false);
             }
         }
 
+        // --- Recurring Expenses ---
+        function formatCurrency(amount) {
+            const behavior = currencyBehaviors[currentCurrency] || { symbol: '$', useComma: false, useDecimals: true };
+            const isNegative = amount < 0;
+            const absAmount = Math.abs(amount);
+            const options = {
+                minimumFractionDigits: behavior.useDecimals ? 2 : 0,
+                maximumFractionDigits: behavior.useDecimals ? 2 : 0,
+            };
+            let formattedAmount = new Intl.NumberFormat(behavior.useComma ? 'de-DE' : 'en-US', options).format(absAmount);
+            const postfixCurrencies = new Set(['kr', 'kr.', 'Fr', 'zł']);
+            let result = postfixCurrencies.has(behavior.symbol) ? `${formattedAmount} ${behavior.symbol}` : `${behavior.symbol}${formattedAmount}`;
+            return isNegative ? `-${result}` : result;
+        }
+        
+        async function fetchAndRenderRecurringExpenses() {
+            try {
+                const response = await fetch('/recurring-expenses');
+                if (!response.ok) throw new Error('Failed to fetch recurring expenses');
+                const recurringExpenses = await response.json();
+                renderRecurringExpenses(recurringExpenses || []);
+            } catch (error) {
+                console.error('Error fetching recurring expenses:', error);
+                document.getElementById('recurring-expenses-list').innerHTML = '<p>Error loading recurring expenses.</p>';
+            }
+        }
+
+        function findNextOccurrence(r) {
+            let nextDate = new Date(r.startDate);
+            const today = new Date();
+            if (nextDate >= today) return nextDate.toLocaleDateString();
+
+            if (r.occurrences > 0) {
+                let occurrencesCount = 0;
+                while (nextDate < today) {
+                    occurrencesCount++;
+                    if (occurrencesCount >= r.occurrences) return 'Finished';
+                    switch(r.interval) {
+                        case 'daily': nextDate.setDate(nextDate.getDate() + 1); break;
+                        case 'weekly': nextDate.setDate(nextDate.getDate() + 7); break;
+                        case 'monthly': nextDate.setMonth(nextDate.getMonth() + 1); break;
+                        case 'yearly': nextDate.setFullYear(nextDate.getFullYear() + 1); break;
+                    }
+                }
+                return nextDate.toLocaleDateString();
+            } else { // Indefinite
+                 while (nextDate < today) {
+                    switch(r.interval) {
+                        case 'daily': nextDate.setDate(nextDate.getDate() + 1); break;
+                        case 'weekly': nextDate.setDate(nextDate.getDate() + 7); break;
+                        case 'monthly': nextDate.setMonth(nextDate.getMonth() + 1); break;
+                        case 'yearly': nextDate.setFullYear(nextDate.getFullYear() + 1); break;
+                    }
+                }
+                return nextDate.toLocaleDateString();
+            }
+        }
+
+        function renderRecurringExpenses(recurring) {
+            const list = document.getElementById('recurring-expenses-list');
+            if (!recurring || recurring.length === 0) {
+                list.innerHTML = '<p>No recurring expenses found.</p>';
+                return;
+            }
+            list.innerHTML = `
+                <table class="expense-table">
+                    <thead><tr><th>Name</th><th>Amount</th><th>Category</th><th>Interval</th><th>Next Occurrence</th><th></th></tr></thead>
+                    <tbody>
+                        ${recurring.map(r => `
+                            <tr>
+                                <td>${r.name}</td>
+                                <td>${formatCurrency(r.amount)}</td>
+                                <td>${r.category}</td>
+                                <td>${r.interval.charAt(0).toUpperCase() + r.interval.slice(1)}</td>
+                                <td>${findNextOccurrence(r)}</td>
+                                <td><button class="delete-button" onclick="showRecurringDeleteModal('${r.id}')"><i class="fa-solid fa-trash-can"></i></button></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>`;
+        }
+
+        function showRecurringDeleteModal(id) {
+            recurringExpenseToDelete = id;
+            document.getElementById('deleteRecurringModal').classList.add('active');
+        }
+
+        function closeRecurringDeleteModal() {
+            recurringExpenseToDelete = null;
+            document.getElementById('deleteRecurringModal').classList.remove('active');
+        }
+
+        async function confirmRecurringDelete(removeAll) {
+            if (!recurringExpenseToDelete) return;
+            try {
+                const response = await fetch(`/recurring-expense/delete?id=${recurringExpenseToDelete}&removeAll=${removeAll}`, { method: 'DELETE' });
+                if (!response.ok) throw new Error('Failed to delete recurring expense');
+                showMessage('recurringExpenseMessage', 'Recurring expense deleted successfully', true);
+                fetchAndRenderRecurringExpenses();
+            } catch (error) {
+                console.error('Error deleting recurring expense:', error);
+                showMessage('recurringExpenseMessage', 'Failed to delete recurring expense', false);
+            } finally {
+                closeRecurringDeleteModal();
+            }
+        }
+
+        // --- Initialization ---
         async function initialize() {
             try {
                 const response = await fetch('/config');
-                if (!response.ok) {
-                    throw new Error('Failed to fetch configuration');
-                }
+                if (!response.ok) throw new Error('Failed to fetch configuration');
                 const config = await response.json();
+                
                 categories = [...config.categories];
+                tags = [...(config.tags || [])];
                 currentCurrency = config.currency;
                 currentStartDate = config.startDate;
                 
                 renderCategories();
+                renderTags();
                 populateCurrencySelect();
                 populateStartDateInput();
+                document.getElementById('recurringCategory').innerHTML = categories.map(c => `<option value="${c}">${c}</option>`).join('');
 
-                fetch('/version').then(response => {
-                    if (response.ok) return response.text();
-                    throw new Error('Network response was not ok.');
-                }).then(version => {
-                    const versionLink = document.getElementById('version-link');
-                    versionLink.textContent = version;
-                    if (version !== 'dev') {
-                        versionLink.href = `https://github.com/tanq16/expenseowl/releases/tag/${version}`;
-                    }
-                }).catch(error => {
-                    console.error('Failed to fetch version:', error);
-                });
+                fetchAndRenderRecurringExpenses();
+
+                fetch('/version').then(r => r.ok ? r.text() : 'dev').then(version => {
+                    const link = document.getElementById('version-link');
+                    link.textContent = version;
+                    if (version !== 'dev') link.href = `https://github.com/tanq16/expenseowl/releases/tag/${version}`;
+                }).catch(e => console.error('Failed to fetch version:', e));
 
             } catch (error) {
                 console.error('Failed to initialize settings:', error);
@@ -371,24 +555,60 @@
             }
         }
 
-        async function handleFileUpload(e) {
-            // This part is commented out as per instructions
-        }
-
+        // --- Event Listeners ---
         document.getElementById('addCategory').addEventListener('click', addCategory);
         document.getElementById('saveCategories').addEventListener('click', saveCategories);
+        document.getElementById('addTag').addEventListener('click', addTag);
+        document.getElementById('saveTags').addEventListener('click', saveTags);
         document.getElementById('saveCurrency').addEventListener('click', saveCurrency);
         document.getElementById('saveStartDate').addEventListener('click', saveStartDate);
-        // document.getElementById('csvFile').addEventListener('change', handleFileUpload);
-        // document.getElementById('jsonFile').addEventListener('change', handleFileUpload);
-        document.getElementById('newCategory').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                addCategory();
+        
+        document.getElementById('newCategory').addEventListener('keypress', e => e.key === 'Enter' && addCategory());
+        document.getElementById('newTag').addEventListener('keypress', e => e.key === 'Enter' && addTag());
+
+        document.getElementById('recurringExpenseForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const isGain = document.getElementById('recurringReportGain').checked;
+            let amount = parseFloat(document.getElementById('recurringAmount').value);
+            if (isGain) amount *= -1;
+            const tags = document.getElementById('recurringTags').value.split(',').map(t => t.trim()).filter(t => t);
+
+            const formData = {
+                name: document.getElementById('recurringName').value,
+                amount: amount,
+                category: document.getElementById('recurringCategory').value,
+                tags: tags,
+                interval: document.getElementById('recurringInterval').value,
+                startDate: new Date(document.getElementById('recurringStartDate').value).toISOString(),
+                occurrences: parseInt(document.getElementById('recurringOccurrences').value, 10)
+            };
+
+            try {
+                const response = await fetch('/recurring-expense', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+                if (response.ok) {
+                    showMessage('recurringExpenseMessage', 'Recurring expense added successfully!', true);
+                    document.getElementById('recurringExpenseForm').reset();
+                    fetchAndRenderRecurringExpenses();
+                } else {
+                    const error = await response.json();
+                    showMessage('recurringExpenseMessage', `Error: ${error.error || 'Failed to add recurring expense'}`, false);
+                }
+            } catch (error) {
+                console.error('Error adding recurring expense:', error);
+                showMessage('recurringExpenseMessage', 'Error: Failed to add recurring expense', false);
             }
         });
 
         document.addEventListener('DOMContentLoaded', initialize);
         window.removeCategory = removeCategory;
+        window.removeTag = removeTag;
+        window.showRecurringDeleteModal = showRecurringDeleteModal;
+        window.closeRecurringDeleteModal = closeRecurringDeleteModal;
+        window.confirmRecurringDelete = confirmRecurringDelete;
     </script>
 </body>
 </html>

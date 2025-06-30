@@ -58,9 +58,13 @@ func runServer() {
 
 	// Config
 	http.HandleFunc("/config", handler.GetConfig)
+	http.HandleFunc("/categories", handler.GetCategories)
 	http.HandleFunc("/categories/edit", handler.UpdateCategories)
-	http.HandleFunc("/currency", handler.UpdateCurrency)
-	http.HandleFunc("/startdate", handler.UpdateStartDate)
+	http.HandleFunc("/currency", handler.GetCurrency)
+	http.HandleFunc("/currency/edit", handler.UpdateCurrency)
+	http.HandleFunc("/startdate", handler.GetStartDate)
+	http.HandleFunc("/startdate/edit", handler.UpdateStartDate)
+	http.HandleFunc("/tags", handler.GetTags)
 	http.HandleFunc("/tags/edit", handler.UpdateTags)
 
 	// Expenses

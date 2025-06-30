@@ -55,6 +55,20 @@ func (h *Handler) GetConfig(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, config)
 }
 
+func (h *Handler) GetCategories(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
+		return
+	}
+	categories, err := h.storage.GetCategories()
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to get categories"})
+		log.Printf("API ERROR: Failed to get categories: %v\n", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, categories)
+}
+
 func (h *Handler) UpdateCategories(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPut {
 		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
@@ -71,6 +85,20 @@ func (h *Handler) UpdateCategories(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "success"})
+}
+
+func (h *Handler) GetCurrency(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
+		return
+	}
+	currency, err := h.storage.GetCurrency()
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to get currency"})
+		log.Printf("API ERROR: Failed to get currency: %v\n", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, currency)
 }
 
 func (h *Handler) UpdateCurrency(w http.ResponseWriter, r *http.Request) {
@@ -91,6 +119,20 @@ func (h *Handler) UpdateCurrency(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "success"})
 }
 
+func (h *Handler) GetStartDate(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
+		return
+	}
+	startDate, err := h.storage.GetStartDate()
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to get start date"})
+		log.Printf("API ERROR: Failed to get start date: %v\n", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, startDate)
+}
+
 func (h *Handler) UpdateStartDate(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPut {
 		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
@@ -107,6 +149,20 @@ func (h *Handler) UpdateStartDate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "success"})
+}
+
+func (h *Handler) GetTags(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
+		return
+	}
+	tags, err := h.storage.GetTags()
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to get tags"})
+		log.Printf("API ERROR: Failed to get tags: %v\n", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, tags)
 }
 
 func (h *Handler) UpdateTags(w http.ResponseWriter, r *http.Request) {

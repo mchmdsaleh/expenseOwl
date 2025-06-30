@@ -264,7 +264,7 @@
                                     <button class="delete-button" onclick="editExpense('${expense.id}', '${expense.name}', '${expense.category}', ${expense.amount}, '${expense.date}')">
                                         <i class="fa-solid fa-pen-to-square"></i>
                                     </button>
-                                    <button class="delete-button" onclick="showDeleteModal('${expense.id}')">
+                                    <button class="delete-button" onclick="handleDeleteClick(event, '${expense.id}')">
                                         <i class="fa-solid fa-trash-can"></i>
                                     </button>
                                 </td>
@@ -354,6 +354,15 @@
         function showDeleteModal(id) {
             expenseToDelete = id;
             document.getElementById('deleteModal').classList.add('active');
+        }
+
+        function handleDeleteClick(event, id) {
+            if (event.shiftKey) {
+                expenseToDelete = id;
+                confirmDelete();
+            } else {
+                showDeleteModal(id);
+            }
         }
 
         function closeDeleteModal() {

@@ -677,6 +677,10 @@ header {
     align-items: end;
 }
 
+.recurring-expense-form {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
 .form-group {
     display: flex;
     flex-direction: column;
