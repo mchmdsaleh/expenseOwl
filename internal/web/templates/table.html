@@ -108,6 +108,7 @@
         let currentCurrency = 'usd';
         let currentDate = new Date();
         let allExpenses = [];
+        let expensesForTable = [];
         let startDate = 1;
 
         let allTags = new Set();
@@ -143,6 +144,19 @@
             "vnd": { symbol: "₫", useComma: true, useDecimals: false },
             "myr": { symbol: "RM", useComma: false, useDecimals: true },
         };
+        
+        function escapeHTML(str) {
+            if (typeof str !== 'string') return str;
+            return str.replace(/[&<>'"]/g, 
+                tag => ({
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    "'": '&#39;',
+                    '"': '&quot;'
+                }[tag] || tag)
+            );
+        }
 
         function formatCurrency(amount) {
             const behavior = currencyBehaviors[currentCurrency] || { symbol: '$', useComma: false, useDecimals: true };
@@ -248,7 +262,7 @@
         }
 
         function createTable(expenses) {
-            if (expenses.length === 0) {
+            if (!expenses || expenses.length === 0) {
                 const message = document.getElementById('showAllToggle').checked ? 
                                 'No transactions found' : 
                                 'No expenses recorded for this month';
@@ -267,15 +281,15 @@
                         </tr>
                     </thead>
                     <tbody>
-                        ${expenses.map(expense => `
+                        ${expenses.map((expense, index) => `
                             <tr>
-                                <td>${expense.name}</td>
-                                <td>${expense.category}</td>
-                                <td>${(expense.tags || []).join(', ')}</td>
+                                <td>${escapeHTML(expense.name)}</td>
+                                <td>${escapeHTML(expense.category)}</td>
+                                <td>${(expense.tags || []).map(escapeHTML).join(', ')}</td>
                                 <td class="amount">${formatCurrency(expense.amount)}</td>
                                 <td class="date-column">${formatDateFromUTC(expense.date)}</td>
                                 <td>
-                                    <button class="delete-button" onclick="editExpense('${expense.id}', '${expense.name}', '${expense.category}', ${expense.amount}, '${JSON.stringify(expense.tags || [])}', '${expense.date}')">
+                                    <button class="edit-button" onclick="editExpenseByIndex(${index})">
                                         <i class="fa-solid fa-pen-to-square"></i>
                                     </button>
                                     <button class="delete-button" onclick="handleDeleteClick(event, '${expense.id}')">
@@ -295,12 +309,19 @@
             document.getElementById('nextMonth').disabled = showAll;
             document.getElementById('currentMonth').style.visibility = showAll ? 'hidden' : 'visible';
 
-            const expensesToShow = showAll
+            expensesForTable = showAll
                 ? allExpenses.slice().sort((a, b) => new Date(b.date) - new Date(a.date))
                 : getMonthExpenses(allExpenses);
             
             const tableContainer = document.getElementById('tableContainer');
-            tableContainer.innerHTML = createTable(expensesToShow);
+            tableContainer.innerHTML = createTable(expensesForTable);
+        }
+
+        function editExpenseByIndex(index) {
+            const expense = expensesForTable[index];
+            if (expense) {
+                editExpense(expense.id, expense.name, expense.category, expense.amount, (expense.tags || []), expense.date);
+            }
         }
 
         function renderSelectedTags(tags) {
@@ -324,8 +345,7 @@
             });
         }
 
-        function editExpense(id, name, category, amount, tagsJSON, date) {
-            const tags = JSON.parse(tagsJSON);
+        function editExpense(id, name, category, amount, tags, date) {
             const isGain = amount < 0;
             document.getElementById('name').value = name;
             document.getElementById('category').value = category;
@@ -351,7 +371,6 @@
             const container = document.getElementById('tags-input-container');
             const input = document.getElementById('tags-input');
             const dropdown = document.getElementById('tags-dropdown');
-            const selectedContainer = document.getElementById('selected-tags');
 
             const addTag = (tag) => {
                 tag = tag.trim();
@@ -382,11 +401,11 @@
                 dropdown.innerHTML = '';
                 const filteredTags = [...allTags].filter(tag => tag.toLowerCase().includes(value) && !selectedTags.has(tag));
                 
-                if(value && !allTags.has(value) && !selectedTags.has(value)) {
+                if(value && ![...allTags].map(t => t.toLowerCase()).includes(value)) {
                     const newItem = document.createElement('div');
-                    newItem.textContent = `+ Create "${value}"`;
+                    newItem.textContent = `+ Create "${input.value.trim()}"`;
                     newItem.className = 'new-tag';
-                    newItem.onclick = () => addTag(value);
+                    newItem.onclick = () => addTag(input.value.trim());
                     dropdown.appendChild(newItem);
                 }
 
@@ -434,7 +453,7 @@
                 
                 const response = await fetch('/expenses');
                 if (!response.ok) throw new Error('Failed to fetch data');
-                allExpenses = await response.json();
+                allExpenses = await response.json() || [];
                 
                 allTags.clear();
                 allExpenses.forEach(exp => {
@@ -573,6 +592,8 @@
                 e.target.value = '';
             }
         });
+        
+        window.editExpenseByIndex = editExpenseByIndex;
     </script>
 </body>
 </html>
