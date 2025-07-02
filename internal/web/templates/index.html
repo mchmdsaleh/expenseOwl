@@ -84,7 +84,7 @@
 
                 <div class="form-group">
                     <label for="tags-input">Tags</label>
-                    <div class="tags-input-container">
+                    <div id="tags-input-container" class="tags-input-container">
                         <div id="selected-tags" class="selected-tags"></div>
                         <input type="text" id="tags-input" placeholder="Add tags...">
                     </div>
@@ -360,7 +360,8 @@
                 
                 const response = await fetch('/expenses');
                 if (!response.ok) throw new Error('Failed to fetch data');
-                allExpenses = await response.json();
+                const data = await response.json();
+                allExpenses = Array.isArray(data) ? data : (data && Array.isArray(data.expenses) ? data.expenses : []);
 
                 allTags.clear();
                 allExpenses.forEach(exp => {
@@ -470,6 +471,7 @@
             const input = document.getElementById('tags-input');
             const dropdown = document.getElementById('tags-dropdown');
             const selectedContainer = document.getElementById('selected-tags');
+            const formGroup = container.parentElement;
 
             const addTag = (tag) => {
                 tag = tag.trim();
@@ -492,27 +494,41 @@
                 dropdown.style.display = 'none';
             };
 
-            input.addEventListener('input', () => {
-                const value = input.value.trim().toLowerCase();
+            input.addEventListener('focus', () => {
                 dropdown.innerHTML = '';
-                if (!value) {
-                    dropdown.style.display = 'none';
-                    return;
-                }
-                
-                const filteredTags = [...allTags].filter(tag => tag.toLowerCase().includes(value) && !selectedTags.has(tag));
-                
-                if (filteredTags.length > 0) {
-                    filteredTags.forEach(tag => {
+                const availableTags = [...allTags].filter(tag => !selectedTags.has(tag));
+                if (availableTags.length > 0) {
+                    availableTags.forEach(tag => {
                         const item = document.createElement('div');
                         item.textContent = tag;
                         item.onclick = () => addTag(tag);
                         dropdown.appendChild(item);
                     });
                     dropdown.style.display = 'block';
-                } else {
-                    dropdown.style.display = 'none';
                 }
+            });
+
+            input.addEventListener('input', () => {
+                const value = input.value.trim().toLowerCase();
+                dropdown.innerHTML = '';
+                const filteredTags = [...allTags].filter(tag => tag.toLowerCase().includes(value) && !selectedTags.has(tag));
+                
+                if (value && ![...allTags].map(t => t.toLowerCase()).includes(value)) {
+                    const newItem = document.createElement('div');
+                    newItem.textContent = `+ Create "${input.value.trim()}"`;
+                    newItem.className = 'new-tag';
+                    newItem.onclick = () => addTag(input.value.trim());
+                    dropdown.appendChild(newItem);
+                }
+
+                filteredTags.forEach(tag => {
+                    const item = document.createElement('div');
+                    item.textContent = tag;
+                    item.onclick = () => addTag(tag);
+                    dropdown.appendChild(item);
+                });
+                
+                dropdown.style.display = dropdown.children.length > 0 ? 'block' : 'none';
             });
 
             input.addEventListener('keydown', (e) => {
@@ -526,7 +542,7 @@
 
             container.addEventListener('click', () => input.focus());
             document.addEventListener('click', (e) => {
-                if (!container.contains(e.target)) {
+                if (!formGroup.contains(e.target)) {
                     dropdown.style.display = 'none';
                 }
             });

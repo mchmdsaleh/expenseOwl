@@ -54,7 +54,7 @@
 
                 <div class="form-group">
                     <label for="tags-input">Tags</label>
-                    <div class="tags-input-container">
+                    <div id="tags-input-container" class="tags-input-container">
                         <div id="selected-tags" class="selected-tags"></div>
                         <input type="text" id="tags-input" placeholder="Add tags...">
                     </div>
@@ -371,6 +371,7 @@
             const container = document.getElementById('tags-input-container');
             const input = document.getElementById('tags-input');
             const dropdown = document.getElementById('tags-dropdown');
+            const formGroup = container.parentElement;
 
             const addTag = (tag) => {
                 tag = tag.trim();
@@ -433,7 +434,7 @@
 
             container.addEventListener('click', () => input.focus());
             document.addEventListener('click', (e) => {
-                if (!container.contains(e.target)) {
+                if (!formGroup.contains(e.target)) {
                     dropdown.style.display = 'none';
                 }
             });
@@ -453,7 +454,8 @@
                 
                 const response = await fetch('/expenses');
                 if (!response.ok) throw new Error('Failed to fetch data');
-                allExpenses = await response.json() || [];
+                const data = await response.json();
+                allExpenses = Array.isArray(data) ? data : (data && Array.isArray(data.expenses) ? data.expenses : []);
                 
                 allTags.clear();
                 allExpenses.forEach(exp => {
