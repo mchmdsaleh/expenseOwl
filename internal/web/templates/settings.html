@@ -716,7 +716,7 @@
                     document.getElementById('summary-processed').textContent = result.total_processed;
                     document.getElementById('summary-imported').textContent = result.imported;
                     document.getElementById('summary-skipped').textContent = result.skipped;
-                    document.getElementById('summary-new-categories').textContent = result.new_categories.join(', ') || 'None';
+                    document.getElementById('summary-new-categories').textContent = (result.new_categories || []).join(', ') || 'None';
                     
                     await initialize();
                 } else {

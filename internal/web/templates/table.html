@@ -305,9 +305,7 @@
 
         function updateTable() {
             const showAll = document.getElementById('showAllToggle').checked;
-            document.getElementById('prevMonth').disabled = showAll;
-            document.getElementById('nextMonth').disabled = showAll;
-            document.getElementById('currentMonth').style.visibility = showAll ? 'hidden' : 'visible';
+            document.querySelector('.month-navigation').style.display = showAll ? 'none' : 'flex';
 
             expensesForTable = showAll
                 ? allExpenses.slice().sort((a, b) => new Date(b.date) - new Date(a.date))
