@@ -682,7 +682,8 @@ header {
     }
 
     .date-column,
-    .date-header {
+    .date-header,
+    .tags-column {
         display: none;
     }
 

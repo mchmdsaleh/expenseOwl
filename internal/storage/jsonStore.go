@@ -215,54 +215,54 @@ func (s *jsonStore) UpdateStartDate(startDate int) error {
 
 // Recurring Expenses
 
-func generateExpensesFromRecurring(recExp RecurringExpense, fromToday bool) []Expense {
-	var expenses []Expense
-	currentDate := recExp.StartDate
-	today := time.Now()
-	occurrencesToGenerate := recExp.Occurrences
-	if fromToday {
-		for currentDate.Before(today) && occurrencesToGenerate > 0 {
-			switch recExp.Interval {
-			case "daily":
-				currentDate = currentDate.AddDate(0, 0, 1)
-			case "weekly":
-				currentDate = currentDate.AddDate(0, 0, 7)
-			case "monthly":
-				currentDate = currentDate.AddDate(0, 1, 0)
-			case "yearly":
-				currentDate = currentDate.AddDate(1, 0, 0)
-			default:
-				return expenses // Stop if interval is invalid
-			}
-			occurrencesToGenerate--
-		}
-	}
-	for i := 0; i < occurrencesToGenerate; i++ {
-		expense := Expense{
-			ID:          uuid.New().String(),
-			RecurringID: recExp.ID,
-			Name:        recExp.Name,
-			Category:    recExp.Category,
-			Amount:      recExp.Amount,
-			Date:        currentDate,
-			Tags:        recExp.Tags,
-		}
-		expenses = append(expenses, expense)
-		switch recExp.Interval {
-		case "daily":
-			currentDate = currentDate.AddDate(0, 0, 1)
-		case "weekly":
-			currentDate = currentDate.AddDate(0, 0, 7)
-		case "monthly":
-			currentDate = currentDate.AddDate(0, 1, 0)
-		case "yearly":
-			currentDate = currentDate.AddDate(1, 0, 0)
-		default:
-			return expenses
-		}
-	}
-	return expenses
-}
+// func generateExpensesFromRecurring(recExp RecurringExpense, fromToday bool) []Expense {
+// 	var expenses []Expense
+// 	currentDate := recExp.StartDate
+// 	today := time.Now()
+// 	occurrencesToGenerate := recExp.Occurrences
+// 	if fromToday {
+// 		for currentDate.Before(today) && occurrencesToGenerate > 0 {
+// 			switch recExp.Interval {
+// 			case "daily":
+// 				currentDate = currentDate.AddDate(0, 0, 1)
+// 			case "weekly":
+// 				currentDate = currentDate.AddDate(0, 0, 7)
+// 			case "monthly":
+// 				currentDate = currentDate.AddDate(0, 1, 0)
+// 			case "yearly":
+// 				currentDate = currentDate.AddDate(1, 0, 0)
+// 			default:
+// 				return expenses // Stop if interval is invalid
+// 			}
+// 			occurrencesToGenerate--
+// 		}
+// 	}
+// 	for i := 0; i < occurrencesToGenerate; i++ {
+// 		expense := Expense{
+// 			ID:          uuid.New().String(),
+// 			RecurringID: recExp.ID,
+// 			Name:        recExp.Name,
+// 			Category:    recExp.Category,
+// 			Amount:      recExp.Amount,
+// 			Date:        currentDate,
+// 			Tags:        recExp.Tags,
+// 		}
+// 		expenses = append(expenses, expense)
+// 		switch recExp.Interval {
+// 		case "daily":
+// 			currentDate = currentDate.AddDate(0, 0, 1)
+// 		case "weekly":
+// 			currentDate = currentDate.AddDate(0, 0, 7)
+// 		case "monthly":
+// 			currentDate = currentDate.AddDate(0, 1, 0)
+// 		case "yearly":
+// 			currentDate = currentDate.AddDate(1, 0, 0)
+// 		default:
+// 			return expenses
+// 		}
+// 	}
+// 	return expenses
+// }
 
 func (s *jsonStore) addMultipleExpenses(expensesToAdd []Expense) error {
 	if len(expensesToAdd) == 0 {

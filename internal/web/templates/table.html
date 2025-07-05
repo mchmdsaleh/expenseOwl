@@ -268,13 +268,14 @@
                                 'No expenses recorded for this month';
                 return `<div class="no-data">${message}</div>`;
             }
+            const hasTags = expenses.some(exp => exp.tags && exp.tags.length > 0);
             return `
                 <table class="expense-table">
                     <thead>
                         <tr>
                             <th>Name</th>
                             <th>Category</th>
-                            <th>Tags</th>
+                            ${hasTags ? '<th class="tags-column">Tags</th>' : ''}
                             <th>Amount</th>
                             <th class="date-header">Date</th>
                             <th></th>
@@ -285,7 +286,7 @@
                             <tr>
                                 <td>${escapeHTML(expense.name)}</td>
                                 <td>${escapeHTML(expense.category)}</td>
-                                <td>${(expense.tags || []).map(escapeHTML).join(', ')}</td>
+                                ${hasTags ? `<td class="tags-column">${(expense.tags || []).map(escapeHTML).join(', ')}</td>` : ''}
                                 <td class="amount">${formatCurrency(expense.amount)}</td>
                                 <td class="date-column">${formatDateFromUTC(expense.date)}</td>
                                 <td>

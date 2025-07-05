@@ -17,29 +17,9 @@ type databaseStore struct {
 	db *sql.DB
 }
 
-func InitializePostgresStore(baseConfig SystemConfig) (Storage, error) {
-	dbURL := makeDBURL(baseConfig)
-	db, err := sql.Open("postgres", dbURL)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open PostgreSQL database: %v", err)
-	}
-	if err := db.Ping(); err != nil {
-		return nil, fmt.Errorf("failed to ping PostgreSQL database: %v", err)
-	}
-	log.Println("Connected to PostgreSQL database")
-	if err := createTables(db); err != nil {
-		return nil, fmt.Errorf("failed to create database tables: %v", err)
-	}
-	return &databaseStore{db: db}, nil
-}
-
-// constructs the database connection URL.
-func makeDBURL(baseConfig SystemConfig) string {
-	return fmt.Sprintf("postgres://%s:%s@%s", baseConfig.StorageUser, baseConfig.StoragePass, baseConfig.StorageURL)
-}
-
-func createTables(db *sql.DB) error {
-	createExpensesTableSQL := `
+// SQL queries as constants for reusability and clarity.
+const (
+	createExpensesTableSQL = `
 	CREATE TABLE IF NOT EXISTS expenses (
 		id VARCHAR(36) PRIMARY KEY,
 		recurring_id VARCHAR(36),
@@ -49,21 +29,8 @@ func createTables(db *sql.DB) error {
 		date TIMESTAMPTZ NOT NULL,
 		tags TEXT
 	);`
-	if _, err := db.Exec(createExpensesTableSQL); err != nil {
-		return err
-	}
-	createConfigTableSQL := `
-	CREATE TABLE IF NOT EXISTS config (
-		id VARCHAR(255) PRIMARY KEY DEFAULT 'default',
-		categories TEXT NOT NULL,
-		currency VARCHAR(255) NOT NULL,
-		start_date INTEGER NOT NULL,
-		tags TEXT
-	);`
-	if _, err := db.Exec(createConfigTableSQL); err != nil {
-		return err
-	}
-	createRecurringExpensesTableSQL := `
+
+	createRecurringExpensesTableSQL = `
 	CREATE TABLE IF NOT EXISTS recurring_expenses (
 		id VARCHAR(36) PRIMARY KEY,
 		name VARCHAR(255) NOT NULL,
@@ -74,76 +41,122 @@ func createTables(db *sql.DB) error {
 		occurrences INTEGER NOT NULL,
 		tags TEXT
 	);`
-	_, err := db.Exec(createRecurringExpensesTableSQL)
-	return err
+
+	createConfigTableSQL = `
+	CREATE TABLE IF NOT EXISTS config (
+		id VARCHAR(255) PRIMARY KEY DEFAULT 'default',
+		categories TEXT NOT NULL,
+		currency VARCHAR(255) NOT NULL,
+		start_date INTEGER NOT NULL
+	);`
+)
+
+// InitializePostgresStore sets up the database connection and creates tables if they don't exist.
+func InitializePostgresStore(baseConfig SystemConfig) (Storage, error) {
+	dbURL := makeDBURL(baseConfig)
+	db, err := sql.Open("postgres", dbURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open PostgreSQL database: %v", err)
+	}
+	if err := db.Ping(); err != nil {
+		return nil, fmt.Errorf("failed to ping PostgreSQL database: %v", err)
+	}
+	log.Println("Connected to PostgreSQL database")
+
+	if err := createTables(db); err != nil {
+		return nil, fmt.Errorf("failed to create database tables: %v", err)
+	}
+
+	return &databaseStore{db: db}, nil
 }
 
-// saveConfig writes the configuration to the database.
-func (s *databaseStore) saveConfig(config *Config) error {
-	// categoriesJSON, _ := json.Marshal(config.Categories)
-	// // tagsJSON, _ := json.Marshal(config.Tags)
-	// recurringExpensesJSON, _ := json.Marshal(config.RecurringExpenses)
-	// query := `
-	// 	INSERT INTO config (id, categories, currency, start_date, tags, recurring_expenses)
-	// 	VALUES ('default', $1, $2, $3, $4, $5)
-	// 	ON CONFLICT (id) DO UPDATE SET
-	// 		categories = EXCLUDED.categories,
-	// 		currency = EXCLUDED.currency,
-	// 		start_date = EXCLUDED.start_date,
-	// 		tags = EXCLUDED.tags,
-	// 		recurring_expenses = EXCLUDED.recurring_expenses;
-	// `
-	// _, err := s.db.Exec(query, string(categoriesJSON), config.Currency, config.StartDate, string(tagsJSON), string(recurringExpensesJSON))
+// makeDBURL constructs the database connection URL from the system configuration.
+func makeDBURL(baseConfig SystemConfig) string {
+	return fmt.Sprintf("postgres://%s:%s@%s?sslmode=disable", baseConfig.StorageUser, baseConfig.StoragePass, baseConfig.StorageURL)
+}
+
+// createTables executes the DDL statements to create necessary tables.
+func createTables(db *sql.DB) error {
+	for _, query := range []string{createExpensesTableSQL, createRecurringExpensesTableSQL, createConfigTableSQL} {
+		if _, err := db.Exec(query); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
-// ------------------------------------------------------------
-// Storage interface methods
-// ------------------------------------------------------------
-
+// Close closes the database connection.
 func (s *databaseStore) Close() error {
 	return s.db.Close()
 }
 
-func (s *databaseStore) GetConfig() (*Config, error) {
-	query := `SELECT categories, currency, start_date, tags, recurring_expenses FROM config WHERE id = 'default'`
-	var categoriesStr, currency, tagsStr, recurringExpensesStr string
-	var startDate int
-	err := s.db.QueryRow(query).Scan(&categoriesStr, &currency, &startDate, &tagsStr, &recurringExpensesStr)
+// saveConfig is a helper to insert or update the application configuration.
+func (s *databaseStore) saveConfig(config *Config) error {
+	categoriesJSON, err := json.Marshal(config.Categories)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			config := &Config{}
-			config.SetBaseConfig()
-			return config, s.saveConfig(config)
-		}
-		return nil, fmt.Errorf("failed to get config: %v", err)
+		return fmt.Errorf("failed to marshal categories: %v", err)
 	}
-	var config Config
-	config.Currency = currency
-	config.StartDate = startDate
-	if err := json.Unmarshal([]byte(categoriesStr), &config.Categories); err != nil {
-		return nil, fmt.Errorf("failed to parse categories: %v", err)
-	}
-	// if err := json.Unmarshal([]byte(tagsStr), &config.Tags); err != nil {
-	// 	return nil, fmt.Errorf("failed to parse tags: %v", err)
-	// }
-	if err := json.Unmarshal([]byte(recurringExpensesStr), &config.RecurringExpenses); err != nil {
-		// It's possible for this to be null, so handle it gracefully
-		config.RecurringExpenses = []RecurringExpense{}
-	}
-	return &config, nil
+
+	query := `
+		INSERT INTO config (id, categories, currency, start_date)
+		VALUES ('default', $1, $2, $3)
+		ON CONFLICT (id) DO UPDATE SET
+			categories = EXCLUDED.categories,
+			currency = EXCLUDED.currency,
+			start_date = EXCLUDED.start_date;
+	`
+	_, err = s.db.Exec(query, string(categoriesJSON), config.Currency, config.StartDate)
+	return err
 }
 
-// UpdateConfig updates a specific field in the config.
-func (s *databaseStore) UpdateConfig(updater func(c *Config)) error {
+// updateConfig provides a thread-safe way to read-modify-write the config.
+func (s *databaseStore) updateConfig(updater func(c *Config) error) error {
 	config, err := s.GetConfig()
 	if err != nil {
 		return err
 	}
-	updater(config)
+	if err := updater(config); err != nil {
+		return err
+	}
 	return s.saveConfig(config)
 }
 
+// GetConfig retrieves the application configuration from the database.
+func (s *databaseStore) GetConfig() (*Config, error) {
+	query := `SELECT categories, currency, start_date FROM config WHERE id = 'default'`
+	var categoriesStr, currency string
+	var startDate int
+	err := s.db.QueryRow(query).Scan(&categoriesStr, &currency, &startDate)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			config := &Config{}
+			config.SetBaseConfig()
+			if err := s.saveConfig(config); err != nil {
+				return nil, fmt.Errorf("failed to save initial default config: %v", err)
+			}
+			return config, nil
+		}
+		return nil, fmt.Errorf("failed to get config from db: %v", err)
+	}
+
+	var config Config
+	config.Currency = currency
+	config.StartDate = startDate
+	if err := json.Unmarshal([]byte(categoriesStr), &config.Categories); err != nil {
+		return nil, fmt.Errorf("failed to parse categories from db: %v", err)
+	}
+
+	recurring, err := s.GetRecurringExpenses()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get recurring expenses for config: %v", err)
+	}
+	config.RecurringExpenses = recurring
+
+	return &config, nil
+}
+
+// GetCategories retrieves the list of categories.
 func (s *databaseStore) GetCategories() ([]string, error) {
 	config, err := s.GetConfig()
 	if err != nil {
@@ -152,12 +165,15 @@ func (s *databaseStore) GetCategories() ([]string, error) {
 	return config.Categories, nil
 }
 
+// UpdateCategories updates the list of categories.
 func (s *databaseStore) UpdateCategories(categories []string) error {
-	return s.UpdateConfig(func(c *Config) {
+	return s.updateConfig(func(c *Config) error {
 		c.Categories = categories
+		return nil
 	})
 }
 
+// GetCurrency retrieves the current currency.
 func (s *databaseStore) GetCurrency() (string, error) {
 	config, err := s.GetConfig()
 	if err != nil {
@@ -166,15 +182,18 @@ func (s *databaseStore) GetCurrency() (string, error) {
 	return config.Currency, nil
 }
 
+// UpdateCurrency updates the application's currency.
 func (s *databaseStore) UpdateCurrency(currency string) error {
 	if !slices.Contains(supportedCurrencies, currency) {
 		return fmt.Errorf("invalid currency: %s", currency)
 	}
-	return s.UpdateConfig(func(c *Config) {
+	return s.updateConfig(func(c *Config) error {
 		c.Currency = currency
+		return nil
 	})
 }
 
+// GetStartDate retrieves the start day of the month for expense tracking.
 func (s *databaseStore) GetStartDate() (int, error) {
 	config, err := s.GetConfig()
 	if err != nil {
@@ -183,29 +202,38 @@ func (s *databaseStore) GetStartDate() (int, error) {
 	return config.StartDate, nil
 }
 
+// UpdateStartDate updates the start day of the month.
 func (s *databaseStore) UpdateStartDate(startDate int) error {
 	if startDate < 1 || startDate > 31 {
 		return fmt.Errorf("invalid start date: %d", startDate)
 	}
-	return s.UpdateConfig(func(c *Config) {
+	return s.updateConfig(func(c *Config) error {
 		c.StartDate = startDate
+		return nil
 	})
 }
 
-// func (s *databaseStore) GetTags() ([]string, error) {
-// 	config, err := s.GetConfig()
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	return config.Tags, nil
-// }
+// scanExpense is a helper function to scan a row into an Expense struct.
+func scanExpense(scanner interface{ Scan(...interface{}) error }) (Expense, error) {
+	var expense Expense
+	var tagsStr sql.NullString
+	var recurringID sql.NullString
+	err := scanner.Scan(&expense.ID, &recurringID, &expense.Name, &expense.Category, &expense.Amount, &expense.Date, &tagsStr)
+	if err != nil {
+		return Expense{}, err
+	}
+	if recurringID.Valid {
+		expense.RecurringID = recurringID.String
+	}
+	if tagsStr.Valid && tagsStr.String != "" {
+		if err := json.Unmarshal([]byte(tagsStr.String), &expense.Tags); err != nil {
+			return Expense{}, fmt.Errorf("failed to parse tags for expense %s: %v", expense.ID, err)
+		}
+	}
+	return expense, nil
+}
 
-// func (s *databaseStore) UpdateTags(tags []string) error {
-// 	return s.UpdateConfig(func(c *Config) {
-// 		c.Tags = tags
-// 	})
-// }
-
+// GetAllExpenses retrieves all expenses from the database, ordered by date descending.
 func (s *databaseStore) GetAllExpenses() ([]Expense, error) {
 	query := `SELECT id, recurring_id, name, category, amount, date, tags FROM expenses ORDER BY date DESC`
 	rows, err := s.db.Query(query)
@@ -213,51 +241,32 @@ func (s *databaseStore) GetAllExpenses() ([]Expense, error) {
 		return nil, fmt.Errorf("failed to query expenses: %v", err)
 	}
 	defer rows.Close()
+
 	var expenses []Expense
 	for rows.Next() {
-		var expense Expense
-		var tagsStr sql.NullString
-		var recurringID sql.NullString
-		err := rows.Scan(&expense.ID, &recurringID, &expense.Name, &expense.Category, &expense.Amount, &expense.Date, &tagsStr)
+		expense, err := scanExpense(rows)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan expense: %v", err)
-		}
-		if recurringID.Valid {
-			expense.RecurringID = recurringID.String
-		}
-		if tagsStr.Valid && tagsStr.String != "" {
-			if err := json.Unmarshal([]byte(tagsStr.String), &expense.Tags); err != nil {
-				return nil, fmt.Errorf("failed to parse tags for expense %s: %v", expense.ID, err)
-			}
 		}
 		expenses = append(expenses, expense)
 	}
 	return expenses, nil
 }
 
+// GetExpense retrieves a single expense by its ID.
 func (s *databaseStore) GetExpense(id string) (Expense, error) {
 	query := `SELECT id, recurring_id, name, category, amount, date, tags FROM expenses WHERE id = $1`
-	var expense Expense
-	var tagsStr sql.NullString
-	var recurringID sql.NullString
-	err := s.db.QueryRow(query, id).Scan(&expense.ID, &recurringID, &expense.Name, &expense.Category, &expense.Amount, &expense.Date, &tagsStr)
+	expense, err := scanExpense(s.db.QueryRow(query, id))
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return Expense{}, fmt.Errorf("expense with ID %s not found", id)
 		}
 		return Expense{}, fmt.Errorf("failed to get expense: %v", err)
 	}
-	if recurringID.Valid {
-		expense.RecurringID = recurringID.String
-	}
-	if tagsStr.Valid && tagsStr.String != "" {
-		if err := json.Unmarshal([]byte(tagsStr.String), &expense.Tags); err != nil {
-			return Expense{}, fmt.Errorf("failed to parse tags: %v", err)
-		}
-	}
 	return expense, nil
 }
 
+// AddExpense adds a new expense to the database.
 func (s *databaseStore) AddExpense(expense Expense) error {
 	if expense.ID == "" {
 		expense.ID = uuid.New().String()
@@ -274,36 +283,12 @@ func (s *databaseStore) AddExpense(expense Expense) error {
 	return err
 }
 
-func (s *databaseStore) RemoveExpense(id string) error {
-	query := `DELETE FROM expenses WHERE id = $1`
-	result, err := s.db.Exec(query, id)
-	if err != nil {
-		return fmt.Errorf("failed to delete expense: %v", err)
-	}
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to get rows affected: %v", err)
-	}
-	if rowsAffected == 0 {
-		return fmt.Errorf("expense with ID %s not found", id)
-	}
-	return nil
-}
-
-func (s *databaseStore) RemoveMultipleExpenses(ids []string) error {
-	if len(ids) == 0 {
-		return nil
-	}
-	query := `DELETE FROM expenses WHERE id = ANY($1)`
-	_, err := s.db.Exec(query, pq.Array(ids))
-	if err != nil {
-		return fmt.Errorf("failed to delete multiple expenses: %v", err)
-	}
-	return nil
-}
-
+// UpdateExpense updates an existing expense in the database.
 func (s *databaseStore) UpdateExpense(id string, expense Expense) error {
-	tagsJSON, _ := json.Marshal(expense.Tags)
+	tagsJSON, err := json.Marshal(expense.Tags)
+	if err != nil {
+		return err
+	}
 	query := `
 		UPDATE expenses
 		SET name = $1, category = $2, amount = $3, date = $4, tags = $5, recurring_id = $6
@@ -323,6 +308,53 @@ func (s *databaseStore) UpdateExpense(id string, expense Expense) error {
 	return nil
 }
 
+// RemoveExpense removes an expense from the database by its ID.
+func (s *databaseStore) RemoveExpense(id string) error {
+	query := `DELETE FROM expenses WHERE id = $1`
+	result, err := s.db.Exec(query, id)
+	if err != nil {
+		return fmt.Errorf("failed to delete expense: %v", err)
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %v", err)
+	}
+	if rowsAffected == 0 {
+		return fmt.Errorf("expense with ID %s not found", id)
+	}
+	return nil
+}
+
+// RemoveMultipleExpenses removes multiple expenses in a single query.
+func (s *databaseStore) RemoveMultipleExpenses(ids []string) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	query := `DELETE FROM expenses WHERE id = ANY($1)`
+	_, err := s.db.Exec(query, pq.Array(ids))
+	if err != nil {
+		return fmt.Errorf("failed to delete multiple expenses: %v", err)
+	}
+	return nil
+}
+
+// scanRecurringExpense is a helper function to scan a row into a RecurringExpense struct.
+func scanRecurringExpense(scanner interface{ Scan(...interface{}) error }) (RecurringExpense, error) {
+	var re RecurringExpense
+	var tagsStr sql.NullString
+	err := scanner.Scan(&re.ID, &re.Name, &re.Amount, &re.Category, &re.StartDate, &re.Interval, &re.Occurrences, &tagsStr)
+	if err != nil {
+		return RecurringExpense{}, err
+	}
+	if tagsStr.Valid && tagsStr.String != "" {
+		if err := json.Unmarshal([]byte(tagsStr.String), &re.Tags); err != nil {
+			return RecurringExpense{}, fmt.Errorf("failed to parse tags for recurring expense %s: %v", re.ID, err)
+		}
+	}
+	return re, nil
+}
+
+// GetRecurringExpenses retrieves all recurring expense rules.
 func (s *databaseStore) GetRecurringExpenses() ([]RecurringExpense, error) {
 	query := `SELECT id, name, amount, category, start_date, interval, occurrences, tags FROM recurring_expenses`
 	rows, err := s.db.Query(query)
@@ -332,41 +364,29 @@ func (s *databaseStore) GetRecurringExpenses() ([]RecurringExpense, error) {
 	defer rows.Close()
 	var recurringExpenses []RecurringExpense
 	for rows.Next() {
-		var re RecurringExpense
-		var tagsStr sql.NullString
-		err := rows.Scan(&re.ID, &re.Name, &re.Amount, &re.Category, &re.StartDate, &re.Interval, &re.Occurrences, &tagsStr)
+		re, err := scanRecurringExpense(rows)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan recurring expense: %v", err)
-		}
-		if tagsStr.Valid && tagsStr.String != "" {
-			if err := json.Unmarshal([]byte(tagsStr.String), &re.Tags); err != nil {
-				return nil, fmt.Errorf("failed to parse tags for recurring expense %s: %v", re.ID, err)
-			}
 		}
 		recurringExpenses = append(recurringExpenses, re)
 	}
 	return recurringExpenses, nil
 }
 
+// GetRecurringExpense retrieves a single recurring expense rule by its ID.
 func (s *databaseStore) GetRecurringExpense(id string) (RecurringExpense, error) {
 	query := `SELECT id, name, amount, category, start_date, interval, occurrences, tags FROM recurring_expenses WHERE id = $1`
-	var re RecurringExpense
-	var tagsStr sql.NullString
-	err := s.db.QueryRow(query, id).Scan(&re.ID, &re.Name, &re.Amount, &re.Category, &re.StartDate, &re.Interval, &re.Occurrences, &tagsStr)
+	re, err := scanRecurringExpense(s.db.QueryRow(query, id))
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return RecurringExpense{}, fmt.Errorf("recurring expense with ID %s not found", id)
 		}
 		return RecurringExpense{}, fmt.Errorf("failed to get recurring expense: %v", err)
 	}
-	if tagsStr.Valid && tagsStr.String != "" {
-		if err := json.Unmarshal([]byte(tagsStr.String), &re.Tags); err != nil {
-			return RecurringExpense{}, fmt.Errorf("failed to parse tags: %v", err)
-		}
-	}
 	return re, nil
 }
 
+// AddRecurringExpense adds a new recurring expense rule and generates its instances.
 func (s *databaseStore) AddRecurringExpense(recurringExpense RecurringExpense) error {
 	tx, err := s.db.Begin()
 	if err != nil {
@@ -386,6 +406,7 @@ func (s *databaseStore) AddRecurringExpense(recurringExpense RecurringExpense) e
 	if err != nil {
 		return fmt.Errorf("failed to insert recurring expense rule: %v", err)
 	}
+
 	expensesToAdd := generateExpensesFromRecurring(recurringExpense, false)
 	if len(expensesToAdd) > 0 {
 		stmt, err := tx.Prepare(pq.CopyIn("expenses", "id", "recurring_id", "name", "category", "amount", "date", "tags"))
@@ -407,34 +428,7 @@ func (s *databaseStore) AddRecurringExpense(recurringExpense RecurringExpense) e
 	return tx.Commit()
 }
 
-func (s *databaseStore) RemoveRecurringExpense(id string, removeAll bool) error {
-	tx, err := s.db.Begin()
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %v", err)
-	}
-	defer tx.Rollback()
-	res, err := tx.Exec(`DELETE FROM recurring_expenses WHERE id = $1`, id)
-	if err != nil {
-		return fmt.Errorf("failed to delete recurring expense rule: %v", err)
-	}
-	rowsAffected, _ := res.RowsAffected()
-	if rowsAffected == 0 {
-		return fmt.Errorf("recurring expense with ID %s not found", id)
-	}
-	var deleteQuery string
-	if removeAll {
-		deleteQuery = `DELETE FROM expenses WHERE recurring_id = $1`
-		_, err = tx.Exec(deleteQuery, id)
-	} else {
-		deleteQuery = `DELETE FROM expenses WHERE recurring_id = $1 AND date > $2`
-		_, err = tx.Exec(deleteQuery, id, time.Now())
-	}
-	if err != nil {
-		return fmt.Errorf("failed to delete expense instances: %v", err)
-	}
-	return tx.Commit()
-}
-
+// UpdateRecurringExpense updates a recurring expense rule and its instances.
 func (s *databaseStore) UpdateRecurringExpense(id string, recurringExpense RecurringExpense, updateAll bool) error {
 	tx, err := s.db.Begin()
 	if err != nil {
@@ -456,6 +450,7 @@ func (s *databaseStore) UpdateRecurringExpense(id string, recurringExpense Recur
 	if rowsAffected == 0 {
 		return fmt.Errorf("recurring expense with ID %s not found to update", id)
 	}
+
 	var deleteQuery string
 	if updateAll {
 		deleteQuery = `DELETE FROM expenses WHERE recurring_id = $1`
@@ -467,6 +462,7 @@ func (s *databaseStore) UpdateRecurringExpense(id string, recurringExpense Recur
 	if err != nil {
 		return fmt.Errorf("failed to delete old expense instances for update: %v", err)
 	}
+
 	expensesToAdd := generateExpensesFromRecurring(recurringExpense, !updateAll)
 	if len(expensesToAdd) > 0 {
 		stmt, err := tx.Prepare(pq.CopyIn("expenses", "id", "recurring_id", "name", "category", "amount", "date", "tags"))
@@ -486,4 +482,90 @@ func (s *databaseStore) UpdateRecurringExpense(id string, recurringExpense Recur
 		}
 	}
 	return tx.Commit()
+}
+
+// RemoveRecurringExpense removes a recurring expense rule and its instances.
+func (s *databaseStore) RemoveRecurringExpense(id string, removeAll bool) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %v", err)
+	}
+	defer tx.Rollback()
+	res, err := tx.Exec(`DELETE FROM recurring_expenses WHERE id = $1`, id)
+	if err != nil {
+		return fmt.Errorf("failed to delete recurring expense rule: %v", err)
+	}
+	rowsAffected, _ := res.RowsAffected()
+	if rowsAffected == 0 {
+		return fmt.Errorf("recurring expense with ID %s not found", id)
+	}
+
+	var deleteQuery string
+	if removeAll {
+		deleteQuery = `DELETE FROM expenses WHERE recurring_id = $1`
+		_, err = tx.Exec(deleteQuery, id)
+	} else {
+		deleteQuery = `DELETE FROM expenses WHERE recurring_id = $1 AND date > $2`
+		_, err = tx.Exec(deleteQuery, id, time.Now())
+	}
+	if err != nil {
+		return fmt.Errorf("failed to delete expense instances: %v", err)
+	}
+	return tx.Commit()
+}
+
+func generateExpensesFromRecurring(recExp RecurringExpense, fromToday bool) []Expense {
+	var expenses []Expense
+	currentDate := recExp.StartDate
+	today := time.Now()
+	occurrencesToGenerate := recExp.Occurrences
+	if fromToday {
+		for currentDate.Before(today) && (recExp.Occurrences == 0 || occurrencesToGenerate > 0) {
+			switch recExp.Interval {
+			case "daily":
+				currentDate = currentDate.AddDate(0, 0, 1)
+			case "weekly":
+				currentDate = currentDate.AddDate(0, 0, 7)
+			case "monthly":
+				currentDate = currentDate.AddDate(0, 1, 0)
+			case "yearly":
+				currentDate = currentDate.AddDate(1, 0, 0)
+			default:
+				return expenses // Stop if interval is invalid
+			}
+			if recExp.Occurrences > 0 {
+				occurrencesToGenerate--
+			}
+		}
+	}
+	limit := occurrencesToGenerate
+	if recExp.Occurrences == 0 {
+		limit = 365 * 10 // Heuristic for "indefinite"
+	}
+
+	for i := 0; i < limit; i++ {
+		expense := Expense{
+			ID:          uuid.New().String(),
+			RecurringID: recExp.ID,
+			Name:        recExp.Name,
+			Category:    recExp.Category,
+			Amount:      recExp.Amount,
+			Date:        currentDate,
+			Tags:        recExp.Tags,
+		}
+		expenses = append(expenses, expense)
+		switch recExp.Interval {
+		case "daily":
+			currentDate = currentDate.AddDate(0, 0, 1)
+		case "weekly":
+			currentDate = currentDate.AddDate(0, 0, 7)
+		case "monthly":
+			currentDate = currentDate.AddDate(0, 1, 0)
+		case "yearly":
+			currentDate = currentDate.AddDate(1, 0, 0)
+		default:
+			return expenses
+		}
+	}
+	return expenses
 }
