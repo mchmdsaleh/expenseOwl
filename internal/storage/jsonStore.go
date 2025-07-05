@@ -24,7 +24,6 @@ type expensesFileData struct {
 	Expenses []Expense `json:"expenses"`
 }
 
-// initializes the JSON storage backend
 func InitializeJsonStore(baseConfig SystemConfig) (*jsonStore, error) {
 	configPath := filepath.Join(baseConfig.StorageURL, "config.json")
 	filePath := filepath.Join(baseConfig.StorageURL, "expenses.json")
@@ -264,19 +263,6 @@ func (s *jsonStore) UpdateStartDate(startDate int) error {
 // 	return expenses
 // }
 
-func (s *jsonStore) addMultipleExpenses(expensesToAdd []Expense) error {
-	if len(expensesToAdd) == 0 {
-		return nil
-	}
-	data, err := s.readExpensesFile(s.filePath)
-	if err != nil {
-		return fmt.Errorf("failed to read storage file: %v", err)
-	}
-	data.Expenses = append(data.Expenses, expensesToAdd...)
-	log.Printf("Added %d new recurring expense instances\n", len(expensesToAdd))
-	return s.writeExpensesFile(s.filePath, data)
-}
-
 func (s *jsonStore) GetRecurringExpenses() ([]RecurringExpense, error) {
 	config, err := s.GetConfig()
 	if err != nil {
@@ -313,7 +299,7 @@ func (s *jsonStore) AddRecurringExpense(recurringExpense RecurringExpense) error
 		return fmt.Errorf("failed to write config file: %v", err)
 	}
 	expensesToAdd := generateExpensesFromRecurring(recurringExpense, false)
-	return s.addMultipleExpenses(expensesToAdd)
+	return s.AddMultipleExpenses(expensesToAdd)
 }
 
 func (s *jsonStore) RemoveRecurringExpense(id string, removeAll bool) error {
@@ -469,6 +455,19 @@ func (s *jsonStore) RemoveExpense(id string) error {
 	}
 	log.Printf("Deleted expense with ID %s\n", id)
 	data.Expenses = newExpenses
+	return s.writeExpensesFile(s.filePath, data)
+}
+
+func (s *jsonStore) AddMultipleExpenses(expensesToAdd []Expense) error {
+	if len(expensesToAdd) == 0 {
+		return nil
+	}
+	data, err := s.readExpensesFile(s.filePath)
+	if err != nil {
+		return fmt.Errorf("failed to read storage file: %v", err)
+	}
+	data.Expenses = append(data.Expenses, expensesToAdd...)
+	log.Printf("Added %d new recurring expense instances\n", len(expensesToAdd))
 	return s.writeExpensesFile(s.filePath, data)
 }
 

@@ -12,7 +12,7 @@
         <header>
             <div class="nav-bar">
                 <a href="/">
-                    <img src="/pwa/icon-512.png" alt="ExpenseOwl Logo" height="85" style="vertical-align: middle; margin-right: 20px;">
+                    <img src="/pwa/icon-192.png" alt="ExpenseOwl Logo" height="85" style="vertical-align: middle; margin-right: 20px;">
                 </a>
                 <a href="/" class="view-button" data-tooltip="Dashboard">
                     <i class="fa-solid fa-chart-pie"></i>
@@ -124,9 +124,22 @@
         <div class="form-container">
             <h2 align="center">Import/Export Data</h2>
             <div class="export-buttons">
+                <div class="export-options">
+                    <a href="/export/csv" id="csv-export-file" class="nav-button" download="expenses.csv">Export to CSV</a>
+                </div>
+                <div class="import-option">
+                    <label for="csv-import-file" class="nav-button">Import from CSV</label>
+                    <input type="file" id="csv-import-file" accept=".csv" style="display: none;">
+                </div>
             </div>
             <div id="importMessage" class="form-message"></div>
-            <div id="importSummary" class="import-summary" style="display: none;"></div>
+            <div id="importSummary" class="import-summary" style="display: none;">
+                <h3>Import Summary</h3>
+                <p>Total Records Processed: <span id="summary-processed"></span></p>
+                <p>Successfully Imported: <span id="summary-imported"></span></p>
+                <p>Skipped Records: <span id="summary-skipped"></span></p>
+                <p>New Categories Added: <span id="summary-new-categories"></span></p>
+            </div>
         </div>
     </div>
 
@@ -673,6 +686,52 @@
             }
         }
 
+        // --- Import/Export ---
+        async function handleCsvImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const messageDiv = document.getElementById('importMessage');
+            const summaryDiv = document.getElementById('importSummary');
+
+            messageDiv.textContent = 'Importing... this may take a while for large files.';
+            messageDiv.className = 'form-message';
+            summaryDiv.style.display = 'none';
+
+            try {
+                const response = await fetch('/import/csv', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    messageDiv.textContent = 'Import completed!';
+                    messageDiv.className = 'form-message success';
+                    summaryDiv.style.display = 'block';
+                    document.getElementById('summary-processed').textContent = result.total_processed;
+                    document.getElementById('summary-imported').textContent = result.imported;
+                    document.getElementById('summary-skipped').textContent = result.skipped;
+                    document.getElementById('summary-new-categories').textContent = result.new_categories.join(', ') || 'None';
+                    
+                    await initialize();
+                } else {
+                    messageDiv.textContent = `Error: ${result.error || 'Failed to import CSV'}`;
+                    messageDiv.className = 'form-message error';
+                }
+            } catch (error) {
+                console.error('Error importing CSV:', error);
+                messageDiv.textContent = 'Error: An unexpected error occurred during import.';
+                messageDiv.className = 'form-message error';
+            } finally {
+                event.target.value = '';
+            }
+        }
+
 
         // --- Initialization ---
         async function initialize() {
@@ -726,6 +785,7 @@
         document.getElementById('saveCategories').addEventListener('click', saveCategories);
         document.getElementById('saveCurrency').addEventListener('click', saveCurrency);
         document.getElementById('saveStartDate').addEventListener('click', saveStartDate);
+        document.getElementById('csv-import-file').addEventListener('change', handleCsvImport);
         
         document.getElementById('newCategory').addEventListener('keypress', e => e.key === 'Enter' && addCategory());
 

@@ -81,8 +81,8 @@ func runServer() {
 	http.HandleFunc("/recurring-expense/delete", handler.DeleteRecurringExpense) // DELETE
 
 	// Import/Export
-	// http.HandleFunc("/export/csv", handler.ExportCSV)
-	// http.HandleFunc("/import/csv", handler.ImportCSV)
+	http.HandleFunc("/export/csv", handler.ExportCSV)
+	http.HandleFunc("/import/csv", handler.ImportCSV)
 
 	log.Println("Starting server on port 8080...")
 	if err := http.ListenAndServe(":8080", nil); err != nil {

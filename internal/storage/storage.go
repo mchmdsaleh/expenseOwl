@@ -33,6 +33,7 @@ type Storage interface {
 	GetExpense(id string) (Expense, error)
 	AddExpense(expense Expense) error
 	RemoveExpense(id string) error
+	AddMultipleExpenses(expenses []Expense) error
 	RemoveMultipleExpenses(ids []string) error
 	UpdateExpense(id string, expense Expense) error
 }
@@ -47,11 +48,11 @@ type Config struct {
 }
 
 type RecurringExpense struct {
-	ID          string  `json:"id"`
-	Name        string  `json:"name"`
-	Amount      float64 `json:"amount"`
-	Tags        []string
-	Category    string
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	Amount      float64   `json:"amount"`
+	Tags        []string  `json:"tags"`
+	Category    string    `json:"category"`
 	StartDate   time.Time `json:"startDate"`   // date of the first occurrence
 	Interval    string    `json:"interval"`    // daily, weekly, monthly, yearly
 	Occurrences int       `json:"occurrences"` // 0 for 10 years (heuristic), 10 for 10 occurrences
@@ -130,25 +131,40 @@ func InitializeStorage() (Storage, error) {
 }
 
 func (e *Expense) Validate() error {
-	if e.Amount == 0 || e.Name == "" || e.Category == "" {
-		return fmt.Errorf("missing required fields")
+	if e.Name == "" {
+		return fmt.Errorf("expense 'name' cannot be empty")
+	}
+	if e.Category == "" {
+		return fmt.Errorf("expense 'category' cannot be empty")
+	}
+	if e.Date.IsZero() {
+		return fmt.Errorf("expense 'date' cannot be empty")
 	}
 	return nil
 }
 
 func (e *RecurringExpense) Validate() error {
-	if e.Amount == 0 || e.Name == "" || e.Category == "" {
-		return fmt.Errorf("missing required fields")
-	} else if e.Occurrences < 0 {
-		return fmt.Errorf("unexpected value for occurrences")
+	if e.Name == "" {
+		return fmt.Errorf("recurring expense 'name' cannot be empty")
 	}
-	switch e.Interval {
-	case "daily":
-	case "weekly":
-	case "monthly":
-	case "yearly":
-	default:
-		return fmt.Errorf("invalid valude for interval")
+	if e.Category == "" {
+		return fmt.Errorf("recurring expense 'category' cannot be empty")
+	}
+	if e.Occurrences < 0 {
+		return fmt.Errorf("occurrences cannot be a negative number")
+	}
+	if e.StartDate.IsZero() {
+		return fmt.Errorf("start date for recurring expense must be specified")
+	}
+
+	validIntervals := map[string]bool{
+		"daily":   true,
+		"weekly":  true,
+		"monthly": true,
+		"yearly":  true,
+	}
+	if !validIntervals[e.Interval] {
+		return fmt.Errorf("invalid interval: '%s'. Must be one of 'daily', 'weekly', 'monthly', or 'yearly'", e.Interval)
 	}
 	return nil
 }

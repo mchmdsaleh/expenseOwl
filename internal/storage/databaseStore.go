@@ -51,7 +51,6 @@ const (
 	);`
 )
 
-// InitializePostgresStore sets up the database connection and creates tables if they don't exist.
 func InitializePostgresStore(baseConfig SystemConfig) (Storage, error) {
 	dbURL := makeDBURL(baseConfig)
 	db, err := sql.Open("postgres", dbURL)
@@ -70,12 +69,10 @@ func InitializePostgresStore(baseConfig SystemConfig) (Storage, error) {
 	return &databaseStore{db: db}, nil
 }
 
-// makeDBURL constructs the database connection URL from the system configuration.
 func makeDBURL(baseConfig SystemConfig) string {
 	return fmt.Sprintf("postgres://%s:%s@%s?sslmode=disable", baseConfig.StorageUser, baseConfig.StoragePass, baseConfig.StorageURL)
 }
 
-// createTables executes the DDL statements to create necessary tables.
 func createTables(db *sql.DB) error {
 	for _, query := range []string{createExpensesTableSQL, createRecurringExpensesTableSQL, createConfigTableSQL} {
 		if _, err := db.Exec(query); err != nil {
@@ -85,12 +82,10 @@ func createTables(db *sql.DB) error {
 	return nil
 }
 
-// Close closes the database connection.
 func (s *databaseStore) Close() error {
 	return s.db.Close()
 }
 
-// saveConfig is a helper to insert or update the application configuration.
 func (s *databaseStore) saveConfig(config *Config) error {
 	categoriesJSON, err := json.Marshal(config.Categories)
 	if err != nil {
@@ -109,7 +104,6 @@ func (s *databaseStore) saveConfig(config *Config) error {
 	return err
 }
 
-// updateConfig provides a thread-safe way to read-modify-write the config.
 func (s *databaseStore) updateConfig(updater func(c *Config) error) error {
 	config, err := s.GetConfig()
 	if err != nil {
@@ -121,7 +115,6 @@ func (s *databaseStore) updateConfig(updater func(c *Config) error) error {
 	return s.saveConfig(config)
 }
 
-// GetConfig retrieves the application configuration from the database.
 func (s *databaseStore) GetConfig() (*Config, error) {
 	query := `SELECT categories, currency, start_date FROM config WHERE id = 'default'`
 	var categoriesStr, currency string
@@ -156,7 +149,6 @@ func (s *databaseStore) GetConfig() (*Config, error) {
 	return &config, nil
 }
 
-// GetCategories retrieves the list of categories.
 func (s *databaseStore) GetCategories() ([]string, error) {
 	config, err := s.GetConfig()
 	if err != nil {
@@ -165,7 +157,6 @@ func (s *databaseStore) GetCategories() ([]string, error) {
 	return config.Categories, nil
 }
 
-// UpdateCategories updates the list of categories.
 func (s *databaseStore) UpdateCategories(categories []string) error {
 	return s.updateConfig(func(c *Config) error {
 		c.Categories = categories
@@ -173,7 +164,6 @@ func (s *databaseStore) UpdateCategories(categories []string) error {
 	})
 }
 
-// GetCurrency retrieves the current currency.
 func (s *databaseStore) GetCurrency() (string, error) {
 	config, err := s.GetConfig()
 	if err != nil {
@@ -182,7 +172,6 @@ func (s *databaseStore) GetCurrency() (string, error) {
 	return config.Currency, nil
 }
 
-// UpdateCurrency updates the application's currency.
 func (s *databaseStore) UpdateCurrency(currency string) error {
 	if !slices.Contains(supportedCurrencies, currency) {
 		return fmt.Errorf("invalid currency: %s", currency)
@@ -193,7 +182,6 @@ func (s *databaseStore) UpdateCurrency(currency string) error {
 	})
 }
 
-// GetStartDate retrieves the start day of the month for expense tracking.
 func (s *databaseStore) GetStartDate() (int, error) {
 	config, err := s.GetConfig()
 	if err != nil {
@@ -202,7 +190,6 @@ func (s *databaseStore) GetStartDate() (int, error) {
 	return config.StartDate, nil
 }
 
-// UpdateStartDate updates the start day of the month.
 func (s *databaseStore) UpdateStartDate(startDate int) error {
 	if startDate < 1 || startDate > 31 {
 		return fmt.Errorf("invalid start date: %d", startDate)
@@ -213,8 +200,7 @@ func (s *databaseStore) UpdateStartDate(startDate int) error {
 	})
 }
 
-// scanExpense is a helper function to scan a row into an Expense struct.
-func scanExpense(scanner interface{ Scan(...interface{}) error }) (Expense, error) {
+func scanExpense(scanner interface{ Scan(...any) error }) (Expense, error) {
 	var expense Expense
 	var tagsStr sql.NullString
 	var recurringID sql.NullString
@@ -233,7 +219,6 @@ func scanExpense(scanner interface{ Scan(...interface{}) error }) (Expense, erro
 	return expense, nil
 }
 
-// GetAllExpenses retrieves all expenses from the database, ordered by date descending.
 func (s *databaseStore) GetAllExpenses() ([]Expense, error) {
 	query := `SELECT id, recurring_id, name, category, amount, date, tags FROM expenses ORDER BY date DESC`
 	rows, err := s.db.Query(query)
@@ -253,7 +238,6 @@ func (s *databaseStore) GetAllExpenses() ([]Expense, error) {
 	return expenses, nil
 }
 
-// GetExpense retrieves a single expense by its ID.
 func (s *databaseStore) GetExpense(id string) (Expense, error) {
 	query := `SELECT id, recurring_id, name, category, amount, date, tags FROM expenses WHERE id = $1`
 	expense, err := scanExpense(s.db.QueryRow(query, id))
@@ -266,7 +250,6 @@ func (s *databaseStore) GetExpense(id string) (Expense, error) {
 	return expense, nil
 }
 
-// AddExpense adds a new expense to the database.
 func (s *databaseStore) AddExpense(expense Expense) error {
 	if expense.ID == "" {
 		expense.ID = uuid.New().String()
@@ -283,7 +266,6 @@ func (s *databaseStore) AddExpense(expense Expense) error {
 	return err
 }
 
-// UpdateExpense updates an existing expense in the database.
 func (s *databaseStore) UpdateExpense(id string, expense Expense) error {
 	tagsJSON, err := json.Marshal(expense.Tags)
 	if err != nil {
@@ -308,7 +290,6 @@ func (s *databaseStore) UpdateExpense(id string, expense Expense) error {
 	return nil
 }
 
-// RemoveExpense removes an expense from the database by its ID.
 func (s *databaseStore) RemoveExpense(id string) error {
 	query := `DELETE FROM expenses WHERE id = $1`
 	result, err := s.db.Exec(query, id)
@@ -325,7 +306,19 @@ func (s *databaseStore) RemoveExpense(id string) error {
 	return nil
 }
 
-// RemoveMultipleExpenses removes multiple expenses in a single query.
+func (s *databaseStore) AddMultipleExpenses(expenses []Expense) error {
+	if len(expenses) == 0 {
+		return nil
+	}
+	// use the same addexpense method
+	for _, exp := range expenses {
+		if err := s.AddExpense(exp); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (s *databaseStore) RemoveMultipleExpenses(ids []string) error {
 	if len(ids) == 0 {
 		return nil
@@ -338,7 +331,6 @@ func (s *databaseStore) RemoveMultipleExpenses(ids []string) error {
 	return nil
 }
 
-// scanRecurringExpense is a helper function to scan a row into a RecurringExpense struct.
 func scanRecurringExpense(scanner interface{ Scan(...interface{}) error }) (RecurringExpense, error) {
 	var re RecurringExpense
 	var tagsStr sql.NullString
@@ -354,7 +346,6 @@ func scanRecurringExpense(scanner interface{ Scan(...interface{}) error }) (Recu
 	return re, nil
 }
 
-// GetRecurringExpenses retrieves all recurring expense rules.
 func (s *databaseStore) GetRecurringExpenses() ([]RecurringExpense, error) {
 	query := `SELECT id, name, amount, category, start_date, interval, occurrences, tags FROM recurring_expenses`
 	rows, err := s.db.Query(query)
@@ -373,7 +364,6 @@ func (s *databaseStore) GetRecurringExpenses() ([]RecurringExpense, error) {
 	return recurringExpenses, nil
 }
 
-// GetRecurringExpense retrieves a single recurring expense rule by its ID.
 func (s *databaseStore) GetRecurringExpense(id string) (RecurringExpense, error) {
 	query := `SELECT id, name, amount, category, start_date, interval, occurrences, tags FROM recurring_expenses WHERE id = $1`
 	re, err := scanRecurringExpense(s.db.QueryRow(query, id))
@@ -386,7 +376,6 @@ func (s *databaseStore) GetRecurringExpense(id string) (RecurringExpense, error)
 	return re, nil
 }
 
-// AddRecurringExpense adds a new recurring expense rule and generates its instances.
 func (s *databaseStore) AddRecurringExpense(recurringExpense RecurringExpense) error {
 	tx, err := s.db.Begin()
 	if err != nil {
@@ -428,7 +417,6 @@ func (s *databaseStore) AddRecurringExpense(recurringExpense RecurringExpense) e
 	return tx.Commit()
 }
 
-// UpdateRecurringExpense updates a recurring expense rule and its instances.
 func (s *databaseStore) UpdateRecurringExpense(id string, recurringExpense RecurringExpense, updateAll bool) error {
 	tx, err := s.db.Begin()
 	if err != nil {
@@ -484,7 +472,6 @@ func (s *databaseStore) UpdateRecurringExpense(id string, recurringExpense Recur
 	return tx.Commit()
 }
 
-// RemoveRecurringExpense removes a recurring expense rule and its instances.
 func (s *databaseStore) RemoveRecurringExpense(id string, removeAll bool) error {
 	tx, err := s.db.Begin()
 	if err != nil {

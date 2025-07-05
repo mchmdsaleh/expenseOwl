@@ -498,7 +498,7 @@ header {
 }
 
 .import-option label {
-    display: block;
+    /* display: block; */
     text-align: center;
     cursor: pointer;
 }
@@ -758,6 +758,7 @@ header {
 .form-group label {
     font-size: 0.875rem;
     color: var(--text-secondary);
+    align-self: center;
 }
 
 .form-group input,
@@ -807,7 +808,7 @@ header {
     color: #EF4444;
 }
 
-.form-group-checkbox {
+/* .form-group-checkbox {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
@@ -818,13 +819,14 @@ header {
     font-size: 0.875rem;
     color: var(--text-secondary);
     cursor: pointer;
-}
+} */
 
-.styled-checkbox {
+/* .styled-checkbox {
     width: 1.25rem;
     height: 1.25rem;
     cursor: pointer;
-}
+    align-self: center;
+} */
 
 .table-controls {
     display: flex;
