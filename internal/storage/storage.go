@@ -3,6 +3,8 @@ package storage
 import (
 	"fmt"
 	"os"
+	"regexp"
+	"strings"
 	"time"
 )
 
@@ -130,12 +132,40 @@ func InitializeStorage() (Storage, error) {
 	return nil, fmt.Errorf("invalid data store: %s", baseConfig.StorageType)
 }
 
+// cleans a string by replacing < and > with a space and trimms whitespace
+func SanitizeString(s string) string {
+	s = strings.ReplaceAll(s, "<", " ")
+	s = strings.ReplaceAll(s, ">", " ")
+	re := regexp.MustCompile(`\s+`) // Collapse multiple spaces into one
+	s = re.ReplaceAllString(s, " ")
+	return strings.TrimSpace(s)
+}
+
+func ValidateCategory(category string) (string, error) {
+	sanitized := SanitizeString(category)
+	if sanitized == "" {
+		return "", fmt.Errorf("category name cannot be empty or contain only invalid characters")
+	}
+	return sanitized, nil
+}
+
 func (e *Expense) Validate() error {
+	e.Name = SanitizeString(e.Name)
 	if e.Name == "" {
 		return fmt.Errorf("expense 'name' cannot be empty")
 	}
 	if e.Category == "" {
 		return fmt.Errorf("expense 'category' cannot be empty")
+	}
+	if len(e.Tags) > 0 {
+		var cleanedTags []string
+		for _, tag := range e.Tags {
+			sanitizedTag := SanitizeString(tag)
+			if sanitizedTag != "" {
+				cleanedTags = append(cleanedTags, sanitizedTag)
+			}
+		}
+		e.Tags = cleanedTags
 	}
 	if e.Date.IsZero() {
 		return fmt.Errorf("expense 'date' cannot be empty")
@@ -144,11 +174,22 @@ func (e *Expense) Validate() error {
 }
 
 func (e *RecurringExpense) Validate() error {
+	e.Name = SanitizeString(e.Name)
 	if e.Name == "" {
 		return fmt.Errorf("recurring expense 'name' cannot be empty")
 	}
 	if e.Category == "" {
 		return fmt.Errorf("recurring expense 'category' cannot be empty")
+	}
+	if len(e.Tags) > 0 {
+		var cleanedTags []string
+		for _, tag := range e.Tags {
+			sanitizedTag := SanitizeString(tag)
+			if sanitizedTag != "" {
+				cleanedTags = append(cleanedTags, sanitizedTag)
+			}
+		}
+		e.Tags = cleanedTags
 	}
 	if e.Occurrences < 0 {
 		return fmt.Errorf("occurrences cannot be a negative number")
@@ -156,7 +197,6 @@ func (e *RecurringExpense) Validate() error {
 	if e.StartDate.IsZero() {
 		return fmt.Errorf("start date for recurring expense must be specified")
 	}
-
 	validIntervals := map[string]bool{
 		"daily":   true,
 		"weekly":  true,

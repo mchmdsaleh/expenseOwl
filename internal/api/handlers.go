@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -79,7 +80,17 @@ func (h *Handler) UpdateCategories(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Invalid request body"})
 		return
 	}
-	if err := h.storage.UpdateCategories(categories); err != nil {
+	var sanitizedCategories []string
+	for _, category := range categories {
+		sanitized, err := storage.ValidateCategory(category)
+		if err != nil {
+			log.Printf("API ERROR: Invalid category provided: %v\n", err)
+			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: fmt.Sprintf("Invalid category '%s': %v", category, err)})
+			return
+		}
+		sanitizedCategories = append(sanitizedCategories, sanitized)
+	}
+	if err := h.storage.UpdateCategories(sanitizedCategories); err != nil {
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to update categories"})
 		log.Printf("API ERROR: Failed to update categories: %v\n", err)
 		return

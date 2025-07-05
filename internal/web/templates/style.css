@@ -59,7 +59,7 @@ header {
 }
 
 @media (prefers-color-scheme: light) {
-    #prevMonth, #nextMonth {
+    #prevMonth, #nextMonth, #toggleExpenseFormBtn {
         background-color: var(--bg-secondary);
     }
 }

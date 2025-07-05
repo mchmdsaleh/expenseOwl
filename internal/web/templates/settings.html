@@ -88,7 +88,7 @@
                     <label for="tags-input">Tags</label>
                     <div class="tags-input-container">
                         <div id="selected-tags" class="selected-tags"></div>
-                        <input type="text" id="tags-input" placeholder="Add tags...">
+                        <input type="text" id="tags-input" placeholder="(optional)">
                     </div>
                     <div id="tags-dropdown" class="tags-dropdown"></div>
                 </div>
@@ -175,7 +175,7 @@
                     <label for="edit-tags-input">Tags</label>
                     <div class="tags-input-container">
                         <div id="edit-selected-tags" class="selected-tags"></div>
-                        <input type="text" id="edit-tags-input" placeholder="Add tags...">
+                        <input type="text" id="edit-tags-input" placeholder="(optional)">
                     </div>
                     <div id="edit-tags-dropdown" class="tags-dropdown"></div>
                 </div>
@@ -346,13 +346,16 @@
 
         function addCategory() {
             const input = document.getElementById('newCategory');
-            const category = input.value.trim();
+            let category = input.value.trim();
+            category = category.replace(/[<>]/g, ' ').trim();
             if (category && !categories.includes(category)) {
                 categories.push(category);
                 renderCategories();
                 input.value = '';
             } else if (categories.includes(category)) {
                 showMessage('categoriesMessage', 'Category already exists', false);
+            } else if (!category) {
+                showMessage('categoriesMessage', 'Category name cannot be empty.', false);
             }
         }
 
@@ -372,7 +375,12 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(categories)
                 });   
-                showMessage('categoriesMessage', response.ok ? 'Categories saved successfully' : 'Failed to save categories', response.ok);
+                if (response.ok) {
+                    showMessage('categoriesMessage', 'Categories saved successfully', true);
+                } else {
+                    const error = await response.json();
+                    showMessage('categoriesMessage', `Failed to save categories: ${error.error}`, false);
+                }
             } catch (error) {
                 console.error('Error saving categories:', error);
                 showMessage('categoriesMessage', 'Error saving categories', false);
@@ -405,7 +413,7 @@
             };
 
             const addTag = (tag) => {
-                tag = tag.trim();
+                tag = tag.trim().replace(/[<>]/g, ' ').trim();
                 if (tag) {
                     selectedTagsSet.add(tag);
                     renderSelected();
@@ -448,7 +456,6 @@
                     item.onclick = () => addTag(tag);
                     dropdown.appendChild(item);
                 });
-                
                 dropdown.style.display = dropdown.children.length > 0 ? 'block' : 'none';
             });
 
@@ -548,7 +555,6 @@
             let nextDate = new Date(r.startDate);
             const today = new Date();
             if (nextDate >= today) return nextDate.toLocaleDateString();
-
             if (r.occurrences > 0) {
                 let occurrencesCount = 0;
                 while (nextDate < today) {
@@ -630,7 +636,6 @@
         function showRecurringEditModal(id) {
             recurringExpenseToEdit = recurringExpenses.find(r => r.id === id);
             if (!recurringExpenseToEdit) return;
-            
             document.getElementById('editRecurringName').value = recurringExpenseToEdit.name;
             document.getElementById('editRecurringAmount').value = Math.abs(recurringExpenseToEdit.amount);
             document.getElementById('editRecurringReportGain').checked = recurringExpenseToEdit.amount < 0;
@@ -638,10 +643,8 @@
             document.getElementById('editRecurringInterval').value = recurringExpenseToEdit.interval;
             document.getElementById('editRecurringStartDate').value = new Date(recurringExpenseToEdit.startDate).toISOString().split('T')[0];
             document.getElementById('editRecurringOccurrences').value = recurringExpenseToEdit.occurrences;
-            
             editFormSelectedTags = new Set(recurringExpenseToEdit.tags || []);
             createTagInput('edit-tags-input', 'edit-selected-tags', 'edit-tags-dropdown', editFormSelectedTags).renderSelected();
-
             document.getElementById('editRecurringModal').classList.add('active');
         }
         
@@ -652,7 +655,6 @@
 
         async function confirmRecurringUpdate(updateAll) {
             if (!recurringExpenseToEdit) return;
-
             let amount = parseFloat(document.getElementById('editRecurringAmount').value);
             if (document.getElementById('editRecurringReportGain').checked) {
                 amount *= -1;
@@ -690,10 +692,8 @@
         async function handleCsvImport(event) {
             const file = event.target.files[0];
             if (!file) return;
-
             const formData = new FormData();
             formData.append('file', file);
-
             const messageDiv = document.getElementById('importMessage');
             const summaryDiv = document.getElementById('importSummary');
 
@@ -732,7 +732,6 @@
             }
         }
 
-
         // --- Initialization ---
         async function initialize() {
             try {
@@ -741,24 +740,20 @@
                     fetch('/expenses'),
                     fetch('/recurring-expenses')
                 ]);
-
                 if (!configResponse.ok) throw new Error('Failed to fetch configuration');
                 const config = await configResponse.json();
-                
                 if (!expensesResponse.ok) throw new Error('Failed to fetch expenses');
                 const expenses = await expensesResponse.json();
-
                 if (!recurringExpensesResponse.ok) throw new Error('Failed to fetch recurring expenses');
                 recurringExpenses = await recurringExpensesResponse.json() || [];
 
                 categories = [...config.categories];
                 currentCurrency = config.currency;
                 currentStartDate = config.startDate;
-
                 allTags.clear();
                 (expenses || []).forEach(exp => (exp.tags || []).forEach(tag => allTags.add(tag)));
                 (recurringExpenses || []).forEach(exp => (exp.tags || []).forEach(tag => allTags.add(tag)));
-                
+
                 renderCategories();
                 populateCurrencySelect();
                 populateStartDateInput();
@@ -767,7 +762,6 @@
                 renderRecurringExpenses(recurringExpenses);
 
                 createTagInput('tags-input', 'selected-tags', 'tags-dropdown', addFormSelectedTags);
-
                 fetch('/version').then(r => r.ok ? r.text() : 'dev').then(version => {
                     const link = document.getElementById('version-link');
                     link.textContent = version;
@@ -786,7 +780,6 @@
         document.getElementById('saveCurrency').addEventListener('click', saveCurrency);
         document.getElementById('saveStartDate').addEventListener('click', saveStartDate);
         document.getElementById('csv-import-file').addEventListener('change', handleCsvImport);
-        
         document.getElementById('newCategory').addEventListener('keypress', e => e.key === 'Enter' && addCategory());
 
         document.getElementById('recurringExpenseForm').addEventListener('submit', async (e) => {
