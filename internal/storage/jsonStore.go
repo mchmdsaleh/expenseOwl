@@ -18,6 +18,7 @@ type jsonStore struct {
 	configPath string
 	filePath   string
 	mu         sync.RWMutex
+	defaults   map[string]string // allows reusing defaults without querying for config
 }
 
 type expensesFileData struct {
@@ -158,7 +159,7 @@ func (s *jsonStore) GetCurrency() (string, error) {
 }
 
 func (s *jsonStore) UpdateCurrency(currency string) error {
-	if !slices.Contains(supportedCurrencies, currency) {
+	if !slices.Contains(SupportedCurrencies, currency) {
 		return fmt.Errorf("invalid currency: %s", currency)
 	}
 	s.mu.Lock()
@@ -168,6 +169,7 @@ func (s *jsonStore) UpdateCurrency(currency string) error {
 		return fmt.Errorf("failed to read config file: %v", err)
 	}
 	data.Currency = currency
+	s.defaults["currency"] = currency
 	return s.writeConfigFile(s.configPath, data)
 }
 
@@ -209,59 +211,9 @@ func (s *jsonStore) UpdateStartDate(startDate int) error {
 		return fmt.Errorf("failed to read config file: %v", err)
 	}
 	data.StartDate = startDate
+	s.defaults["start_date"] = fmt.Sprintf("%d", startDate)
 	return s.writeConfigFile(s.configPath, data)
 }
-
-// Recurring Expenses
-
-// func generateExpensesFromRecurring(recExp RecurringExpense, fromToday bool) []Expense {
-// 	var expenses []Expense
-// 	currentDate := recExp.StartDate
-// 	today := time.Now()
-// 	occurrencesToGenerate := recExp.Occurrences
-// 	if fromToday {
-// 		for currentDate.Before(today) && occurrencesToGenerate > 0 {
-// 			switch recExp.Interval {
-// 			case "daily":
-// 				currentDate = currentDate.AddDate(0, 0, 1)
-// 			case "weekly":
-// 				currentDate = currentDate.AddDate(0, 0, 7)
-// 			case "monthly":
-// 				currentDate = currentDate.AddDate(0, 1, 0)
-// 			case "yearly":
-// 				currentDate = currentDate.AddDate(1, 0, 0)
-// 			default:
-// 				return expenses // Stop if interval is invalid
-// 			}
-// 			occurrencesToGenerate--
-// 		}
-// 	}
-// 	for i := 0; i < occurrencesToGenerate; i++ {
-// 		expense := Expense{
-// 			ID:          uuid.New().String(),
-// 			RecurringID: recExp.ID,
-// 			Name:        recExp.Name,
-// 			Category:    recExp.Category,
-// 			Amount:      recExp.Amount,
-// 			Date:        currentDate,
-// 			Tags:        recExp.Tags,
-// 		}
-// 		expenses = append(expenses, expense)
-// 		switch recExp.Interval {
-// 		case "daily":
-// 			currentDate = currentDate.AddDate(0, 0, 1)
-// 		case "weekly":
-// 			currentDate = currentDate.AddDate(0, 0, 7)
-// 		case "monthly":
-// 			currentDate = currentDate.AddDate(0, 1, 0)
-// 		case "yearly":
-// 			currentDate = currentDate.AddDate(1, 0, 0)
-// 		default:
-// 			return expenses
-// 		}
-// 	}
-// 	return expenses
-// }
 
 func (s *jsonStore) GetRecurringExpenses() ([]RecurringExpense, error) {
 	config, err := s.GetConfig()
@@ -293,6 +245,9 @@ func (s *jsonStore) AddRecurringExpense(recurringExpense RecurringExpense) error
 	}
 	if recurringExpense.ID == "" {
 		recurringExpense.ID = uuid.New().String()
+	}
+	if recurringExpense.Currency == "" {
+		recurringExpense.Currency = s.defaults["currency"]
 	}
 	config.RecurringExpenses = append(config.RecurringExpenses, recurringExpense)
 	if err := s.writeConfigFile(s.configPath, config); err != nil {
@@ -355,6 +310,9 @@ func (s *jsonStore) UpdateRecurringExpense(id string, recurringExpense Recurring
 	for i, r := range config.RecurringExpenses {
 		if r.ID == id {
 			recurringExpense.ID = id // Ensure ID is preserved
+			if recurringExpense.Currency == "" {
+				recurringExpense.Currency = s.defaults["currency"]
+			}
 			config.RecurringExpenses[i] = recurringExpense
 			found = true
 			break
@@ -424,6 +382,9 @@ func (s *jsonStore) AddExpense(expense Expense) error {
 	}
 	if expense.ID == "" {
 		expense.ID = uuid.New().String()
+	}
+	if expense.Currency == "" {
+		expense.Currency = s.defaults["currency"]
 	}
 	if expense.Date.IsZero() {
 		expense.Date = time.Now()
@@ -513,6 +474,9 @@ func (s *jsonStore) UpdateExpense(id string, expense Expense) error {
 		if exp.ID == id {
 			data.Expenses[i] = expense
 			data.Expenses[i].ID = id
+			if data.Expenses[i].Currency == "" {
+				data.Expenses[i].Currency = s.defaults["currency"]
+			}
 			found = true
 			break
 		}

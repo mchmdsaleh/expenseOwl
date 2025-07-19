@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -42,6 +43,7 @@ func (h *Handler) ExportCSV(w http.ResponseWriter, r *http.Request) {
 			expense.ID,
 			expense.Name,
 			expense.Category,
+			expense.Currency,
 			strconv.FormatFloat(expense.Amount, 'f', 2, 64),
 			expense.Date.Format(time.RFC3339),
 			strings.Join(expense.Tags, ","),
@@ -97,6 +99,7 @@ func (h *Handler) ImportCSV(w http.ResponseWriter, r *http.Request) {
 	// Get optional column indices
 	idIdx, idExists := colMap["id"]
 	tagsIdx, tagsExists := colMap["tags"]
+	currencyIdx, currencyExists := colMap["currency"]
 
 	currentCategories, err := h.storage.GetCategories()
 	if err != nil {
@@ -109,9 +112,15 @@ func (h *Handler) ImportCSV(w http.ResponseWriter, r *http.Request) {
 	}
 	var newCategories []string
 	var importedCount, skippedCount int
+	// TODO: might be worth setting default currency when we have currency updation behavior
+	currencyVal, err := h.storage.GetCurrency()
+	if err != nil {
+		log.Printf("Error: Could not retrieve currency, shutting down import: %v\n", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Could not retrieve currency"})
+		return
+	}
 
 	for i, record := range records[1:] {
-		// TODO: this can cause removal of rows with optional fields
 		if len(record) != len(header) {
 			log.Printf("Warning: Skipping row %d due to incorrect column count\n", i+2)
 			skippedCount++
@@ -126,6 +135,18 @@ func (h *Handler) ImportCSV(w http.ResponseWriter, r *http.Request) {
 				skippedCount++
 				continue
 			}
+		}
+
+		// Check for currency field, if provided - default is retrieved
+		localCurrency := currencyVal
+		if currencyExists {
+			currency := record[currencyIdx]
+			if !slices.Contains(storage.SupportedCurrencies, currency) {
+				log.Printf("Warning: Skipping row %d due to invalid currency: %s\n", i+2, currency)
+				skippedCount++
+				continue
+			}
+			localCurrency = strings.TrimSpace(currency)
 		}
 
 		amount, err := strconv.ParseFloat(record[colMap["amount"]], 64)
@@ -160,6 +181,7 @@ func (h *Handler) ImportCSV(w http.ResponseWriter, r *http.Request) {
 			Name:     strings.TrimSpace(record[colMap["name"]]),
 			Category: category,
 			Amount:   amount,
+			Currency: localCurrency,
 			Date:     date,
 			Tags:     tags,
 		}

@@ -38,6 +38,10 @@ type Storage interface {
 	AddMultipleExpenses(expenses []Expense) error
 	RemoveMultipleExpenses(ids []string) error
 	UpdateExpense(id string, expense Expense) error
+
+	// Potential Future Feature: Multi-currency
+	// GetConversions() (map[string]float64, error)
+	// UpdateConversions(conversions map[string]float64) error
 }
 
 // config for expense data
@@ -53,6 +57,7 @@ type RecurringExpense struct {
 	ID          string    `json:"id"`
 	Name        string    `json:"name"`
 	Amount      float64   `json:"amount"`
+	Currency    string    `json:"currency"`
 	Tags        []string  `json:"tags"`
 	Category    string    `json:"category"`
 	StartDate   time.Time `json:"startDate"`   // date of the first occurrence
@@ -83,6 +88,7 @@ type Expense struct {
 	Tags        []string  `json:"tags"`
 	Category    string    `json:"category"`
 	Amount      float64   `json:"amount"`
+	Currency    string    `json:"currency"`
 	Date        time.Time `json:"date"`
 }
 
@@ -157,6 +163,9 @@ func (e *Expense) Validate() error {
 	if e.Category == "" {
 		return fmt.Errorf("expense 'category' cannot be empty")
 	}
+	if e.Currency == "" {
+		return fmt.Errorf("expense 'currency' cannot be empty")
+	}
 	if len(e.Tags) > 0 {
 		var cleanedTags []string
 		for _, tag := range e.Tags {
@@ -223,7 +232,7 @@ var defaultCategories = []string{
 	"Income",
 }
 
-var supportedCurrencies = []string{
+var SupportedCurrencies = []string{
 	"usd", // US Dollar
 	"eur", // Euro
 	"gbp", // British Pound
