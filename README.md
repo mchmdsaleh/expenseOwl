@@ -89,8 +89,11 @@ Dashboard Showcase:
 The recommended installation method is Docker. To run the container via CLI, use the following command:
 
 ```bash
-docker run --rm -d --name expenseowl -p 8080:8080 \
--v expenseowl:/app/data tanq16/expenseowl:main
+docker run --rm -d \
+  --name expenseowl \
+  -p 8080:8080 \
+  -v expenseowl:/app/data \
+  tanq16/expenseowl:main
 ```
 
 To use Docker compose, use this YAML definition:
