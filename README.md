@@ -1,5 +1,5 @@
 <p align="center">
-<img src="/assets/logo.png" alt="ExpenseOwl Logo" width="250" height="250" /><br>
+<img src="/assets/logo.png" alt="ExpenseOwl Logo" width="200" height="200" /><br>
 </p>
 
 <h1 align="center">ExpenseOwl</h1><br>
