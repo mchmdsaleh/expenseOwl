@@ -164,6 +164,9 @@ func (e *Expense) Validate() error {
 	if e.Category == "" {
 		return fmt.Errorf("expense 'category' cannot be empty")
 	}
+	if e.Amount == 0 {
+		return fmt.Errorf("expense 'amount' cannot be 0")
+	}
 	// if e.Currency == "" {
 	// 	return fmt.Errorf("expense 'currency' cannot be empty")
 	// }
