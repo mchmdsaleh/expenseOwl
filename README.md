@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-<a href="#why-create-this">Why Create This?</a>&nbsp;&bull;&nbsp;<a href="#features">Features</a>&nbsp;&bull;&nbsp;<a href="#screenshots">Screenshots</a><br><a href="#installation">Installation</a>&nbsp;&bull;&nbsp;<a href="#usage">Usage</a>&nbsp;&bull;&nbsp;<a href="#contributing">Contributing</a>&nbsp;&bull;&nbsp;<a href="#technology-stack">Tech Stack</a>
+<a href="#why-create-this">Why Create This?</a>&nbsp;&bull;&nbsp;<a href="#features">Features</a>&nbsp;&bull;&nbsp;<a href="#screenshots">Screenshots</a><br><a href="#installation">Installation</a>&nbsp;&bull;&nbsp;<a href="#usage">Usage</a>&nbsp;&bull;&nbsp;<a href="#contributing">Contributing</a>
 </p>
 
 <br>
@@ -22,44 +22,38 @@
 
 # Why Create This?
 
-There are a ton of amazing projects for expense tracking across GitHub ([Actual](https://github.com/actualbudget/actual), [Firefly III](https://github.com/firefly-iii/firefly-iii), etc.). They're all really incredible! I just find that they aren't the *fastest* or *simplest* to add expenses. They also offer too many features I never use (like varying data formats or complex budgeting). *Don't get me wrong*, they're amazing when complexity is needed, but I wanted something ***dead simple*** that only gives me a quick monthly pie chart and a tabular representation. NOTHING else!
+There are a ton of amazing projects for expense tracking across GitHub ([Actual](https://github.com/actualbudget/actual), [Firefly III](https://github.com/firefly-iii/firefly-iii), etc.). They're all incredible! I just don't find them *fast* and *simple*. They offer too many features I never use (like accounts or complex budgeting). *Don't get me wrong!* They're amazing when complexity is needed, but I wanted something ***dead simple*** that gives me a quick monthly look at my expenses. NOTHING else!
 
-That's why I created this project and I use it in my home lab for my expense tracking. The intention is to track spending across your categories in a simplistic manner. No complicated searching or editing - just `add`, `delete`, and `view`! This intention will not change throughout the project's lifecycle. This is *not* an app for budgeting; it's for straightforward tracking.
+So, I created this project and I use it in my home lab for expenses. The primary intention is to track spending across your categories in a simplistic manner. No complications, searching, budgeting. This is *not* a budgeting app; it's for tracking.
 
 # Features
 
 ### Core Functionality
 
-- Expense tracking with essential details only (optional name, date, amount, and category)
-- Flat file storage system (`data/expenses.json`)
-- REST API for expense management
+- Quick expense/income add (only date, amount, and category are required)
 - Single-user focused (mainly for a home lab deployment)
-- CSV and JSON export and import of all expense data from the UI
-- Custom categories, currency symbol, and start date via app settings
-- Beautiful interface that automatically adapts to system for light/dark theme
-- UUID-based expense identification in the backend
+- Recurring transactions for both income and expenses
+- Custom categories, currency symbols, and start date via app settings
+- Optional tags for further classification
+- Beautiful interface with both light and dark themes
 - Self-contained binary and container image to ensure no internet interaction
 - Multi-architecture Docker container with support for persistent storage
+- PWA support for using the app on smartphone
 
 ### Visualization
 
-1. Main dashboard - category breakdown (pie chart)
-    - Click on a category to exclude it from the graph and total; click again to add it back
-    - This helps visualize the breakdown without considering some categories like Rent
-    - The legend shows categories that make up the the total expenditure of the month
-2. Main dashboard - cashflow indicator
-    - The default settings have an `Income` category, items in which are not considered expenses
-    - If a month has an item in `Income`, ExpenseOwl automatically shows cashflow below the graph
+1. Main dashboard - category breakdown (pie chart) and cashflow indicator
+    - Click on a category to exclude it from the pie chart; click again to add it back
+    - Visualize the month's breakdown without considering some categories like Rent
     - Cashflow shows total income, total expenses, and balance (red or green based on +ve or -ve)
-3. Table view for detailed expense listing
-    - This is where you can view individual expenses chronologically and delete them
-    - You can use the browser's search to find a name if needed
-4. Month-by-month navigation in both dashboard and table views
-5. Settings page for configuring the application
+2. Table view for detailed expense listing
+    - View monthly or all expenses chronologically and delete them (hold shift to skip confirm)
+    - Use the browser to search for a name or tags if needed
+    - Tags show up if at least one transaction uses it; 
+3. Settings page for configurations and additional features
     - Reorder, add, or remove custom categories
-    - Select a custom currency to display
-    - Select a custom start date to show expenses for a different period
-    - Exporting data as CSV or JSON and import data from JSON or CSV
+    - Select a custom currency symbol and a custom start date
+    - Exporting data as CSV and import CSV from virtually anywhere
 
 ### Progressive Web App (PWA)
 
@@ -92,48 +86,34 @@ Dashboard Showcase:
 
 # Installation
 
-### Docker Installation (Recommended)
-
-Create a volume or a directory for the project:
+The recommended installation method is Docker. To run the container via CLI, use the following command:
 
 ```bash
-mkdir $HOME/expenseowl
+docker run --rm -d --name expenseowl -p 8080:8080 \
+-v expenseowl:/app/data tanq16/expenseowl:main
 ```
 
-```bash
-docker run --rm -d \
---name expenseowl \
--p 8080:8080 \
--v $HOME/expenseowl:/app/data \
-tanq16/expenseowl:main
-```
-
-To use it with Docker compose or a container-management system like Portainer or Dockge, use this YAML definition:
+To use Docker compose, use this YAML definition:
 
 ```yaml
 services:
-  budgetlord:
+  expenseowl:
     image: tanq16/expenseowl:main
     restart: unless-stopped
     ports:
-      - 5006:8080
+      - 5006:8080 # change 5006 to what you want to expose on
     volumes:
-      - /home/tanq/expenseowl:/app/data # CHANGE DIR
+      - /home/tanq/expenseowl:/app/data # change dir as needed
 ```
 
-### Using the Binary
+<details>
+<summary>Expand this to see additional execution options</summary>
 
-Download the appropriate binary from the project releases. Running the binary automatically sets up a `data` directory in your CWD. You can visit the frontend at `http://localhost:8080`.
+### Using the Binary or Building from Source
 
-### Building from Source
+Download the appropriate binary from the project releases. The binary automatically sets up a `data` directory in your CWD, and starts the app at `http://localhost:8080`.
 
-To directly install the binary from source into your GOBIN, use:
-
-```bash
-go install github.com/tanq16/expenseowl/cmd/expenseowl@latest
-```
-
-Otherwise, to build it yourself:
+To build the binary yourself:
 
 ```bash
 git clone https://github.com/tanq16/expenseowl.git && \
@@ -143,7 +123,9 @@ go build ./cmd/expenseowl
 
 ### Kubernetes Deployment
 
-The project also has a community-contributed Kubernetes spec. The spec is a sample and you should review it before deploying in your cluster. Read the [associated readme](./kubernetes/README.md) for more information.
+This is a community-contributed Kubernetes spec. Treat it as a sample and review before deploying to your cluster. Read the [associated readme](./kubernetes/README.md) for more information.
+
+</details>
 
 # Usage
 
@@ -151,108 +133,92 @@ Once deployed, use the web interface to do everything. Access it through your br
 
 - Dashboard: `http://localhost:8080/`
 - Table View: `http://localhost:8080/table`
+- Settings: `http://localhost:8080/settings`
 
 > [!NOTE]
-> This app has no authentication, so deploy carefully. It works very well with a reverse proxy like Nginx Proxy Manager and is mainly intended for homelab use. The app has not undergone a pentest to allow for any production deployment. It should strictly be deployed in a home lab setting, behind authentication, and for only one (or a few non-destructive) user(s).
+> This app does not include authentication, so deploy carefully. I don't want to add half-baked authentication, so use Authelia, or equivalent as needed. ExpenseOwl works well with a reverse proxy like Nginx Proxy Manager too and is intended for homelab use only.
 
-If command-line automations are required for use with the REST API, read on!
+### Conventions
 
-### Executable
+Since writing the app, I've found a ton of ways applications handle expenses. Release v4.0 solidifies the conventions I will continue to maintain the app in.
 
-The application binary can be run directly within CLI for any common OS and architecture:
-
-```bash
-./expenseowl
-# or from a custom directory
-./expenseowl -data /custom/path
-```
-
-### REST API
-
-ExpenseOwl provides an API to allow adding expenses via automations or simply via cURL, Siri Shortcuts, or other automations.
-
-Add Expense:
-
-```bash
-curl -X PUT http://localhost:8080/expense \
--H "Content-Type: application/json" \
--d '{
- "name": "Groceries",
- "category": "Food",
- "amount": 75.50,
- "date": "2024-03-15T14:30:00Z"
-}'
-```
-
-Get All Expenses:
-
-```bash
-curl http://localhost:8080/expenses
-```
-
-### Config Options
-
-The primary config is stored in the data directory in the `config.json` file. A pre-defined configuration is automatically initialized. The currency in use and the categories can be customized from the `/settings` endpoint within the UI.
-
-ExpenseOwl supports multiple currencies through the CURRENCY environment variable. If not specified, it defaults to USD ($). All available options are shown in the UI settings page.
-
-If setting up for the first time, an environment variable can be used for ease. For example, to use Euro:
-
-```bash
-CURRENCY=eur ./expenseowl
-```
+- Expenses are categorized by a -ve value, while income or reimbursement (designated by the `Report as gain` checkbox) are +ve
+- Expense dates are stored as UTC strings in RFC3339 format, however, the frontend hides the time value from the user; users are meant to select a date, and the current local time is automatically added to the given date
+- Future and recurring expenses extending into future dates are added immediately to the backend
+- The primary way to use ExpenseOwl is to quick review the month's stats via the pie chart - this allows users to make a mental note and soft decision of where to spend money, without the effort of maintaining a budget
+- Categories are meant to be used as a classification criteria - example, how much did I spend on food, groceries, and utilities, etc.
+- Tags are optional and are meant to assign features and characteristics to expenses.
 
 > [!NOTE]
-> Expense Owl primarily supports using positive values for all expenses by default. For better imports and higher control, ExpenseOwl also allows for negative values (see https://github.com/Tanq16/ExpenseOwl/pull/39). As such, positive expenses indicate money spent, while negative expenses indicate money gained, i.e., a return or reimbursment.
-> Various software deal with positive and negative expenses differently. This project aims to provide freedom in operation, as a result of which a future refactor will allow for a choice for accurate external imports. 
+> While these conventions can change during the project's lifecycle, largely, the intention (stemming from the motivation to build ExpenseOwl) behind simple, manual, easy tracking will not change.
 
-ExpenseOwl also supports custom categories. A default set is pre-loaded in the config for ease of use and can be easily changed within the UI.
+### Configuration Options
 
-Like currency, if setting up for the first time, categories can be specified in an environment variable like so:
+With the exception of [Data backends](#data-backends), all configuration of ExpenseOwl happens via the application UI. The list of all such options available via the settings page (`/settings` endpoint) is as follows:
 
-```bash
-EXPENSE_CATEGORIES="Rent,Food,Transport,Fun,Bills" ./expenseowl
-```
+- Category Settings:
+- Currency Symbol:
+  - This is a frontend symbol configuration on what symbol to use to show amount values
+  - Each currency has its default behavior for using `,` or `.` as separators (and if it uses decimals or not)
+- Start Date:
+  - This is a custom day of the month from when the expenses will be displayed
+  - Example: setting it to 5 means, expenses for each month will be counted from 5th to next month's 4th
+- Recurring Transactions:
+  - A recurring transaction can be for an expense or an income (gain)
+  - Given a value for number of occurences and a start date, the app will add the transactions accordingly
+  - Recurring transactions will be listed at the bottom of the page and can be edited/removed (all or future only transactions)
+  - Recurring transactions allow similar options as normal expenses - category, tags, amount, name
+- Theme Settings: supports light and dark theme, with default behavior to adapt to system
+- Import/Export Data: covered under [Data Import/Export](#data-importexport)
+
+### Data Backends
+
+ExpenseOwl supports two data backends - JSON (default), and Postgres. Postgres was added with v4.0 of the app primarily for homelabbers to reuse their Postgres instances as needed for better backup compatibility.
+
+Ideally, you need not configure anything differently for the JSON backend. ExpenseOwl automatically creates the data directory and the `.json` files. You may, however, want to mount a specific volume to `/app/data` within the container for persistence.
+
+For configuring Postgres, use the following environment variables:
+
+| Variable | Sample Value | Details |
+| --- | --- | --- |
+| STORAGE_TYPE | postgres | defaults to `json`, hence JSON backend is default |
+| STORAGE_URL | "localhost:5432/expenseowldb" | format - SERVER/DB - the sslmode value is set by the next variable |
+| STORAGE_SSL | require | can be one of `disable` (default), `verify-full`, `verify-ca`, or `require` |
+| STORAGE_USER | testuser | the user to authenticate with your Postgres instance |
+| STORAGE_PASS | testpassword | the password for the Postgres user |
+
+The app has been tested with SSL mode for Postgres set to disable for simplicity.
 
 > [!TIP]
-> The environment variables can be set in a compose stack or using `-e` in the command line with a Docker command. However, remember that they are only effective in setting up the configuration for first start. Otherwise, use the settings UI.
+> The environment variables can be set for using `-e` in the command line or `environment` in a compose stack.
 
-Similarly, the start date can also be set via the settings UI or the `START_DATE` environment variable.
+> [!TIP]
+> Having learnt more Go, I introduced the Storage interface in v4.0, making it easy to add any storage backend by simply implementing the interface.
 
 ### Data Import/Export
-
-ExpenseOwl contains a sophisticated method for importing an exporting expenses. The settings page provides the options for exporting all expense data as JSON or CSV. The same page also allows importing data in both JSON and CSV formats.
-
-**Importing CSV**
 
 ExpenseOwl is meant to make things simple, and importing CSV abides by the same philosophy. ExpenseOwl will accept any CSV file as long as it contains the columns - `name`, `category`, `amount`, and `date`. This is case-insensitive so `name` or `Name` doesn't matter.
 
 > [!TIP]
 > This feature allows ExpenseOwl to use exported data from any tool as long as the required categories are present, making it insanely easy to shift from any provider.
 
-**Importing JSON**
-
-Primarily, ExpenseOwl maintains a JSON-backend for storing both expenses and config data. If you backed up a Docker volume containing the `config.json` and `expenses.json` files, the recommended way to restore is by mounting the same volume (or directory) to your new container. All data will be instantly usable.
-
-However, in case you need to import JSON formatted data from elsewhere (this is generally rare), you can use the import JSON feature.
-
 > [!WARNING]
-> If the time field is not a proper date string (i.e., including time and zone), ExpenseOwl will do a best guess match to set the time to midnight UTC equivalent. This is because time zones are a ... thing.
+> The recommended format for the date is RFC3339. Additionally, ExpenseOwl can ingest several other time formats, including a short, human written date like `2012/8/14` (14th August 2012).
+> HOWEVER !!!
+> ExpenseOwl only ingests date in YYYY-MM-DD (this order). ExpenseOwl does NOT deal with MM/DD or DD/MM. Full 4 digit year comes first, followed by month, and lastly the date.
 
 > [!NOTE]
-> ExpenseOwl goes through every row in the imported data, and will intelligently fail on rows that have invalid or absent data. There is a 10 millisecond delay per record to reduce disk overhead, so please allow appropriate time for ingestion (eg. 10 seconds for 1000 records).
+> ExpenseOwl goes through every row in the imported data, and will intelligently fail on rows that have invalid or absent data. There is a 10 millisecond delay per record to reduce disk/db overhead, so please allow appropriate time for ingestion (eg. ~10 seconds for 1000 records).
+
+Data exported as CSV will include expense IDs, so when importing the same CSV file, IDs will be maintained and skipped appropriately.
+
+An `Import from ExpenseOwl v3.2-` will be present for v4.X to allow pulling in data from past releases.
 
 # Contributing
 
-Contributions are welcome; please ensure they align with the project's philosophy of maintaining simplicity by strictly using the current [tech stack](#technology-stack). It is intended for home lab use, i.e., a self-hosted first approach (containerized use). Consider the following:
+Contributions are welcome; please ensure they align with the project's philosophy of maintaining simplicity by strictly using the current tech stack (Go for backend; HTML, CSS, JS for frontend). It is intended for home lab use, i.e., a self-hosted first approach (containerized use). Consider the following:
 
 - Additions should have sensible defaults without breaking foundations
-- Environment variables can be used for user configuration in containers
+- Environment variables can be used for system configuration in container and binary
 - Found a typo or need to ask a question? Please open an issue instead of a PR
-
-# Technology Stack
-
-- Backend: Go
-- Storage: JSON file system
-- Frontend: Chart.js and vanilla web stack (HTML, JS, CSS)
-- Interface: CLI + Web UI
+- To add a new backend type (say SQL, NocoDB, etc.), a new file can be added in the backend that implements the Storage interface

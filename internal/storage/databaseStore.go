@@ -72,7 +72,7 @@ func InitializePostgresStore(baseConfig SystemConfig) (Storage, error) {
 }
 
 func makeDBURL(baseConfig SystemConfig) string {
-	return fmt.Sprintf("postgres://%s:%s@%s?sslmode=disable", baseConfig.StorageUser, baseConfig.StoragePass, baseConfig.StorageURL)
+	return fmt.Sprintf("postgres://%s:%s@%s?sslmode=%s", baseConfig.StorageUser, baseConfig.StoragePass, baseConfig.StorageURL, baseConfig.StorageSSL)
 }
 
 func createTables(db *sql.DB) error {

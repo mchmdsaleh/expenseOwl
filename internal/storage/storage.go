@@ -78,6 +78,7 @@ type SystemConfig struct {
 	StorageType BackendType
 	StorageUser string
 	StoragePass string
+	StorageSSL  string
 }
 
 // expense struct
@@ -103,6 +104,7 @@ func (c *Config) SetBaseConfig() {
 func (c *SystemConfig) SetStorageConfig() {
 	c.StorageType = backendTypeFromEnv(os.Getenv("STORAGE_TYPE"))
 	c.StorageURL = backendURLFromEnv(os.Getenv("STORAGE_URL"))
+	c.StorageSSL = backendSSLFromEnv(os.Getenv("STORAGE_SSL"))
 	c.StorageUser = os.Getenv("STORAGE_USER")
 	c.StoragePass = os.Getenv("STORAGE_PASS")
 }
@@ -123,6 +125,15 @@ func backendURLFromEnv(env string) string {
 		return "data"
 	}
 	return env
+}
+
+func backendSSLFromEnv(env string) string {
+	switch env {
+	case "disable", "require", "verify-full", "verify-ca":
+		return env
+	default:
+		return "disable"
+	}
 }
 
 // initializes the storage backend
