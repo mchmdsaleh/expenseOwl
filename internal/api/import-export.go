@@ -220,10 +220,9 @@ func parseDate(dateStr string) (time.Time, error) {
 		"2006-01-02T15:04:05Z07:00",
 		"2006-01-02 15:04:05",
 		"2006-01-02",
-		"1/2/2006",
-		"01/02/2006",
-		"1-2-2006",
-		"01-02-2006",
+		"2006-1-2",
+		"2006/01/02",
+		"2006/1/2",
 	}
 	for _, format := range dateFormats {
 		if d, err := time.Parse(format, dateStr); err == nil {
