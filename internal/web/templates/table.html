@@ -5,6 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="/fa.min.css">
     <link rel="stylesheet" href="/style.css">
+    <script>
+        (function() {
+            const theme = localStorage.getItem('theme') || 'system';
+            if (theme === 'light') {
+                document.documentElement.setAttribute('data-theme', 'light');
+            } else if (theme === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }
+        })();
+    </script>
     <title>ExpenseOwl Table</title>
 </head>
 <body>
@@ -198,7 +208,7 @@
         }
 
         function editExpense(id, name, category, amount, tags, date) {
-            const isGain = amount < 0;
+            const isGain = amount > 0;
             document.getElementById('name').value = name;
             document.getElementById('category').value = category;
             document.getElementById('amount').value = Math.abs(amount);
@@ -390,7 +400,7 @@
             const editId = form.dataset.editId;
             const isGain = document.getElementById('reportGain').checked;
             let amount = parseFloat(document.getElementById('amount').value);
-            if (isGain) {
+            if (!isGain) {
                 amount *= -1;
             }
 

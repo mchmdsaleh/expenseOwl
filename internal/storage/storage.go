@@ -138,13 +138,14 @@ func InitializeStorage() (Storage, error) {
 	return nil, fmt.Errorf("invalid data store: %s", baseConfig.StorageType)
 }
 
-// cleans a string by replacing < and > with a space and trimms whitespace
+var REInvalidChars *regexp.Regexp = regexp.MustCompile(`[^\p{L}\p{N}\s.,\-'_!"]`)
+var RERepeatingSpaces *regexp.Regexp = regexp.MustCompile(`\s+`)
+
+// allows readable chars like unicode, otherwise replaces with whitespace
 func SanitizeString(s string) string {
-	s = strings.ReplaceAll(s, "<", " ")
-	s = strings.ReplaceAll(s, ">", " ")
-	re := regexp.MustCompile(`\s+`) // Collapse multiple spaces into one
-	s = re.ReplaceAllString(s, " ")
-	return strings.TrimSpace(s)
+	sanitized := REInvalidChars.ReplaceAllString(s, " ")
+	sanitized = RERepeatingSpaces.ReplaceAllString(sanitized, " ")
+	return strings.TrimSpace(sanitized)
 }
 
 func ValidateCategory(category string) (string, error) {

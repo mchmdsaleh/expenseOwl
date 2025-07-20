@@ -66,6 +66,7 @@ func InitializeJsonStore(baseConfig SystemConfig) (*jsonStore, error) {
 	return &jsonStore{
 		configPath: configPath,
 		filePath:   filePath,
+		defaults:   map[string]string{},
 	}, nil
 }
 
@@ -172,25 +173,6 @@ func (s *jsonStore) UpdateCurrency(currency string) error {
 	s.defaults["currency"] = currency
 	return s.writeConfigFile(s.configPath, data)
 }
-
-// func (s *jsonStore) GetTags() ([]string, error) {
-// 	config, err := s.GetConfig()
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	return config.Tags, nil
-// }
-
-// func (s *jsonStore) UpdateTags(tags []string) error {
-// 	s.mu.Lock()
-// 	defer s.mu.Unlock()
-// 	data, err := s.readConfigFile(s.configPath)
-// 	if err != nil {
-// 		return fmt.Errorf("failed to read config file: %v", err)
-// 	}
-// 	data.Tags = tags
-// 	return s.writeConfigFile(s.configPath, data)
-// }
 
 func (s *jsonStore) GetStartDate() (int, error) {
 	config, err := s.GetConfig()

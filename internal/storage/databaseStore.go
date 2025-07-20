@@ -68,7 +68,7 @@ func InitializePostgresStore(baseConfig SystemConfig) (Storage, error) {
 	if err := createTables(db); err != nil {
 		return nil, fmt.Errorf("failed to create database tables: %v", err)
 	}
-	return &databaseStore{db: db}, nil
+	return &databaseStore{db: db, defaults: map[string]string{}}, nil
 }
 
 func makeDBURL(baseConfig SystemConfig) string {

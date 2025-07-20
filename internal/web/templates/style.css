@@ -1,5 +1,5 @@
 :root {
-    /* Dark mode - modern dark blue theme */
+    /* Default theme: Dark mode */
     --bg-primary: #081528;
     --bg-secondary: #101f3b;
     --text-primary: #f4f4f4;
@@ -8,14 +8,32 @@
     --accent: #69afde;
 }
 
+/* Light theme override */
+html[data-theme='light'] {
+    --bg-primary: #f2e5d7;
+    --bg-secondary: #faecdd;
+    --text-primary: #2e2e2e;
+    --text-secondary: #3e3e3e;
+    --border: #e6ddd4;
+}
+
+/* Dark theme override */
+html[data-theme='dark'] {
+    --bg-primary: #081528;
+    --bg-secondary: #101f3b;
+    --text-primary: #f4f4f4;
+    --text-secondary: #b3b3b3;
+    --border: #1a365d;
+}
+
+/* System preference for light mode (when no theme is set) */
 @media (prefers-color-scheme: light) {
-    :root {
+    :root:not([data-theme]) {
         --bg-primary: #f2e5d7;
         --bg-secondary: #faecdd;
         --text-primary: #2e2e2e;
         --text-secondary: #3e3e3e;
         --border: #e6ddd4;
-        --accent: #69afde;
     }
 }
 
@@ -557,14 +575,14 @@ header {
     margin: 0 0.5rem;
 }
 
-.currency-selector, .start-date-manager {
+.currency-selector, .start-date-manager, .theme-selector {
     display: flex;
     align-items: center;
     gap: 1rem;
     margin: 1rem 0;
 }
 
-.start-date-manager input, .currency-selector select {
+.start-date-manager input, .currency-selector select, .theme-selector select {
     flex: 1;
     padding: 0.5rem;
     border: 1px solid var(--border);
