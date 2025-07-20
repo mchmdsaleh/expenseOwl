@@ -344,7 +344,7 @@ func (s *databaseStore) RemoveMultipleExpenses(ids []string) error {
 	return nil
 }
 
-func scanRecurringExpense(scanner interface{ Scan(...interface{}) error }) (RecurringExpense, error) {
+func scanRecurringExpense(scanner interface{ Scan(...any) error }) (RecurringExpense, error) {
 	var re RecurringExpense
 	var tagsStr sql.NullString
 	err := scanner.Scan(&re.ID, &re.Name, &re.Amount, &re.Currency, &re.Category, &re.StartDate, &re.Interval, &re.Occurrences, &tagsStr)
