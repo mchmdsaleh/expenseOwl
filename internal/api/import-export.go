@@ -291,6 +291,7 @@ func (h *Handler) ImportOldCSV(w http.ResponseWriter, r *http.Request) {
 			categorySet[strings.ToLower(category)] = true // Add to set to handle duplicates in the same file
 		}
 
+		// switches sign for new expenseowl
 		amountUpdated := amount
 		if category != "Income" {
 			amountUpdated = amount * -1
