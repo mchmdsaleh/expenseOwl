@@ -545,11 +545,11 @@ func generateExpensesFromRecurring(recExp RecurringExpense, fromToday bool) []Ex
 		}
 	}
 	limit := occurrencesToGenerate
-	if recExp.Occurrences == 0 {
-		limit = 2000 // Heuristic for "indefinite"
-	}
+	// if recExp.Occurrences == 0 {
+	// 	limit = 2000 // Heuristic for "indefinite"
+	// }
 
-	for i := 0; i < limit; i++ {
+	for range limit {
 		expense := Expense{
 			ID:          uuid.New().String(),
 			RecurringID: recExp.ID,
