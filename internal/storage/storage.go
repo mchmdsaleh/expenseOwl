@@ -1,154 +1,280 @@
 package storage
 
 import (
-	"encoding/json"
-	"errors"
 	"fmt"
-	"log"
 	"os"
-	"path/filepath"
-	"sync"
+	"regexp"
+	"strings"
 	"time"
-
-	"github.com/google/uuid"
-	"github.com/tanq16/expenseowl/internal/config"
 )
 
-var (
-	ErrExpenseNotFound = errors.New("expense not found")
-	ErrInvalidExpense  = errors.New("invalid expense data")
-)
-
+// Storage interface for all storage types
 type Storage interface {
-	SaveExpense(expense *config.Expense) error
-	GetAllExpenses() ([]*config.Expense, error)
-	DeleteExpense(id string) error
-	EditExpense(expense *config.Expense) error
+	Close() error
+	GetConfig() (*Config, error)
+
+	// Basic Config Updates
+	GetCategories() ([]string, error)
+	UpdateCategories(categories []string) error
+	// GetTags() ([]string, error)
+	// UpdateTags(tags []string) error
+	GetCurrency() (string, error)
+	UpdateCurrency(currency string) error
+	GetStartDate() (int, error)
+	UpdateStartDate(startDate int) error
+
+	// Recurring Expenses
+	GetRecurringExpenses() ([]RecurringExpense, error)
+	GetRecurringExpense(id string) (RecurringExpense, error)
+	AddRecurringExpense(recurringExpense RecurringExpense) error
+	RemoveRecurringExpense(id string, removeAll bool) error
+	UpdateRecurringExpense(id string, recurringExpense RecurringExpense, updateAll bool) error
+
+	// Expenses
+	GetAllExpenses() ([]Expense, error)
+	GetExpense(id string) (Expense, error)
+	AddExpense(expense Expense) error
+	RemoveExpense(id string) error
+	AddMultipleExpenses(expenses []Expense) error
+	RemoveMultipleExpenses(ids []string) error
+	UpdateExpense(id string, expense Expense) error
+
+	// Potential Future Feature: Multi-currency
+	// GetConversions() (map[string]float64, error)
+	// UpdateConversions(conversions map[string]float64) error
 }
 
-type jsonStore struct {
-	filePath string
-	mu       sync.RWMutex
+// config for expense data
+type Config struct {
+	Categories        []string           `json:"categories"`
+	Currency          string             `json:"currency"`
+	StartDate         int                `json:"startDate"`
+	RecurringExpenses []RecurringExpense `json:"recurringExpenses"`
+	// Tags              []string           `json:"tags"`
 }
 
-type fileData struct {
-	Expenses []*config.Expense `json:"expenses"`
+type RecurringExpense struct {
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	Amount      float64   `json:"amount"`
+	Currency    string    `json:"currency"`
+	Tags        []string  `json:"tags"`
+	Category    string    `json:"category"`
+	StartDate   time.Time `json:"startDate"`   // date of the first occurrence
+	Interval    string    `json:"interval"`    // daily, weekly, monthly, yearly
+	Occurrences int       `json:"occurrences"` // 0 for 3000 occurrences (heuristic)
 }
 
-func New(filePath string) (*jsonStore, error) {
-	dir := filepath.Dir(filePath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create storage directory: %v", err)
+type BackendType string
+
+const (
+	BackendTypeJSON     BackendType = "json"
+	BackendTypePostgres BackendType = "postgres"
+)
+
+// config for the storage backend
+type SystemConfig struct {
+	StorageURL  string
+	StorageType BackendType
+	StorageUser string
+	StoragePass string
+	StorageSSL  string
+}
+
+// expense struct
+type Expense struct {
+	ID          string    `json:"id"`
+	RecurringID string    `json:"recurringID"`
+	Name        string    `json:"name"`
+	Tags        []string  `json:"tags"`
+	Category    string    `json:"category"`
+	Amount      float64   `json:"amount"`
+	Currency    string    `json:"currency"`
+	Date        time.Time `json:"date"`
+}
+
+func (c *Config) SetBaseConfig() {
+	c.Categories = defaultCategories
+	c.Currency = "usd"
+	c.StartDate = 1
+	// c.Tags = []string{}
+	c.RecurringExpenses = []RecurringExpense{}
+}
+
+func (c *SystemConfig) SetStorageConfig() {
+	c.StorageType = backendTypeFromEnv(os.Getenv("STORAGE_TYPE"))
+	c.StorageURL = backendURLFromEnv(os.Getenv("STORAGE_URL"))
+	c.StorageSSL = backendSSLFromEnv(os.Getenv("STORAGE_SSL"))
+	c.StorageUser = os.Getenv("STORAGE_USER")
+	c.StoragePass = os.Getenv("STORAGE_PASS")
+}
+
+func backendTypeFromEnv(env string) BackendType {
+	switch env {
+	case "json":
+		return BackendTypeJSON
+	case "postgres":
+		return BackendTypePostgres
+	default:
+		return BackendTypeJSON
 	}
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		initialData := fileData{Expenses: []*config.Expense{}}
-		data, err := json.Marshal(initialData)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal initial data: %v", err)
+}
+
+func backendURLFromEnv(env string) string {
+	if env == "" {
+		return "data"
+	}
+	return env
+}
+
+func backendSSLFromEnv(env string) string {
+	switch env {
+	case "disable", "require", "verify-full", "verify-ca":
+		return env
+	default:
+		return "disable"
+	}
+}
+
+// initializes the storage backend
+func InitializeStorage() (Storage, error) {
+	baseConfig := SystemConfig{}
+	baseConfig.SetStorageConfig()
+	switch baseConfig.StorageType {
+	case BackendTypeJSON:
+		return InitializeJsonStore(baseConfig)
+	case BackendTypePostgres:
+		return InitializePostgresStore(baseConfig)
+	}
+	return nil, fmt.Errorf("invalid data store: %s", baseConfig.StorageType)
+}
+
+var REInvalidChars *regexp.Regexp = regexp.MustCompile(`[^\p{L}\p{N}\s.,\-'_!"]`)
+var RERepeatingSpaces *regexp.Regexp = regexp.MustCompile(`\s+`)
+
+// allows readable chars like unicode, otherwise replaces with whitespace
+func SanitizeString(s string) string {
+	sanitized := REInvalidChars.ReplaceAllString(s, " ")
+	sanitized = RERepeatingSpaces.ReplaceAllString(sanitized, " ")
+	return strings.TrimSpace(sanitized)
+}
+
+func ValidateCategory(category string) (string, error) {
+	sanitized := SanitizeString(category)
+	if sanitized == "" {
+		return "", fmt.Errorf("category name cannot be empty or contain only invalid characters")
+	}
+	return sanitized, nil
+}
+
+func (e *Expense) Validate() error {
+	e.Name = SanitizeString(e.Name)
+	if e.Name == "" {
+		return fmt.Errorf("expense 'name' cannot be empty")
+	}
+	if e.Category == "" {
+		return fmt.Errorf("expense 'category' cannot be empty")
+	}
+	if e.Amount == 0 {
+		return fmt.Errorf("expense 'amount' cannot be 0")
+	}
+	// if e.Currency == "" {
+	// 	return fmt.Errorf("expense 'currency' cannot be empty")
+	// }
+	if len(e.Tags) > 0 {
+		var cleanedTags []string
+		for _, tag := range e.Tags {
+			sanitizedTag := SanitizeString(tag)
+			if sanitizedTag != "" {
+				cleanedTags = append(cleanedTags, sanitizedTag)
+			}
 		}
-		if err := os.WriteFile(filePath, data, 0644); err != nil {
-			return nil, fmt.Errorf("failed to create storage file: %v", err)
+		e.Tags = cleanedTags
+	}
+	if e.Date.IsZero() {
+		return fmt.Errorf("expense 'date' cannot be empty")
+	}
+	return nil
+}
+
+func (e *RecurringExpense) Validate() error {
+	e.Name = SanitizeString(e.Name)
+	if e.Name == "" {
+		return fmt.Errorf("recurring expense 'name' cannot be empty")
+	}
+	if e.Category == "" {
+		return fmt.Errorf("recurring expense 'category' cannot be empty")
+	}
+	if len(e.Tags) > 0 {
+		var cleanedTags []string
+		for _, tag := range e.Tags {
+			sanitizedTag := SanitizeString(tag)
+			if sanitizedTag != "" {
+				cleanedTags = append(cleanedTags, sanitizedTag)
+			}
 		}
+		e.Tags = cleanedTags
 	}
-	log.Println("Created expense storage file")
-	return &jsonStore{
-		filePath: filePath,
-	}, nil
+	if e.Occurrences < 2 {
+		return fmt.Errorf("at least 2 occurences required to recur")
+	}
+	if e.StartDate.IsZero() {
+		return fmt.Errorf("start date for recurring expense must be specified")
+	}
+	validIntervals := map[string]bool{
+		"daily":   true,
+		"weekly":  true,
+		"monthly": true,
+		"yearly":  true,
+	}
+	if !validIntervals[e.Interval] {
+		return fmt.Errorf("invalid interval: '%s'. Must be one of 'daily', 'weekly', 'monthly', or 'yearly'", e.Interval)
+	}
+	return nil
 }
 
-func (s *jsonStore) SaveExpense(expense *config.Expense) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	data, err := s.readFile()
-	if err != nil {
-		return fmt.Errorf("failed to read storage file: %v", err)
-	}
-	if expense.ID == "" {
-		expense.ID = uuid.New().String()
-	}
-	if expense.Date.IsZero() {
-		expense.Date = time.Now()
-	}
-	data.Expenses = append(data.Expenses, expense)
-	log.Printf("Added expense with ID %s\n", expense.ID)
-	return s.writeFile(data)
+// variables
+var defaultCategories = []string{
+	"Food",
+	"Groceries",
+	"Travel",
+	"Rent",
+	"Utilities",
+	"Entertainment",
+	"Healthcare",
+	"Shopping",
+	"Miscellaneous",
+	"Income",
 }
 
-func (s *jsonStore) DeleteExpense(id string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	data, err := s.readFile()
-	if err != nil {
-		return fmt.Errorf("failed to read storage file: %v", err)
-	}
-	found := false
-	newExpenses := make([]*config.Expense, 0, len(data.Expenses)-1)
-	for _, exp := range data.Expenses {
-		if exp.ID != id {
-			newExpenses = append(newExpenses, exp)
-		} else {
-			found = true
-		}
-	}
-	// log.Printf("Looped to find expense with ID %s. Found: %v\n", id, found)
-	if !found {
-		return fmt.Errorf("expense with ID %s not found", id)
-	}
-	data.Expenses = newExpenses
-	log.Printf("Deleted expense with ID %s\n", id)
-	return s.writeFile(data)
-}
-
-func (s *jsonStore) EditExpense(expense *config.Expense) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	data, err := s.readFile()
-	if err != nil {
-		return fmt.Errorf("failed to read storage file: %v", err)
-	}
-	found := false
-	for i, exp := range data.Expenses {
-		if exp.ID == expense.ID {
-			expense.Date = exp.Date
-			data.Expenses[i] = expense
-			found = true
-			break
-		}
-	}
-	if !found {
-		return ErrExpenseNotFound
-	}
-	log.Printf("Edited expense with ID %s\n", expense.ID)
-	return s.writeFile(data)
-}
-
-func (s *jsonStore) GetAllExpenses() ([]*config.Expense, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	data, err := s.readFile()
-	if err != nil {
-		return nil, fmt.Errorf("failed to read storage file: %v", err)
-	}
-	log.Println("Retrieved all expenses")
-	return data.Expenses, nil
-}
-
-func (s *jsonStore) readFile() (*fileData, error) {
-	content, err := os.ReadFile(s.filePath)
-	if err != nil {
-		return nil, err
-	}
-	var data fileData
-	if err := json.Unmarshal(content, &data); err != nil {
-		return nil, err
-	}
-	return &data, nil
-}
-
-func (s *jsonStore) writeFile(data *fileData) error {
-	content, err := json.MarshalIndent(data, "", "    ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(s.filePath, content, 0644)
+var SupportedCurrencies = []string{
+	"usd", // US Dollar
+	"eur", // Euro
+	"gbp", // British Pound
+	"jpy", // Japanese Yen
+	"cny", // Chinese Yuan
+	"krw", // Korean Won
+	"inr", // Indian Rupee
+	"rub", // Russian Ruble
+	"brl", // Brazilian Real
+	"zar", // South African Rand
+	"aed", // UAE Dirham
+	"aud", // Australian Dollar
+	"cad", // Canadian Dollar
+	"chf", // Swiss Franc
+	"hkd", // Hong Kong Dollar
+	"bdt", // Bangladeshi Taka
+	"sgd", // Singapore Dollar
+	"thb", // Thai Baht
+	"try", // Turkish Lira
+	"mxn", // Mexican Peso
+	"php", // Philippine Peso
+	"pln", // Polish Złoty
+	"sek", // Swedish Krona
+	"nzd", // New Zealand Dollar
+	"dkk", // Danish Krone
+	"idr", // Indonesian Rupiah
+	"ils", // Israeli New Shekel
+	"vnd", // Vietnamese Dong
+	"myr", // Malaysian Ringgit
 }
