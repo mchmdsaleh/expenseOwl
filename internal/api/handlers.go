@@ -162,38 +162,6 @@ func (h *Handler) UpdateStartDate(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "success"})
 }
 
-// func (h *Handler) GetTags(w http.ResponseWriter, r *http.Request) {
-// 	if r.Method != http.MethodGet {
-// 		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
-// 		return
-// 	}
-// 	tags, err := h.storage.GetTags()
-// 	if err != nil {
-// 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to get tags"})
-// 		log.Printf("API ERROR: Failed to get tags: %v\n", err)
-// 		return
-// 	}
-// 	writeJSON(w, http.StatusOK, tags)
-// }
-
-// func (h *Handler) UpdateTags(w http.ResponseWriter, r *http.Request) {
-// 	if r.Method != http.MethodPut {
-// 		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
-// 		return
-// 	}
-// 	var tags []string
-// 	if err := json.NewDecoder(r.Body).Decode(&tags); err != nil {
-// 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Invalid request body"})
-// 		return
-// 	}
-// 	if err := h.storage.UpdateTags(tags); err != nil {
-// 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to update tags"})
-// 		log.Printf("API ERROR: Failed to update tags: %v\n", err)
-// 		return
-// 	}
-// 	writeJSON(w, http.StatusOK, map[string]string{"status": "success"})
-// }
-
 // ------------------------------------------------------------
 // Expense Handlers
 // ------------------------------------------------------------

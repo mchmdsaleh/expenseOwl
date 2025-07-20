@@ -287,7 +287,7 @@ func (s *databaseStore) UpdateExpense(id string, expense Expense) error {
 	query := `
 		UPDATE expenses
 		SET name = $1, category = $2, amount = $3, currency = $4, date = $5, tags = $6, recurring_id = $7
-		WHERE id = $7
+		WHERE id = $8
 	`
 	result, err := s.db.Exec(query, expense.Name, expense.Category, expense.Amount, expense.Currency, expense.Date, string(tagsJSON), expense.RecurringID, id)
 	if err != nil {
@@ -546,7 +546,7 @@ func generateExpensesFromRecurring(recExp RecurringExpense, fromToday bool) []Ex
 	}
 	limit := occurrencesToGenerate
 	if recExp.Occurrences == 0 {
-		limit = 365 * 10 // Heuristic for "indefinite"
+		limit = 2000 // Heuristic for "indefinite"
 	}
 
 	for i := 0; i < limit; i++ {

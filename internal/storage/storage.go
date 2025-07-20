@@ -62,7 +62,7 @@ type RecurringExpense struct {
 	Category    string    `json:"category"`
 	StartDate   time.Time `json:"startDate"`   // date of the first occurrence
 	Interval    string    `json:"interval"`    // daily, weekly, monthly, yearly
-	Occurrences int       `json:"occurrences"` // 0 for 10 years (heuristic), 10 for 10 occurrences
+	Occurrences int       `json:"occurrences"` // 0 for 3000 occurrences (heuristic)
 }
 
 type BackendType string
@@ -163,9 +163,9 @@ func (e *Expense) Validate() error {
 	if e.Category == "" {
 		return fmt.Errorf("expense 'category' cannot be empty")
 	}
-	if e.Currency == "" {
-		return fmt.Errorf("expense 'currency' cannot be empty")
-	}
+	// if e.Currency == "" {
+	// 	return fmt.Errorf("expense 'currency' cannot be empty")
+	// }
 	if len(e.Tags) > 0 {
 		var cleanedTags []string
 		for _, tag := range e.Tags {
@@ -248,6 +248,7 @@ var SupportedCurrencies = []string{
 	"cad", // Canadian Dollar
 	"chf", // Swiss Franc
 	"hkd", // Hong Kong Dollar
+	"bdt", // Bangladeshi Taka
 	"sgd", // Singapore Dollar
 	"thb", // Thai Baht
 	"try", // Turkish Lira

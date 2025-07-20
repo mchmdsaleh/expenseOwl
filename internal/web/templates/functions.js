@@ -19,6 +19,7 @@ const currencyBehaviors = {
     "cad": { symbol: "C$", useComma: false, useDecimals: true },
     "chf": { symbol: "Fr", useComma: false, useDecimals: true },
     "hkd": { symbol: "HK$", useComma: false, useDecimals: true },
+    "bdt": { symbol: "৳", useComma: false, useDecimals: true },
     "sgd": { symbol: "S$", useComma: false, useDecimals: true },
     "thb": { symbol: "฿", useComma: false, useDecimals: true },
     "try": { symbol: "₺", useComma: true, useDecimals: true },

@@ -43,7 +43,7 @@ func (h *Handler) ExportCSV(w http.ResponseWriter, r *http.Request) {
 			expense.ID,
 			expense.Name,
 			expense.Category,
-			expense.Currency,
+			// expense.Currency,
 			strconv.FormatFloat(expense.Amount, 'f', 2, 64),
 			expense.Date.Format(time.RFC3339),
 			strings.Join(expense.Tags, ","),

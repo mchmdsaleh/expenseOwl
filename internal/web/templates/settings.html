@@ -70,7 +70,7 @@
         </div>
         
         <div class="form-container">
-            <h2 align="center">Recurring Expenses</h2>
+            <h2 align="center">Recurring Transactions</h2>
             <form id="recurringExpenseForm" class="expense-form recurring-expense-form">
                 <div class="form-group">
                     <label for="recurringName">Name</label>
@@ -113,10 +113,10 @@
                     <label for="recurringReportGain">Report Gain</label>
                     <input type="checkbox" id="recurringReportGain" class="styled-checkbox">
                 </div>
-                <button type="submit" class="nav-button">Add Recurring Expense</button>
+                <button type="submit" class="nav-button">Add Recurring Transaction</button>
             </form>
             <div id="recurringExpenseMessage" class="form-message"></div>
-            <h3 align="center" style="margin-top: 2rem;">Existing Recurring Expenses</h3>
+            <h3 align="center" style="margin-top: 2rem;">Existing Recurring Transactions</h3>
             <div id="recurring-expenses-list">
             </div>
         </div>
@@ -493,21 +493,6 @@
                 showMessage('startDateMessage', 'Error saving start date', false);
             }
         }
-
-        // --- Recurring Expenses ---
-        // function formatCurrency(amount) {
-        //     const behavior = currencyBehaviors[currentCurrency] || { symbol: '$', useComma: false, useDecimals: true };
-        //     const isNegative = amount < 0;
-        //     const absAmount = Math.abs(amount);
-        //     const options = {
-        //         minimumFractionDigits: behavior.useDecimals ? 2 : 0,
-        //         maximumFractionDigits: behavior.useDecimals ? 2 : 0,
-        //     };
-        //     let formattedAmount = new Intl.NumberFormat(behavior.useComma ? 'de-DE' : 'en-US', options).format(absAmount);
-        //     const postfixCurrencies = new Set(['kr', 'kr.', 'Fr', 'zł']);
-        //     let result = postfixCurrencies.has(behavior.symbol) ? `${formattedAmount} ${behavior.symbol}` : `${behavior.symbol}${formattedAmount}`;
-        //     return isNegative ? `-${result}` : result;
-        // }
         
         async function fetchAndRenderRecurringExpenses() {
             try {

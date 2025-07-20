@@ -147,20 +147,6 @@
             });
         }
 
-        // function formatCurrency(amount) {
-        //     const behavior = currencyBehaviors[currentCurrency] || { symbol: '$', useComma: false, useDecimals: true };
-        //     const options = {
-        //         minimumFractionDigits: behavior.useDecimals ? 2 : 0,
-        //         maximumFractionDigits: behavior.useDecimals ? 2 : 0,
-        //     };
-        //     let formattedAmount = new Intl.NumberFormat(behavior.useComma ? 'de-DE' : 'en-US', options).format(amount);
-        //     const postfixCurrencies = new Set(['kr', 'kr.', 'Fr', 'zł']);
-        //     if (postfixCurrencies.has(behavior.symbol)) {
-        //         return `${formattedAmount} ${behavior.symbol}`;
-        //     }
-        //     return `${behavior.symbol} ${formattedAmount}`;
-        // }
-
         function calculateCategoryBreakdown(expenses) {
             const categoryTotals = {};
             let totalAmount = 0;
@@ -371,75 +357,6 @@
         Chart.defaults.color = '#b3b3b3';
         Chart.defaults.borderColor = '#606060';
         Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-        
-        // function formatMonth(date) {
-        //     return date.toLocaleDateString('en-US', { 
-        //         year: 'numeric',
-        //         month: 'long',
-        //         timeZone: getUserTimeZone()
-        //     });
-        // }
-        // function getISODateWithLocalTime(dateInput) {
-        //     const [year, month, day] = dateInput.split('-').map(Number);
-        //     const now = new Date();
-        //     const hours = now.getHours();
-        //     const minutes = now.getMinutes();
-        //     const seconds = now.getSeconds();
-        //     const localDateTime = new Date(year, month - 1, day, hours, minutes, seconds);
-        //     return localDateTime.toISOString();
-        // }
-        // function getUserTimeZone() {
-        //     return Intl.DateTimeFormat().resolvedOptions().timeZone;
-        // }
-
-        // function updateMonthDisplay() {
-        //     document.getElementById('currentMonth').textContent = formatMonth(currentDate);
-        // }
-
-        // function getMonthBounds(date) {
-        //     const localDate = new Date(date);
-        //     if (startDate === 1) {
-        //         const startLocal = new Date(localDate.getFullYear(), localDate.getMonth(), 1);
-        //         const endLocal = new Date(localDate.getFullYear(), localDate.getMonth() + 1, 0, 23, 59, 59, 999);
-        //         return { start: new Date(startLocal.toISOString()), end: new Date(endLocal.toISOString()) };
-        //     }
-            
-        //     let thisMonthStartDate = startDate;
-        //     let prevMonthStartDate = startDate;
-            
-        //     const currentMonth = localDate.getMonth();
-        //     const currentYear = localDate.getFullYear();
-        //     const daysInCurrentMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-        //     thisMonthStartDate = Math.min(thisMonthStartDate, daysInCurrentMonth);
-            
-        //     const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
-        //     const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
-        //     const daysInPrevMonth = new Date(prevYear, prevMonth + 1, 0).getDate();
-        //     prevMonthStartDate = Math.min(prevMonthStartDate, daysInPrevMonth);
-
-        //     if (localDate.getDate() < thisMonthStartDate) {
-        //         const startLocal = new Date(prevYear, prevMonth, prevMonthStartDate);
-        //         const endLocal = new Date(currentYear, currentMonth, thisMonthStartDate - 1, 23, 59, 59, 999);
-        //         return { start: new Date(startLocal.toISOString()), end: new Date(endLocal.toISOString()) };
-        //     } else {
-        //         const nextMonth = currentMonth === 11 ? 0 : currentMonth + 1;
-        //         const nextYear = currentMonth === 11 ? currentYear + 1 : currentYear;
-        //         const daysInNextMonth = new Date(nextYear, nextMonth + 1, 0).getDate();
-        //         let nextMonthStartDate = Math.min(startDate, daysInNextMonth);
-
-        //         const startLocal = new Date(currentYear, currentMonth, thisMonthStartDate);
-        //         const endLocal = new Date(nextYear, nextMonth, nextMonthStartDate - 1, 23, 59, 59, 999);
-        //         return { start: new Date(startLocal.toISOString()), end: new Date(endLocal.toISOString()) };
-        //     }
-        // }
-
-        // function getMonthExpenses(expenses) {
-        //     const { start, end } = getMonthBounds(currentDate);
-        //     return expenses.filter(exp => {
-        //         const expDate = new Date(exp.date);
-        //         return expDate >= start && expDate <= end;
-        //     }).sort((a, b) => new Date(b.date) - new Date(a.date));
-        // }
 
         function setupTagInput() {
             const container = document.getElementById('tags-input-container');
