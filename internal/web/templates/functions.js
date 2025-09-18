@@ -35,6 +35,25 @@ const currencyBehaviors = {
     "myr": { symbol: "RM", useComma: false, useDecimals: true },
 };
 
+async function apiFetch(url, options = {}) {
+    const opts = {
+        ...options,
+        credentials: 'include',
+    };
+    opts.headers = {
+        ...(options.headers || {}),
+    };
+    if (!opts.headers['X-Requested-With']) {
+        opts.headers['X-Requested-With'] = 'ExpenseOwl';
+    }
+    const response = await fetch(url, opts);
+    if (response.status === 401) {
+        window.location.href = '/login';
+        throw new Error('Unauthorized');
+    }
+    return response;
+}
+
 // let currentCurrency = 'usd';
 // let startDate = 1;
 // let currentDate = new Date();
@@ -150,3 +169,19 @@ function escapeHTML(str) {
         }[tag] || tag)
     );
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+    const logoutButton = document.getElementById('logoutButton');
+    if (logoutButton) {
+        logoutButton.addEventListener('click', async (event) => {
+            event.preventDefault();
+            try {
+                await apiFetch('/logout', { method: 'POST' });
+            } catch (error) {
+                console.error('Failed to log out:', error);
+            } finally {
+                window.location.href = '/login';
+            }
+        });
+    }
+});

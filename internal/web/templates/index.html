@@ -8,7 +8,7 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="manifest" href="/manifest.json">
-    <link rel="apple-touch-icon" href="/pwa/icon-192.png">
+    <!-- <link rel="apple-touch-icon" href="/pwa/icon-192.png"> -->
     <link rel="stylesheet" href="/style.css">
     <script>
         (function() {
@@ -34,9 +34,9 @@
     <div class="container">
         <header>
             <div class="nav-bar">
-                <a href="/">
+                <!-- <a href="/">
                     <img src="/pwa/icon-192.png" alt="ExpenseOwl Logo" height="85" style="vertical-align: middle; margin-right: 20px;">
-                </a>
+                </a> -->
                 <a href="/" class="view-button active" data-tooltip="Dashboard">
                     <i class="fa-solid fa-chart-pie"></i>
                 </a>
@@ -46,6 +46,9 @@
                 <a href="/settings" class="view-button" data-tooltip="Settings">
                     <i class="fa-solid fa-gear"></i>
                 </a>
+                <button id="logoutButton" type="button" class="view-button" data-tooltip="Logout">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                </button>
             </div>
         </header>
 
@@ -333,7 +336,7 @@
 
         async function initialize() {
             try {
-                const configResponse = await fetch('/config');
+                const configResponse = await apiFetch('/config');
                 if (!configResponse.ok) throw new Error('Failed to fetch configuration');
                 const config = await configResponse.json();
                 const categorySelect = document.getElementById('category');
@@ -343,7 +346,7 @@
                 currentCurrency = config.currency;
                 startDate = config.startDate;
                 
-                const response = await fetch('/expenses');
+                const response = await apiFetch('/expenses');
                 if (!response.ok) throw new Error('Failed to fetch data');
                 const data = await response.json();
                 allExpenses = Array.isArray(data) ? data : (data && Array.isArray(data.expenses) ? data.expenses : []);
@@ -491,7 +494,7 @@
                 tags: Array.from(selectedTags)
             };
             try {
-                const response = await fetch('/expense', {
+                const response = await apiFetch('/expense', {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(formData)

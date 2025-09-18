@@ -19,7 +19,7 @@ RUN mkdir -p /app/data
 COPY --from=builder /app/expenseowl .
 
 # Expose the default port
-EXPOSE 8080
+EXPOSE 9080
 
 # Run the server
 CMD ["./expenseowl"]

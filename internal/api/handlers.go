@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/tanq16/expenseowl/internal/auth"
 	"github.com/tanq16/expenseowl/internal/storage"
 	"github.com/tanq16/expenseowl/internal/web"
 )
@@ -15,12 +16,56 @@ import (
 // Handler holds the storage interface
 type Handler struct {
 	storage storage.Storage
+	auth    *auth.Manager
 }
 
 // NewHandler creates a new API handler
-func NewHandler(s storage.Storage) *Handler {
+func NewHandler(s storage.Storage, authManager *auth.Manager) *Handler {
 	return &Handler{
 		storage: s,
+		auth:    authManager,
+	}
+}
+
+// RequireWebAuth ensures a valid session exists for browser navigations.
+func (h *Handler) RequireWebAuth(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if h.auth == nil {
+			next(w, r)
+			return
+		}
+		token := h.auth.ExtractToken(r)
+		if token == "" {
+			http.Redirect(w, r, "/login", http.StatusFound)
+			return
+		}
+		if _, err := h.auth.ValidateToken(token); err != nil {
+			http.Redirect(w, r, "/login", http.StatusFound)
+			return
+		}
+		_ = h.auth.Renew(token)
+		next(w, r)
+	}
+}
+
+// RequireAPIAuth ensures API calls originate from an authenticated session.
+func (h *Handler) RequireAPIAuth(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if h.auth == nil {
+			next(w, r)
+			return
+		}
+		token := h.auth.ExtractToken(r)
+		if token == "" {
+			writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: "authentication required"})
+			return
+		}
+		if _, err := h.auth.ValidateToken(token); err != nil {
+			writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: "session expired"})
+			return
+		}
+		_ = h.auth.Renew(token)
+		next(w, r)
 	}
 }
 
@@ -372,6 +417,75 @@ func (h *Handler) ServeTableView(w http.ResponseWriter, r *http.Request) {
 	if err := web.ServeTemplate(w, "table.html"); err != nil {
 		http.Error(w, "Failed to serve template", http.StatusInternalServerError)
 	}
+}
+
+func (h *Handler) ServeLoginPage(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
+		return
+	}
+	if h.auth != nil {
+		token := h.auth.ExtractToken(r)
+		if token != "" {
+			if _, err := h.auth.ValidateToken(token); err == nil {
+				http.Redirect(w, r, "/", http.StatusFound)
+				return
+			}
+		}
+	}
+	w.Header().Set("Content-Type", "text/html")
+	if err := web.ServeTemplate(w, "login.html"); err != nil {
+		http.Error(w, "Failed to serve template", http.StatusInternalServerError)
+	}
+}
+
+func (h *Handler) HandleLogin(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Invalid form data"})
+		return
+	}
+	if h.auth == nil {
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "authentication not configured"})
+		return
+	}
+	username := r.FormValue("username")
+	password := r.FormValue("password")
+	token, err := h.auth.Authenticate(username, password)
+	if err != nil {
+		writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: "Invalid username or password"})
+		return
+	}
+	h.auth.SetSessionCookie(w, token)
+	writeJSON(w, http.StatusOK, map[string]string{"redirect": "/"})
+}
+
+func (h *Handler) HandleLogout(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
+		return
+	}
+	if h.auth == nil {
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "authentication not configured"})
+		return
+	}
+	h.auth.ClearSessionCookie(w, r)
+	writeJSON(w, http.StatusOK, map[string]string{"status": "signed out"})
+}
+
+func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodPost {
+		h.HandleLogin(w, r)
+		return
+	}
+	h.ServeLoginPage(w, r)
+}
+
+func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
+	h.HandleLogout(w, r)
 }
 
 func (h *Handler) ServeSettingsPage(w http.ResponseWriter, r *http.Request) {

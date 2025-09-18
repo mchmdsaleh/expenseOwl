@@ -212,7 +212,10 @@ header {
     cursor: pointer;
     transition: background-color 0.2s;
     text-decoration: none;
-    align-content: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
     height: fit-content;
 }
 
@@ -872,4 +875,108 @@ header {
 
 .table-controls label:hover {
     background-color: var(--accent);
+}
+
+/* Authentication Layout */
+.auth-body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    background: var(--bg-primary);
+    background-image: radial-gradient(circle at top, rgba(105, 175, 222, 0.2), transparent 60%);
+}
+
+.auth-container {
+    width: 100%;
+    max-width: 420px;
+    padding: 1.5rem;
+}
+
+.auth-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 2.5rem 2rem;
+    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.35);
+    text-align: center;
+}
+
+.auth-header h1 {
+    margin: 1rem 0 0.25rem;
+    font-size: 1.8rem;
+    color: var(--text-primary);
+}
+
+.auth-header p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+}
+
+.auth-logo {
+    height: 72px;
+}
+
+.auth-form {
+    margin-top: 2rem;
+    text-align: left;
+}
+
+.auth-form .form-group {
+    margin-bottom: 1.5rem;
+}
+
+.auth-form label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.auth-form input {
+    width: 100%;
+    padding: 0.9rem 1rem;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(8, 21, 40, 0.55);
+    color: var(--text-primary);
+    font-size: 1rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    box-sizing: border-box;
+}
+
+html[data-theme='light'] .auth-form input {
+    background: rgba(255, 255, 255, 0.9);
+    border-color: rgba(0, 0, 0, 0.08);
+}
+
+.auth-form input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25), 0 0 0 3px rgba(105, 175, 222, 0.25);
+    background: rgba(8, 21, 40, 0.7);
+}
+
+.auth-form input::placeholder {
+    color: rgba(255, 255, 255, 0.45);
+}
+
+html[data-theme='light'] .auth-form input::placeholder {
+    color: rgba(46, 46, 46, 0.5);
+}
+
+.nav-button.full-width {
+    width: 100%;
+    justify-content: center;
+    margin-top: 0.5rem;
+}
+
+.form-message {
+    margin-top: 1rem;
+    text-align: center;
+}
+
+.form-message.error {
+    color: #ff6b6b;
 }

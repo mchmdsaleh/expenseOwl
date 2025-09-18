@@ -9,7 +9,7 @@ kubectl apply -f kubernetes/Expenseowl-configmap.yml
 kubectl apply -f kubernetes/Expenseowl-svc.yml
 kubectl apply -f kubernetes/Expenseowl-pvc.yml
 kubectl apply -f kubernetes/Expenseowl-ingress.yml
-kubectl port-forward pod/<pod-name> 8080:8080 # Change Pod Name Here
+kubectl port-forward pod/<pod-name> 9080:9080 # Change Pod Name Here
 ```
 
 ```

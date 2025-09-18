@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/tanq16/expenseowl/internal/api"
+	"github.com/tanq16/expenseowl/internal/auth"
 	"github.com/tanq16/expenseowl/internal/storage"
 	"github.com/tanq16/expenseowl/internal/web"
 )
@@ -17,20 +18,24 @@ func runServer() {
 		log.Fatalf("Failed to initialize storage: %v", err)
 	}
 	defer storage.Close()
-	handler := api.NewHandler(storage)
+	authManager, err := auth.NewManagerFromEnv()
+	if err != nil {
+		log.Fatalf("Failed to initialize authentication: %v", err)
+	}
+	handler := api.NewHandler(storage, authManager)
 
 	// Version Handler
-	http.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/version", handler.RequireAPIAuth(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		w.Header().Set("Content-Type", "text/plain")
 		w.Write([]byte(version))
-	})
+	}))
 
 	// UI Handlers
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/", handler.RequireWebAuth(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
 			http.NotFound(w, r)
 			return
@@ -41,9 +46,12 @@ func runServer() {
 			http.Error(w, "Failed to serve template", http.StatusInternalServerError)
 			return
 		}
-	})
-	http.HandleFunc("/table", handler.ServeTableView)
-	http.HandleFunc("/settings", handler.ServeSettingsPage)
+	}))
+	http.HandleFunc("/table", handler.RequireWebAuth(handler.ServeTableView))
+	http.HandleFunc("/settings", handler.RequireWebAuth(handler.ServeSettingsPage))
+
+	http.HandleFunc("/login", handler.Login)
+	http.HandleFunc("/logout", handler.Logout)
 
 	// Static File Handlers
 	http.HandleFunc("/functions.js", handler.ServeStaticFile)
@@ -51,42 +59,45 @@ func runServer() {
 	http.HandleFunc("/sw.js", handler.ServeStaticFile)
 	http.HandleFunc("/pwa/", handler.ServeStaticFile)
 	http.HandleFunc("/style.css", handler.ServeStaticFile)
-	http.HandleFunc("/favicon.ico", handler.ServeStaticFile)
+	http.HandleFunc("/logo.png", handler.ServeStaticFile)
 	http.HandleFunc("/chart.min.js", handler.ServeStaticFile)
 	http.HandleFunc("/fa.min.css", handler.ServeStaticFile)
 	http.HandleFunc("/webfonts/", handler.ServeStaticFile)
 
 	// Config
-	http.HandleFunc("/config", handler.GetConfig)
-	http.HandleFunc("/categories", handler.GetCategories)
-	http.HandleFunc("/categories/edit", handler.UpdateCategories)
-	http.HandleFunc("/currency", handler.GetCurrency)
-	http.HandleFunc("/currency/edit", handler.UpdateCurrency)
-	http.HandleFunc("/startdate", handler.GetStartDate)
-	http.HandleFunc("/startdate/edit", handler.UpdateStartDate)
+	http.HandleFunc("/config", handler.RequireAPIAuth(handler.GetConfig))
+	http.HandleFunc("/categories", handler.RequireAPIAuth(handler.GetCategories))
+	http.HandleFunc("/categories/edit", handler.RequireAPIAuth(handler.UpdateCategories))
+	http.HandleFunc("/currency", handler.RequireAPIAuth(handler.GetCurrency))
+	http.HandleFunc("/currency/edit", handler.RequireAPIAuth(handler.UpdateCurrency))
+	http.HandleFunc("/startdate", handler.RequireAPIAuth(handler.GetStartDate))
+	http.HandleFunc("/startdate/edit", handler.RequireAPIAuth(handler.UpdateStartDate))
 	// http.HandleFunc("/tags", handler.GetTags)
 	// http.HandleFunc("/tags/edit", handler.UpdateTags)
 
 	// Expenses
-	http.HandleFunc("/expense", handler.AddExpense)                     // PUT for add
-	http.HandleFunc("/expenses", handler.GetExpenses)                   // GET all
-	http.HandleFunc("/expense/edit", handler.EditExpense)               // PUT for edit
-	http.HandleFunc("/expense/delete", handler.DeleteExpense)           // DELETE for single
-	http.HandleFunc("/expenses/delete", handler.DeleteMultipleExpenses) // DELETE for multiple
+	http.HandleFunc("/expense", handler.RequireAPIAuth(handler.AddExpense))                     // PUT for add
+	http.HandleFunc("/expenses", handler.RequireAPIAuth(handler.GetExpenses))                   // GET all
+	http.HandleFunc("/expense/edit", handler.RequireAPIAuth(handler.EditExpense))               // PUT for edit
+	http.HandleFunc("/expense/delete", handler.RequireAPIAuth(handler.DeleteExpense))           // DELETE for single
+	http.HandleFunc("/expenses/delete", handler.RequireAPIAuth(handler.DeleteMultipleExpenses)) // DELETE for multiple
 
 	// Recurring Expenses
-	http.HandleFunc("/recurring-expense", handler.AddRecurringExpense)           // PUT for add
-	http.HandleFunc("/recurring-expenses", handler.GetRecurringExpenses)         // GET all
-	http.HandleFunc("/recurring-expense/edit", handler.UpdateRecurringExpense)   // PUT for edit
-	http.HandleFunc("/recurring-expense/delete", handler.DeleteRecurringExpense) // DELETE
+	http.HandleFunc("/recurring-expense", handler.RequireAPIAuth(handler.AddRecurringExpense))           // PUT for add
+	http.HandleFunc("/recurring-expenses", handler.RequireAPIAuth(handler.GetRecurringExpenses))         // GET all
+	http.HandleFunc("/recurring-expense/edit", handler.RequireAPIAuth(handler.UpdateRecurringExpense))   // PUT for edit
+	http.HandleFunc("/recurring-expense/delete", handler.RequireAPIAuth(handler.DeleteRecurringExpense)) // DELETE
 
 	// Import/Export
-	http.HandleFunc("/export/csv", handler.ExportCSV)
-	http.HandleFunc("/import/csv", handler.ImportCSV)
-	http.HandleFunc("/import/csvold", handler.ImportOldCSV)
+	http.HandleFunc("/export/csv", handler.RequireAPIAuth(handler.ExportCSV))
+	http.HandleFunc("/import/csv", handler.RequireAPIAuth(handler.ImportCSV))
+	http.HandleFunc("/import/csvold", handler.RequireAPIAuth(handler.ImportOldCSV))
 
-	log.Println("Starting server on port 8080...")
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	// External API
+	http.HandleFunc("/api/v1/expenses", api.Authenticate(handler.CreateExpenseHandler))
+
+	log.Println("Starting server on port 9080...")
+	if err := http.ListenAndServe(":9080", nil); err != nil {
 		log.Fatalf("Server failed to start: %v", err)
 	}
 }

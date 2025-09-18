@@ -21,9 +21,9 @@
     <div class="container">
         <header>
             <div class="nav-bar">
-                <a href="/">
+                <!-- <a href="/">
                     <img src="/pwa/icon-192.png" alt="ExpenseOwl Logo" height="85" style="vertical-align: middle; margin-right: 20px;">
-                </a>
+                </a> -->
                 <a href="/" class="view-button" data-tooltip="Dashboard">
                     <i class="fa-solid fa-chart-pie"></i>
                 </a>
@@ -33,6 +33,9 @@
                 <a href="/settings" class="view-button active" data-tooltip="Settings">
                     <i class="fa-solid fa-gear"></i>
                 </a>
+                <button id="logoutButton" type="button" class="view-button" data-tooltip="Logout">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                </button>
             </div>
         </header>
 
@@ -375,7 +378,7 @@
                 return;
             }
             try {
-                const response = await fetch('/categories/edit', {
+                const response = await apiFetch('/categories/edit', {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(categories)
@@ -493,7 +496,7 @@
         async function saveCurrency() {
             const currencyCode = document.getElementById('currencySelect').value;
             try {
-                const response = await fetch('/currency/edit', {
+                const response = await apiFetch('/currency/edit', {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(currencyCode)
@@ -517,7 +520,7 @@
         async function saveStartDate() {
             const startDateValue = document.getElementById("startDate").value;
             try {
-                const response = await fetch('/startdate/edit', {
+                const response = await apiFetch('/startdate/edit', {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(parseInt(startDateValue, 10))
@@ -531,7 +534,7 @@
         
         async function fetchAndRenderRecurringExpenses() {
             try {
-                const response = await fetch('/recurring-expenses');
+                const response = await apiFetch('/recurring-expenses');
                 if (!response.ok) throw new Error('Failed to fetch recurring expenses');
                 recurringExpenses = await response.json() || [];
                 renderRecurringExpenses(recurringExpenses);
@@ -611,7 +614,7 @@
         async function confirmRecurringDelete(removeAll) {
             if (!recurringExpenseToDelete) return;
             try {
-                const response = await fetch(`/recurring-expense/delete?id=${recurringExpenseToDelete}&removeAll=${removeAll}`, { method: 'DELETE' });
+                const response = await apiFetch(`/recurring-expense/delete?id=${recurringExpenseToDelete}&removeAll=${removeAll}`, { method: 'DELETE' });
                 if (!response.ok) throw new Error('Failed to delete recurring expense');
                 showMessage('recurringExpenseMessage', 'Recurring expense deleted successfully', true);
                 fetchAndRenderRecurringExpenses();
@@ -662,7 +665,7 @@
             };
             
             try {
-                const response = await fetch(`/recurring-expense/edit?id=${recurringExpenseToEdit.id}&updateAll=${updateAll}`, {
+                const response = await apiFetch(`/recurring-expense/edit?id=${recurringExpenseToEdit.id}&updateAll=${updateAll}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(updatedData)
@@ -692,7 +695,7 @@
             summaryDiv.style.display = 'none';
 
             try {
-                const response = await fetch('/import/csv', {
+                const response = await apiFetch('/import/csv', {
                     method: 'POST',
                     body: formData
                 });
@@ -736,7 +739,7 @@
             summaryDiv.style.display = 'none';
 
             try {
-                const response = await fetch('/import/csvold', {
+                const response = await apiFetch('/import/csvold', {
                     method: 'POST',
                     body: formData
                 });
@@ -770,9 +773,9 @@
         async function initialize() {
             try {
                 const [configResponse, expensesResponse, recurringExpensesResponse] = await Promise.all([
-                    fetch('/config'),
-                    fetch('/expenses'),
-                    fetch('/recurring-expenses')
+                    apiFetch('/config'),
+                    apiFetch('/expenses'),
+                    apiFetch('/recurring-expenses')
                 ]);
                 if (!configResponse.ok) throw new Error('Failed to fetch configuration');
                 const config = await configResponse.json();
@@ -796,7 +799,7 @@
                 renderRecurringExpenses(recurringExpenses);
 
                 createTagInput('tags-input', 'selected-tags', 'tags-dropdown', addFormSelectedTags);
-                fetch('/version').then(r => r.ok ? r.text() : 'dev').then(version => {
+                apiFetch('/version').then(r => r.ok ? r.text() : 'dev').then(version => {
                     const link = document.getElementById('version-link');
                     link.textContent = version;
                     if (version !== 'dev') link.href = `https://github.com/tanq16/expenseowl/releases/tag/${version}`;
@@ -854,7 +857,7 @@
             };
 
             try {
-                const response = await fetch('/recurring-expense', {
+                const response = await apiFetch('/recurring-expense', {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(formData)

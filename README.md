@@ -91,7 +91,7 @@ The recommended installation method is Docker. To run the container via CLI, use
 ```bash
 docker run --rm -d \
   --name expenseowl \
-  -p 8080:8080 \
+  -p 9080:9080 \
   -v expenseowl:/app/data \
   tanq16/expenseowl:main
 ```
@@ -104,7 +104,7 @@ services:
     image: tanq16/expenseowl:main
     restart: unless-stopped
     ports:
-      - 5006:8080 # change 5006 to what you want to expose on
+      - 5006:9080 # change 5006 to what you want to expose on
     volumes:
       - /home/tanq/expenseowl:/app/data # change dir as needed
 ```
@@ -114,7 +114,7 @@ services:
 
 ### Using the Binary or Building from Source
 
-Download the appropriate binary from the project releases. The binary automatically sets up a `data` directory in your CWD, and starts the app at `http://localhost:8080`.
+Download the appropriate binary from the project releases. The binary automatically sets up a `data` directory in your CWD, and starts the app at `http://localhost:9080`.
 
 To build the binary yourself:
 
@@ -134,12 +134,12 @@ This is a community-contributed Kubernetes spec. Treat it as a sample and review
 
 Once deployed, use the web interface to do everything. Access it through your browser:
 
-- Dashboard: `http://localhost:8080/`
-- Table View: `http://localhost:8080/table`
-- Settings: `http://localhost:8080/settings`
+- Dashboard: `http://localhost:9080/`
+- Table View: `http://localhost:9080/table`
+- Settings: `http://localhost:9080/settings`
 
 > [!NOTE]
-> This app does not include authentication, so deploy carefully. I don't want to add half-baked authentication, so use Authelia, or equivalent as needed. ExpenseOwl works well with a reverse proxy like Nginx Proxy Manager too and is intended for homelab use only.
+> ExpenseOwl now ships with a lightweight session-based login. Set `APP_USERNAME` and `APP_PASSWORD` before launching (see [Authentication](#authentication) for details).
 
 ### Conventions
 
@@ -173,6 +173,21 @@ With the exception of [Data backends](#data-backends), all configuration of Expe
   - Recurring transactions allow similar options as normal expenses - category, tags, amount, name
 - Theme Settings: supports light and dark theme, with default behavior to adapt to system
 - Import/Export Data: covered under [Data Import/Export](#data-importexport)
+
+### Authentication
+
+ExpenseOwl includes a simple session-based login that protects the web UI and JSON API. The server refuses to start unless the base credentials are provided.
+
+| Variable | Sample Value | Details |
+| --- | --- | --- |
+| APP_USERNAME | expenseowl | Required. Username presented on the login form. |
+| APP_PASSWORD | supersecret | Required. Password verified at login. |
+| SESSION_COOKIE_NAME | expenseowl_session | Optional. Overrides the cookie name used for sessions. |
+| SESSION_COOKIE_DOMAIN | example.com | Optional. Sets the cookie domain when you serve ExpenseOwl behind a reverse proxy. |
+| SESSION_COOKIE_SECURE | true | Optional. Mark the session cookie as Secure (enable when serving over HTTPS). |
+| SESSION_DURATION_HOURS | 24 | Optional. Lifetime of a session before the user must log in again. |
+
+The login screen is available at `/login` and a `POST /logout` endpoint clears the active session. All frontend calls automatically include the session cookie and redirect to the login page when a session expires.
 
 ### Data Backends
 

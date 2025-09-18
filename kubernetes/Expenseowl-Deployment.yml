@@ -19,7 +19,7 @@ spec:
         image: tanq16/expenseowl:main
         imagePullPolicy: Always
         ports:
-        - containerPort: 8080
+        - containerPort: 9080
           name: expenseowl-port
         envFrom:
         - configMapRef:

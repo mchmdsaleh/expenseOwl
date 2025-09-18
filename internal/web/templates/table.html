@@ -21,9 +21,9 @@
     <div class="container">
         <header>
             <div class="nav-bar">
-                <a href="/">
+                <!-- <a href="/">
                     <img src="/pwa/icon-192.png" alt="ExpenseOwl Logo" height="85" style="vertical-align: middle; margin-right: 20px;">
-                </a>
+                </a> -->
                 <a href="/" class="view-button" data-tooltip="Dashboard">
                     <i class="fa-solid fa-chart-pie"></i>
                 </a>
@@ -33,6 +33,9 @@
                 <a href="/settings" class="view-button" data-tooltip="Settings">
                     <i class="fa-solid fa-gear"></i>
                 </a>
+                <button id="logoutButton" type="button" class="view-button" data-tooltip="Logout">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                </button>
             </div>
         </header>
 
@@ -304,7 +307,7 @@
 
         async function initialize() {
             try {
-                const configResponse = await fetch('/config');
+                const configResponse = await apiFetch('/config');
                 if (!configResponse.ok) throw new Error('Failed to fetch configuration');
                 const config = await configResponse.json();
                 const categorySelect = document.getElementById('category');
@@ -314,7 +317,7 @@
                 currentCurrency = config.currency;
                 startDate = config.startDate;
                 
-                const response = await fetch('/expenses');
+                const response = await apiFetch('/expenses');
                 if (!response.ok) throw new Error('Failed to fetch data');
                 const data = await response.json();
                 allExpenses = Array.isArray(data) ? data : (data && Array.isArray(data.expenses) ? data.expenses : []);
@@ -374,7 +377,7 @@
         async function confirmDelete() {
             if (!expenseToDelete) return;
             try {
-                const response = await fetch(`/expense/delete?id=${expenseToDelete}`, {
+                const response = await apiFetch(`/expense/delete?id=${expenseToDelete}`, {
                     method: 'DELETE'
                 });
                 if (!response.ok) {
@@ -413,7 +416,7 @@
             };
             try {
                 const url = editId ? `/expense/edit?id=${editId}` : '/expense';
-                const response = await fetch(url, {
+                const response = await apiFetch(url, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(formData)

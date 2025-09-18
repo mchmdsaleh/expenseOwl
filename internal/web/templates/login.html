@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ExpenseOwl Login</title>
+    <link rel="stylesheet" href="/fa.min.css">
+    <link rel="stylesheet" href="/style.css">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#1a1a1a">
+    <script>
+        (function() {
+            const theme = localStorage.getItem('theme') || 'system';
+            if (theme === 'light') {
+                document.documentElement.setAttribute('data-theme', 'light');
+            } else if (theme === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }
+        })();
+    </script>
+</head>
+<body class="auth-body">
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <img src="/pwa/icon-192.png" alt="ExpenseOwl Logo" class="auth-logo">
+                <h1>Welcome Back</h1>
+                <p>Sign in to manage your expenses</p>
+            </div>
+            <form id="loginForm" class="auth-form">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" autocomplete="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" autocomplete="current-password" required>
+                </div>
+                <button type="submit" class="nav-button full-width">Sign In</button>
+                <div id="loginMessage" class="form-message" role="alert"></div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('loginForm');
+            const message = document.getElementById('loginMessage');
+
+            form.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                message.textContent = '';
+                message.className = 'form-message';
+
+                const formData = new URLSearchParams();
+                formData.append('username', form.username.value.trim());
+                formData.append('password', form.password.value);
+
+                try {
+                    const response = await fetch('/login', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'X-Requested-With': 'ExpenseOwl'
+                        },
+                        body: formData.toString(),
+                        credentials: 'include'
+                    });
+
+                    if (!response.ok) {
+                        const data = await response.json().catch(() => ({}));
+                        const error = data.error || 'Invalid username or password';
+                        throw new Error(error);
+                    }
+
+                    const data = await response.json().catch(() => ({}));
+                    window.location.href = data.redirect || '/';
+                } catch (error) {
+                    message.textContent = error.message || 'Unable to sign in';
+                    message.className = 'form-message error';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
