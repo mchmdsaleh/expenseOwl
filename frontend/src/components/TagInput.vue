@@ -1,9 +1,23 @@
 <template>
-  <div class="tags-input-container" @click="focusInput">
-    <div class="selected-tags">
-      <div v-for="tag in internalValue" :key="tag" class="tag-pill">
+  <div
+    ref="containerRef"
+    class="relative flex min-h-[44px] cursor-text flex-wrap items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2 text-sm text-[var(--text-primary)]"
+    @click="focusInput"
+  >
+    <div class="flex flex-wrap gap-2">
+      <div
+        v-for="tag in internalValue"
+        :key="tag"
+        class="flex items-center gap-2 rounded-full bg-[var(--accent)] px-3 py-1 text-xs font-medium text-white"
+      >
         {{ tag }}
-        <span class="remove-tag" @click.stop="removeTag(tag)">×</span>
+        <button
+          type="button"
+          class="transition hover:text-gray-200"
+          @click.stop="removeTag(tag)"
+        >
+          ×
+        </button>
       </div>
     </div>
     <input
@@ -11,21 +25,32 @@
       v-model="inputValue"
       type="text"
       :placeholder="placeholder"
+      class="min-w-[120px] flex-1 border-none bg-transparent text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:outline-none"
       @focus="openDropdown"
       @input="onInput"
       @keydown.enter.prevent="createTag"
     />
-    <div v-if="showDropdown" class="tags-dropdown">
-      <div
+    <div
+      v-if="showDropdown"
+      class="absolute left-0 top-full z-50 mt-2 w-full overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-secondary)]/95 shadow-card backdrop-blur"
+    >
+      <button
         v-for="tag in filteredSuggestions"
         :key="tag"
+        type="button"
+        class="block w-full px-4 py-2 text-left text-sm text-[var(--text-primary)] transition hover:bg-[var(--accent)]/20"
         @click="selectTag(tag)"
       >
         {{ tag }}
-      </div>
-      <div v-if="canCreate" class="new-tag" @click="createTag">
+      </button>
+      <button
+        v-if="canCreate"
+        type="button"
+        class="block w-full px-4 py-2 text-left text-sm font-semibold text-[var(--text-primary)] transition hover:bg-[var(--accent)]/20"
+        @click="createTag"
+      >
         + Create "{{ inputValue.trim() }}"
-      </div>
+      </button>
     </div>
   </div>
 </template>
@@ -54,6 +79,7 @@ const inputValue = ref('');
 const showDropdown = ref(false);
 const inputRef = ref(null);
 const internalValue = ref([...props.modelValue]);
+const containerRef = ref(null);
 
 watch(
   () => props.modelValue,
@@ -117,7 +143,8 @@ function onInput() {
 }
 
 function handleClickOutside(event) {
-  if (!event.composedPath().includes(inputRef.value?.parentElement)) {
+  if (!containerRef.value) return;
+  if (!containerRef.value.contains(event.target)) {
     closeDropdown();
   }
 }

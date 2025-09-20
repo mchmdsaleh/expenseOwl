@@ -1,172 +1,266 @@
 <template>
   <section class="space-y-6">
-    <div class="info-field">
-      Version:
-      <a href="https://github.com/tanq16/expenseowl/releases/latest" target="_blank" rel="noopener noreferrer">v4.0</a>
-      <span class="separator">|</span>
-      <a href="https://github.com/tanq16/expenseowl/blob/main/README.md" target="_blank" rel="noopener noreferrer">Documentation</a>
-      <span class="separator">|</span>
-      <a href="https://github.com/tanq16/expenseowl" target="_blank" rel="noopener noreferrer">GitHub</a>
+    <div class="flex flex-wrap items-center justify-center gap-2 text-sm text-[var(--text-secondary)]">
+      <span>Version:</span>
+      <a :class="infoLinkClass" href="https://github.com/tanq16/expenseowl/releases/latest" target="_blank" rel="noopener noreferrer">v4.0</a>
+      <span class="text-[var(--border)]">|</span>
+      <a :class="infoLinkClass" href="https://github.com/tanq16/expenseowl/blob/main/README.md" target="_blank" rel="noopener noreferrer">Documentation</a>
+      <span class="text-[var(--border)]">|</span>
+      <a :class="infoLinkClass" href="https://github.com/tanq16/expenseowl" target="_blank" rel="noopener noreferrer">GitHub</a>
     </div>
 
-    <div class="form-container bg-surface shadow-card">
-      <h2 align="center">Category Settings</h2>
-      <div class="categories-list">
-        <div v-for="(category, index) in categories" :key="category" class="category-item">
-          <div class="category-handle-area">
-            <span class="drag-handle"><i class="fa-solid fa-grip-lines"></i></span>
+    <div :class="cardClass">
+      <h2 align="center" class="text-xl font-semibold text-[var(--text-primary)]">Category Settings</h2>
+      <div class="mt-4 space-y-3">
+        <div
+          v-for="(category, index) in categories"
+          :key="category"
+          class="flex items-center justify-between gap-3 rounded-full border border-[var(--border)] bg-[var(--bg-primary)]/60 px-4 py-2 text-sm text-[var(--text-primary)]"
+        >
+          <div class="flex items-center gap-3">
+            <span class="text-[var(--text-secondary)]"><i class="fa-solid fa-grip-lines"></i></span>
             <span>{{ category }}</span>
           </div>
-          <div class="category-actions">
-            <button type="button" class="nav-button" @click="moveCategory(index, -1)" :disabled="index === 0">
+          <div class="flex items-center gap-2">
+            <button type="button" :class="iconButtonTiny" @click="moveCategory(index, -1)" :disabled="index === 0">
               <i class="fa-solid fa-arrow-up"></i>
             </button>
-            <button type="button" class="nav-button" @click="moveCategory(index, 1)" :disabled="index === categories.length - 1">
+            <button type="button" :class="iconButtonTiny" @click="moveCategory(index, 1)" :disabled="index === categories.length - 1">
               <i class="fa-solid fa-arrow-down"></i>
             </button>
-            <button type="button" class="delete-button" @click="removeCategory(index)">
+            <button type="button" :class="iconDangerButtonTiny" @click="removeCategory(index)">
               <i class="fa-solid fa-times"></i>
             </button>
           </div>
         </div>
-        <div class="category-input-container">
-          <input v-model="newCategory" type="text" placeholder="Add new category" />
-          <button type="button" class="nav-button" @click="addCategory">
+        <div class="flex flex-col gap-3 sm:flex-row">
+          <input v-model="newCategory" type="text" placeholder="Add new category" :class="inputClass" />
+          <button type="button" :class="[primaryButtonClass, 'sm:w-auto']" @click="addCategory">
             Add
           </button>
         </div>
-        <button type="button" class="nav-button" @click="saveCategories">Save Categories</button>
-        <div class="form-message" :class="categoryMessage.type" v-if="categoryMessage.text">{{ categoryMessage.text }}</div>
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <button type="button" :class="primaryButtonClass" @click="saveCategories">Save Categories</button>
+          <div
+            v-if="categoryMessage.text"
+            :class="[
+              'rounded-full px-4 py-2 text-center text-sm font-medium',
+              categoryMessage.type === 'success'
+                ? 'bg-emerald-500/20 text-emerald-200'
+                : 'bg-rose-500/20 text-rose-200'
+            ]"
+          >
+            {{ categoryMessage.text }}
+          </div>
+        </div>
       </div>
     </div>
 
-    <div class="settings-container">
-      <div class="form-container half-width bg-surface shadow-card">
-        <h2 align="center">Currency Settings</h2>
-        <div class="currency-selector">
-          <select v-model="currencyCode">
+    <div class="grid gap-6 md:grid-cols-2">
+      <div :class="cardClass">
+        <h2 align="center" class="text-xl font-semibold text-[var(--text-primary)]">Currency Settings</h2>
+        <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+          <select v-model="currencyCode" :class="inputClass">
             <option v-for="code in currencyOptions" :key="code" :value="code">
               {{ code.toUpperCase() }} ({{ currencyBehaviors[code].symbol }})
             </option>
           </select>
-          <button type="button" class="nav-button" @click="saveCurrency">Save</button>
+          <button type="button" :class="primaryButtonClass" @click="saveCurrency">Save</button>
         </div>
-        <div class="form-message" :class="currencyMessage.type" v-if="currencyMessage.text">{{ currencyMessage.text }}</div>
+        <div
+          v-if="currencyMessage.text"
+          :class="[
+            'mt-4 rounded-full px-4 py-2 text-center text-sm font-medium',
+            currencyMessage.type === 'success'
+              ? 'bg-emerald-500/20 text-emerald-200'
+              : 'bg-rose-500/20 text-rose-200'
+          ]"
+        >
+          {{ currencyMessage.text }}
+        </div>
       </div>
-      <div class="form-container half-width bg-surface shadow-card">
-        <h2 align="center">Start Date Settings</h2>
-        <div class="start-date-manager">
-          <input v-model.number="startDate" type="number" min="1" max="31" />
-          <button type="button" class="nav-button" @click="saveStartDate">Save</button>
+      <div :class="cardClass">
+        <h2 align="center" class="text-xl font-semibold text-[var(--text-primary)]">Start Date Settings</h2>
+        <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+          <input v-model.number="startDate" type="number" min="1" max="31" :class="inputClass" />
+          <button type="button" :class="primaryButtonClass" @click="saveStartDate">Save</button>
         </div>
-        <div class="form-message" :class="startDateMessage.type" v-if="startDateMessage.text">{{ startDateMessage.text }}</div>
+        <div
+          v-if="startDateMessage.text"
+          :class="[
+            'mt-4 rounded-full px-4 py-2 text-center text-sm font-medium',
+            startDateMessage.type === 'success'
+              ? 'bg-emerald-500/20 text-emerald-200'
+              : 'bg-rose-500/20 text-rose-200'
+          ]"
+        >
+          {{ startDateMessage.text }}
+        </div>
       </div>
     </div>
 
-    <div class="settings-container">
-      <div class="form-container half-width bg-surface shadow-card">
-        <h2 align="center">Theme Settings</h2>
-        <div class="theme-selector">
-          <select v-model="theme" @change="applyTheme">
+    <div class="grid gap-6 md:grid-cols-2">
+      <div :class="cardClass">
+        <h2 align="center" class="text-xl font-semibold text-[var(--text-primary)]">Theme Settings</h2>
+        <div class="mt-4">
+          <select v-model="theme" @change="applyTheme" :class="inputClass">
             <option value="system">System Default</option>
             <option value="light">Light</option>
             <option value="dark">Dark</option>
           </select>
         </div>
-        <div class="form-message" :class="themeMessage.type" v-if="themeMessage.text">{{ themeMessage.text }}</div>
-      </div>
-      <div class="form-container half-width bg-surface shadow-card">
-        <h2 align="center">Import/Export Data</h2>
-        <div class="export-buttons">
-          <div class="export-options">
-            <a href="/export/csv" class="nav-button" download="expenses.csv">Export to CSV</a>
-          </div>
-          <div class="import-option">
-            <label class="nav-button" for="csv-import-file">Import from CSV</label>
-            <input id="csv-import-file" ref="csvImportRef" type="file" accept=".csv" hidden @change="(event) => handleImport(event, '/import/csv')" />
-          </div>
-          <div class="import-option">
-            <label class="nav-button" for="csv-import-file-old">Import from ExpenseOwl v3.20-</label>
-            <input id="csv-import-file-old" ref="csvImportOldRef" type="file" accept=".csv" hidden @change="(event) => handleImport(event, '/import/csvold')" />
-          </div>
+        <div
+          v-if="themeMessage.text"
+          :class="[
+            'mt-4 rounded-full px-4 py-2 text-center text-sm font-medium',
+            themeMessage.type === 'success'
+              ? 'bg-emerald-500/20 text-emerald-200'
+              : 'bg-rose-500/20 text-rose-200'
+          ]"
+        >
+          {{ themeMessage.text }}
         </div>
-        <div class="form-message" :class="importMessage.type" v-if="importMessage.text">{{ importMessage.text }}</div>
-        <div class="import-summary" v-if="importSummary" style="display: block;">
-          <h3>Import Summary</h3>
-          <p>Total Processed: <span>{{ importSummary.totalProcessed }}</span></p>
-          <p>Imported: <span>{{ importSummary.imported }}</span></p>
-          <p>Skipped: <span>{{ importSummary.skipped }}</span></p>
-          <p>New Categories: <span>{{ importSummary.newCategories }}</span></p>
+      </div>
+      <div :class="cardClass">
+        <h2 align="center" class="text-xl font-semibold text-[var(--text-primary)]">Import/Export Data</h2>
+        <div class="mt-4 flex flex-col gap-3 md:flex-row">
+          <a :class="primaryButtonClass" href="/export/csv" download="expenses.csv">Export to CSV</a>
+          <label :class="primaryButtonClass" for="csv-import-file">Import from CSV</label>
+          <input id="csv-import-file" ref="csvImportRef" type="file" accept=".csv" hidden @change="(event) => handleImport(event, '/import/csv')" />
+          <label :class="primaryButtonClass" for="csv-import-file-old">Import from ExpenseOwl v3.20-</label>
+          <input id="csv-import-file-old" ref="csvImportOldRef" type="file" accept=".csv" hidden @change="(event) => handleImport(event, '/import/csvold')" />
+        </div>
+        <div
+          v-if="importMessage.text"
+          :class="[
+            'mt-4 rounded-full px-4 py-2 text-center text-sm font-medium',
+            importMessage.type === 'success'
+              ? 'bg-emerald-500/20 text-emerald-200'
+              : 'bg-rose-500/20 text-rose-200'
+          ]"
+        >
+          {{ importMessage.text }}
+        </div>
+        <div
+          v-if="importSummary"
+          class="mt-4 space-y-1 rounded-2xl border border-[var(--border)] bg-[var(--bg-primary)]/60 px-4 py-4 text-sm text-[var(--text-secondary)]"
+        >
+          <h3 class="text-base font-semibold text-[var(--text-primary)]">Import Summary</h3>
+          <p>Total Processed: <span class="font-semibold text-[var(--text-primary)]">{{ importSummary.totalProcessed }}</span></p>
+          <p>Imported: <span class="font-semibold text-emerald-300">{{ importSummary.imported }}</span></p>
+          <p>Skipped: <span class="font-semibold text-rose-300">{{ importSummary.skipped }}</span></p>
+          <p>New Categories: <span class="font-semibold text-[var(--text-primary)]">{{ importSummary.newCategories }}</span></p>
         </div>
       </div>
     </div>
 
-    <div class="form-container bg-surface shadow-card">
-      <h2 align="center">Recurring Transactions</h2>
-      <form class="expense-form recurring-expense-form" @submit.prevent="submitRecurring">
-        <div class="form-group">
-          <label for="recurringName">Name</label>
-          <input id="recurringName" v-model="recurringForm.name" type="text" required />
+    <div :class="cardClass">
+      <h2 align="center" class="text-xl font-semibold text-[var(--text-primary)]">Recurring Transactions</h2>
+      <form class="mt-4 grid gap-4 md:grid-cols-2" @submit.prevent="submitRecurring">
+        <div class="flex flex-col gap-2">
+          <label class="text-sm font-medium text-[var(--text-secondary)]" for="recurringName">Name</label>
+          <input id="recurringName" v-model="recurringForm.name" type="text" :class="inputClass" required />
         </div>
-        <div class="form-group">
-          <label for="recurringAmount">Amount</label>
-          <input id="recurringAmount" v-model.number="recurringForm.amount" type="number" step="0.01" min="0.01" max="9000000000000000" required />
+        <div class="flex flex-col gap-2">
+          <label class="text-sm font-medium text-[var(--text-secondary)]" for="recurringAmount">Amount</label>
+          <input
+            id="recurringAmount"
+            v-model.number="recurringForm.amount"
+            type="number"
+            step="0.01"
+            min="0.01"
+            max="9000000000000000"
+            :class="inputClass"
+            required
+          />
         </div>
-        <div class="form-group">
-          <label for="recurringCategory">Category</label>
-          <select id="recurringCategory" v-model="recurringForm.category" required>
+        <div class="flex flex-col gap-2">
+          <label class="text-sm font-medium text-[var(--text-secondary)]" for="recurringCategory">Category</label>
+          <select id="recurringCategory" v-model="recurringForm.category" :class="inputClass" required>
             <option value="" disabled>Select category</option>
             <option v-for="category in state.categories" :key="category" :value="category">{{ category }}</option>
           </select>
         </div>
-        <div class="form-group">
-          <label>Tags</label>
+        <div class="flex flex-col gap-2">
+          <label class="text-sm font-medium text-[var(--text-secondary)]">Tags</label>
           <TagInput v-model="recurringForm.tags" :suggestions="allTags" />
         </div>
-        <div class="form-group">
-          <label for="recurringInterval">Interval</label>
-          <select id="recurringInterval" v-model="recurringForm.interval" required>
+        <div class="flex flex-col gap-2">
+          <label class="text-sm font-medium text-[var(--text-secondary)]" for="recurringInterval">Interval</label>
+          <select id="recurringInterval" v-model="recurringForm.interval" :class="inputClass" required>
             <option value="daily">Daily</option>
             <option value="weekly">Weekly</option>
             <option value="monthly">Monthly</option>
             <option value="yearly">Yearly</option>
           </select>
         </div>
-        <div class="form-group">
-          <label for="recurringStartDate">Start Date</label>
-          <input id="recurringStartDate" v-model="recurringForm.startDate" type="date" required />
+        <div class="flex flex-col gap-2">
+          <label class="text-sm font-medium text-[var(--text-secondary)]" for="recurringStartDate">Start Date</label>
+          <input id="recurringStartDate" v-model="recurringForm.startDate" type="date" :class="inputClass" required />
         </div>
-        <div class="form-group">
-          <label for="recurringOccurrences">Occurrences (0 for indefinite)</label>
-          <input id="recurringOccurrences" v-model.number="recurringForm.occurrences" type="number" min="0" required />
+        <div class="flex flex-col gap-2">
+          <label class="text-sm font-medium text-[var(--text-secondary)]" for="recurringOccurrences">Occurrences (0 for indefinite)</label>
+          <input id="recurringOccurrences" v-model.number="recurringForm.occurrences" type="number" min="0" :class="inputClass" required />
         </div>
-        <div class="form-group form-group-checkbox">
-          <label for="recurringReportGain">Report Gain</label>
-          <input id="recurringReportGain" v-model="recurringForm.reportGain" type="checkbox" class="styled-checkbox" />
+        <div class="flex flex-col gap-2">
+          <label class="text-sm font-medium text-[var(--text-secondary)] mb-2" for="recurringReportGain">Report Gain</label>
+          <label class="relative inline-flex h-6 w-12 cursor-pointer items-center">
+            <input
+              id="recurringReportGain"
+              v-model="recurringForm.reportGain"
+              type="checkbox"
+              class="peer sr-only"
+            />
+            <span class="absolute inset-0 rounded-full bg-[var(--border)] transition-colors duration-200 peer-checked:bg-[var(--accent)]"></span>
+            <span class="absolute left-1 h-4 w-4 rounded-full bg-white transition-transform duration-200 peer-checked:translate-x-6"></span>
+          </label>
         </div>
-        <button type="submit" class="nav-button">{{ recurringForm.submitLabel }}</button>
+        <div class="md:col-span-2">
+          <button type="submit" :class="[primaryButtonClass, 'w-full']">{{ recurringForm.submitLabel }}</button>
+        </div>
       </form>
-      <div class="form-message" :class="recurringMessage.type" v-if="recurringMessage.text">{{ recurringMessage.text }}</div>
+      <div
+        v-if="recurringMessage.text"
+        :class="[
+          'mt-4 rounded-full px-4 py-2 text-center text-sm font-medium',
+          recurringMessage.type === 'success'
+            ? 'bg-emerald-500/20 text-emerald-200'
+            : 'bg-rose-500/20 text-rose-200'
+        ]"
+      >
+        {{ recurringMessage.text }}
+      </div>
 
-      <h3 align="center" style="margin-top: 2rem;">Existing Recurring Transactions</h3>
-      <div v-if="state.recurringExpenses.length === 0" class="no-data">No recurring transactions configured.</div>
-      <div v-else id="recurring-expenses-list">
-        <div v-for="expense in state.recurringExpenses" :key="expense.id" class="recurring-item">
-          <div>
-            <strong>{{ expense.name }}</strong>
-            <div class="recurring-meta">
+      <h3 class="mt-10 text-center text-lg font-semibold text-[var(--text-primary)]">Existing Recurring Transactions</h3>
+      <div
+        v-if="state.recurringExpenses.length === 0"
+        class="mt-4 rounded-3xl border border-dashed border-[var(--border)] bg-[var(--bg-secondary)]/60 py-10 text-center text-base italic text-[var(--text-secondary)]"
+      >
+        No recurring transactions configured.
+      </div>
+      <div v-else class="mt-6 space-y-3">
+        <div
+          v-for="expense in state.recurringExpenses"
+          :key="expense.id"
+          class="flex flex-col gap-3 rounded-3xl border border-[var(--border)] bg-[var(--bg-secondary)]/60 px-5 py-4 shadow-card backdrop-blur sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div class="space-y-2 text-sm text-[var(--text-secondary)]">
+            <strong class="block text-base text-[var(--text-primary)]">{{ expense.name }}</strong>
+            <div class="flex flex-wrap items-center gap-2">
               <span>{{ formatCurrency(expense.amount) }}</span>
               <span>• {{ expense.interval }}</span>
               <span>• Starts {{ formatDate(expense.start_date) }}</span>
               <span v-if="expense.occurrences && expense.occurrences > 0">• {{ expense.occurrences }} occurrences</span>
             </div>
-            <div v-if="expense.tags && expense.tags.length" class="recurring-tags">Tags: {{ expense.tags.join(', ') }}</div>
+            <div v-if="expense.tags && expense.tags.length" class="text-xs uppercase tracking-wide text-[var(--text-secondary)]">
+              Tags: <span class="font-medium text-[var(--text-primary)]">{{ expense.tags.join(', ') }}</span>
+            </div>
           </div>
-          <div class="recurring-actions">
-            <button type="button" class="nav-button" @click="editRecurring(expense)">
+          <div class="flex items-center gap-2">
+            <button type="button" :class="iconButtonTiny" @click="editRecurring(expense)">
               <i class="fa-solid fa-pen-to-square"></i>
             </button>
-            <button type="button" class="delete-button" @click="deleteRecurring(expense)">
+            <button type="button" :class="iconDangerButtonTiny" @click="deleteRecurring(expense)">
               <i class="fa-solid fa-trash-can"></i>
             </button>
           </div>
@@ -182,6 +276,27 @@ import TagInput from '../components/TagInput.vue';
 import state, { loadInitialData, refreshExpenses, refreshRecurringExpenses } from '../stores/appState';
 import { apiFetch } from '../lib/api';
 import { currencyBehaviors, formatCurrency as formatCurrencyRaw } from '../lib/utils';
+
+const primaryButtonClass =
+  'inline-flex items-center justify-center gap-2 rounded-full border border-[var(--border)] bg-[var(--bg-secondary)] px-5 py-2 text-sm font-medium text-[var(--text-primary)] transition duration-150 ease-out hover:bg-[var(--accent)] hover:text-white hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40 focus:ring-offset-2 focus:ring-offset-[var(--bg-primary)] disabled:cursor-not-allowed disabled:opacity-50';
+
+const inputClass =
+  'w-full rounded-xl border border-[var(--border)] bg-[var(--bg-primary)] px-4 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40';
+
+const checkboxClass =
+  'h-4 w-4 rounded border-[var(--border)] bg-[var(--bg-primary)] text-[var(--accent)] focus:ring-[var(--accent)]/60 focus:ring-offset-0';
+
+const cardClass =
+  'rounded-3xl border border-[var(--border)] bg-[var(--bg-secondary)]/80 p-6 shadow-card backdrop-blur';
+
+const iconButtonTiny =
+  'inline-flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--bg-secondary)] text-xs text-[var(--text-primary)] transition duration-150 hover:bg-[var(--accent)] hover:text-white hover:shadow-md disabled:cursor-not-allowed disabled:opacity-40';
+
+const iconDangerButtonTiny =
+  'inline-flex h-8 w-8 items-center justify-center rounded-full border border-rose-500/40 bg-rose-500/10 text-xs text-rose-400 transition duration-150 hover:bg-rose-500/20 hover:text-white';
+
+const infoLinkClass =
+  'font-semibold text-[var(--text-primary)] underline decoration-dotted underline-offset-4 transition hover:text-[var(--accent)]';
 
 const currencyOptions = Object.keys(currencyBehaviors);
 
