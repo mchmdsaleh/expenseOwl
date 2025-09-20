@@ -154,7 +154,7 @@
       </div>
     </div>
 
-    <div :class="cardClass">
+    <div :class="cardClass" ref="recurringCardRef">
       <h2 align="center" class="text-xl font-semibold text-[var(--text-primary)]">Recurring Transactions</h2>
       <form class="mt-4 grid gap-4 md:grid-cols-2" @submit.prevent="submitRecurring">
         <div class="flex flex-col gap-2">
@@ -249,7 +249,7 @@
             <div class="flex flex-wrap items-center gap-2">
               <span>{{ formatCurrency(expense.amount) }}</span>
               <span>• {{ expense.interval }}</span>
-              <span>• Starts {{ formatDate(expense.start_date) }}</span>
+              <span>• Starts {{ formatDate(expense.startDate) }}</span>
               <span v-if="expense.occurrences && expense.occurrences > 0">• {{ expense.occurrences }} occurrences</span>
             </div>
             <div v-if="expense.tags && expense.tags.length" class="text-xs uppercase tracking-wide text-[var(--text-secondary)]">
@@ -271,11 +271,11 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch, onMounted, nextTick } from 'vue';
 import TagInput from '../components/TagInput.vue';
 import state, { loadInitialData, refreshExpenses, refreshRecurringExpenses } from '../stores/appState';
 import { apiFetch } from '../lib/api';
-import { currencyBehaviors, formatCurrency as formatCurrencyRaw } from '../lib/utils';
+import { currencyBehaviors, formatCurrency as formatCurrencyRaw, getISODateWithLocalTime } from '../lib/utils';
 
 const primaryButtonClass =
   'inline-flex items-center justify-center gap-2 rounded-full border border-[var(--border)] bg-[var(--bg-secondary)] px-5 py-2 text-sm font-medium text-[var(--text-primary)] transition duration-150 ease-out hover:bg-[var(--accent)] hover:text-white hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40 focus:ring-offset-2 focus:ring-offset-[var(--bg-primary)] disabled:cursor-not-allowed disabled:opacity-50';
@@ -329,6 +329,8 @@ const allTags = computed(() => {
   });
   return Array.from(combined);
 });
+
+const recurringCardRef = ref(null);
 
 watch(
   () => state.categories,
@@ -577,7 +579,7 @@ async function submitRecurring() {
     category: recurringForm.value.category,
     tags: recurringForm.value.tags,
     interval: recurringForm.value.interval,
-    start_date: recurringForm.value.startDate,
+    startDate: getISODateWithLocalTime(recurringForm.value.startDate),
     occurrences: recurringForm.value.occurrences,
   };
   const isEdit = Boolean(editingRecurringId.value);
@@ -618,12 +620,14 @@ function editRecurring(expense) {
     category: expense.category,
     tags: [...(expense.tags || [])],
     interval: expense.interval,
-    startDate: expense.start_date?.slice(0, 10) || createRecurringForm().startDate,
+    startDate: expense.startDate?.slice(0, 10) || createRecurringForm().startDate,
     occurrences: expense.occurrences ?? 0,
     reportGain: expense.amount > 0,
     submitLabel: 'Update Recurring Transaction',
   };
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  nextTick(() => {
+    recurringCardRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
 }
 
 async function deleteRecurring(expense) {
