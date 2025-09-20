@@ -136,7 +136,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import { Chart, registerables } from 'chart.js';
 import state, { loadInitialData, refreshExpenses } from '../stores/appState';
 import TagInput from '../components/TagInput.vue';
@@ -207,7 +207,11 @@ watch(
   }
 );
 
-watch(monthExpenses, updateChart);
+watch(monthExpenses, () => {
+  assignCategoryColors();
+  updateChart();
+});
+
 watch(disabledCategories, updateChart, { deep: true });
 
 onMounted(async () => {
@@ -281,12 +285,20 @@ function gotoPrevMonth() {
   const date = new Date(currentDate.value);
   date.setMonth(date.getMonth() - 1);
   currentDate.value = date;
+  nextTick(() => {
+    assignCategoryColors();
+    updateChart();
+  });
 }
 
 function gotoNextMonth() {
   const date = new Date(currentDate.value);
   date.setMonth(date.getMonth() + 1);
   currentDate.value = date;
+  nextTick(() => {
+    assignCategoryColors();
+    updateChart();
+  });
 }
 
 function calculateCategoryBreakdown(expenses) {
