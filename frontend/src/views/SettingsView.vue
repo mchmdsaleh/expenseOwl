@@ -433,8 +433,12 @@ function addCategory() {
     setCategoryMessage('Category already exists.', 'error');
     return;
   }
+  const showingAll = categoryDisplayCount.value >= categories.value.length;
   categories.value.push(candidate);
   newCategory.value = '';
+  if (showingAll) {
+    categoryDisplayCount.value = categories.value.length;
+  }
   ensureCategoryDisplayBounds();
 }
 
