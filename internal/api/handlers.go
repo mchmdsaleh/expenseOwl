@@ -408,17 +408,6 @@ func (h *Handler) DeleteRecurringExpense(w http.ResponseWriter, r *http.Request)
 // Static and UI Handlers
 // ------------------------------------------------------------
 
-func (h *Handler) ServeTableView(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
-		return
-	}
-	w.Header().Set("Content-Type", "text/html")
-	if err := web.ServeTemplate(w, "table.html"); err != nil {
-		http.Error(w, "Failed to serve template", http.StatusInternalServerError)
-	}
-}
-
 func (h *Handler) ServeLoginPage(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
@@ -486,25 +475,4 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	h.HandleLogout(w, r)
-}
-
-func (h *Handler) ServeSettingsPage(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
-		return
-	}
-	w.Header().Set("Content-Type", "text/html")
-	if err := web.ServeTemplate(w, "settings.html"); err != nil {
-		http.Error(w, "Failed to serve template", http.StatusInternalServerError)
-	}
-}
-
-func (h *Handler) ServeStaticFile(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
-		return
-	}
-	if err := web.ServeStatic(w, r.URL.Path); err != nil {
-		http.Error(w, "Failed to serve static file", http.StatusInternalServerError)
-	}
 }

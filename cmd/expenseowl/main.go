@@ -34,35 +34,21 @@ func runServer() {
 		w.Write([]byte(version))
 	}))
 
-	// UI Handlers
-	http.HandleFunc("/", handler.RequireWebAuth(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/" {
-			http.NotFound(w, r)
-			return
-		}
-		w.Header().Set("Content-Type", "text/html")
-		if err := web.ServeTemplate(w, "index.html"); err != nil {
-			log.Printf("HTTP ERROR: Failed to serve template: %v", err)
-			http.Error(w, "Failed to serve template", http.StatusInternalServerError)
-			return
-		}
-	}))
-	http.HandleFunc("/table", handler.RequireWebAuth(handler.ServeTableView))
-	http.HandleFunc("/settings", handler.RequireWebAuth(handler.ServeSettingsPage))
-
 	http.HandleFunc("/login", handler.Login)
 	http.HandleFunc("/logout", handler.Logout)
 
-	// Static File Handlers
-	http.HandleFunc("/functions.js", handler.ServeStaticFile)
-	http.HandleFunc("/manifest.json", handler.ServeStaticFile)
-	http.HandleFunc("/sw.js", handler.ServeStaticFile)
-	http.HandleFunc("/pwa/", handler.ServeStaticFile)
-	http.HandleFunc("/style.css", handler.ServeStaticFile)
-	http.HandleFunc("/logo.png", handler.ServeStaticFile)
-	http.HandleFunc("/chart.min.js", handler.ServeStaticFile)
-	http.HandleFunc("/fa.min.css", handler.ServeStaticFile)
-	http.HandleFunc("/webfonts/", handler.ServeStaticFile)
+	// Static assets for SPA
+	http.HandleFunc("/assets/", web.ServeAsset)
+	http.HandleFunc("/manifest.json", web.ServeAsset)
+	http.HandleFunc("/sw.js", web.ServeAsset)
+	http.HandleFunc("/logo.png", web.ServeAsset)
+	http.HandleFunc("/favicon.ico", web.ServeAsset)
+	http.HandleFunc("/fa.min.css", web.ServeAsset)
+	http.HandleFunc("/webfonts/", web.ServeAsset)
+	http.HandleFunc("/pwa/", web.ServeAsset)
+
+	// SPA entry (requires authentication)
+	http.HandleFunc("/", handler.RequireWebAuth(web.ServeSPA))
 
 	// Config
 	http.HandleFunc("/config", handler.RequireAPIAuth(handler.GetConfig))

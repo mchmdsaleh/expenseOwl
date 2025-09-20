@@ -3,4 +3,8 @@ main
 .DS_Store
 .vscode
 *Zone.Identifier
+.env
 
+
+node_modules
+frontend/node_modules

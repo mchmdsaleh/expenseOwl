@@ -1,0 +1,7 @@
+{
+  "name": "expenseowl",
+  "private": true,
+  "workspaces": [
+    "frontend"
+  ]
+}
