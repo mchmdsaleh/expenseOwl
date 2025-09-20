@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-<a href="#why-create-this">Why Create This?</a>&nbsp;&bull;&nbsp;<a href="#features">Features</a>&nbsp;&bull;&nbsp;<a href="#screenshots">Screenshots</a><br><a href="#installation">Installation</a>&nbsp;&bull;&nbsp;<a href="#usage">Usage</a>&nbsp;&bull;&nbsp;<a href="#contributing">Contributing</a>
+<a href="#why-create-this">Why Create This?</a>&nbsp;&bull;&nbsp;<a href="#features">Features</a>&nbsp;&bull;&nbsp;<a href="#screenshots">Screenshots</a><br><a href="#installation">Installation</a>&nbsp;&bull;&nbsp;<a href="#usage">Usage</a>&nbsp;&bull;&nbsp;<a href="#development">Development</a>&nbsp;&bull;&nbsp;<a href="#contributing">Contributing</a>
 </p>
 
 <br>
@@ -232,9 +232,22 @@ Data exported as CSV will include expense IDs, so when importing the same CSV fi
 
 An `Import from ExpenseOwl v3.2-` will be present for v4.X to allow pulling in data from past releases.
 
+# Development
+
+ExpenseOwl now ships with a Vue 3 + Vite single-page application that is embedded into the Go binary. To work on the UI or rebuild the bundle:
+
+1. Install Node.js 20.19 or newer (Vite 7 requires this runtime).
+2. Install dependencies once from the repository root: `PATH=/path/to/node/bin:$PATH npm install` (the root `package.json` uses workspaces and will install the `frontend` dependencies).
+3. Rebuild the production bundle with `cd frontend && npm run build`. The compiled assets land in `internal/web/dist` and are embedded at the next Go build.
+4. (Optional) For a hot-reload development loop run `npm run dev` from `frontend` while the Go server runs separately; the Vite dev server proxies API calls back to `http://localhost:9080`.
+
+Tailwind CSS powers the Vue screens, so feel free to add new styles with `@apply` in `src/style.css` or utility classes directly in the templates.
+
+Remember to run `npm run build` before compiling the Go binary or building the container image so that up-to-date assets are embedded.
+
 # Contributing
 
-Contributions are welcome; please ensure they align with the project's philosophy of maintaining simplicity by strictly using the current tech stack (Go for backend; HTML, CSS, JS for frontend). It is intended for home lab use, i.e., a self-hosted first approach (containerized use). Consider the following:
+Contributions are welcome; please ensure they align with the project's philosophy of maintaining simplicity by strictly using the current tech stack (Go for the backend; Vue 3 + Vite for the frontend). It is intended for home lab use, i.e., a self-hosted first approach (containerized use). Consider the following:
 
 - Additions should have sensible defaults without breaking foundations
 - Environment variables can be used for system configuration in container and binary
