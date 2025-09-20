@@ -1,37 +1,44 @@
 <template>
   <section class="space-y-6">
-    <div class="flex flex-wrap items-center justify-center gap-2 text-sm text-[var(--text-secondary)]">
-      <span>Version:</span>
-      <a :class="infoLinkClass" href="https://github.com/tanq16/expenseowl/releases/latest" target="_blank" rel="noopener noreferrer">v4.0</a>
-      <span class="text-[var(--border)]">|</span>
-      <a :class="infoLinkClass" href="https://github.com/tanq16/expenseowl/blob/main/README.md" target="_blank" rel="noopener noreferrer">Documentation</a>
-      <span class="text-[var(--border)]">|</span>
-      <a :class="infoLinkClass" href="https://github.com/tanq16/expenseowl" target="_blank" rel="noopener noreferrer">GitHub</a>
-    </div>
-
     <div :class="cardClass">
       <h2 align="center" class="text-xl font-semibold text-[var(--text-primary)]">Category Settings</h2>
       <div class="mt-4 space-y-3">
         <div
-          v-for="(category, index) in categories"
-          :key="category"
+          v-for="item in visibleCategories"
+          :key="item.category"
           class="flex items-center justify-between gap-3 rounded-full border border-[var(--border)] bg-[var(--bg-primary)]/60 px-4 py-2 text-sm text-[var(--text-primary)]"
         >
           <div class="flex items-center gap-3">
             <span class="text-[var(--text-secondary)]"><i class="fa-solid fa-grip-lines"></i></span>
-            <span>{{ category }}</span>
+            <span>{{ item.category }}</span>
           </div>
           <div class="flex items-center gap-2">
-            <button type="button" :class="iconButtonTiny" @click="moveCategory(index, -1)" :disabled="index === 0">
+            <button
+              type="button"
+              :class="iconButtonTiny"
+              @click="moveCategory(item.index, -1)"
+              :disabled="item.index === 0"
+            >
               <i class="fa-solid fa-arrow-up"></i>
             </button>
-            <button type="button" :class="iconButtonTiny" @click="moveCategory(index, 1)" :disabled="index === categories.length - 1">
+            <button
+              type="button"
+              :class="iconButtonTiny"
+              @click="moveCategory(item.index, 1)"
+              :disabled="item.index === categories.length - 1"
+            >
               <i class="fa-solid fa-arrow-down"></i>
             </button>
-            <button type="button" :class="iconDangerButtonTiny" @click="removeCategory(index)">
+            <button type="button" :class="iconDangerButtonTiny" @click="removeCategory(item.index)">
               <i class="fa-solid fa-times"></i>
             </button>
           </div>
+        </div>
+        <div
+          v-if="canLoadMoreCategories"
+          class="flex justify-center"
+        >
+          <button type="button" :class="primaryButtonClass" @click="loadMoreCategories">Load More</button>
         </div>
         <div class="flex flex-col gap-3 sm:flex-row">
           <input v-model="newCategory" type="text" placeholder="Add new category" :class="inputClass" />
@@ -123,12 +130,10 @@
       </div>
       <div :class="cardClass">
         <h2 align="center" class="text-xl font-semibold text-[var(--text-primary)]">Import/Export Data</h2>
-        <div class="mt-4 flex flex-col gap-3 md:flex-row">
-          <a :class="primaryButtonClass" href="/export/csv" download="expenses.csv">Export to CSV</a>
-          <label :class="primaryButtonClass" for="csv-import-file">Import from CSV</label>
+        <div class="mt-4 flex flex-col items-center justify-center gap-3 text-xs md:flex-row md:text-sm">
+          <a :class="[primaryButtonClass, 'text-xs md:text-sm w-full md:w-auto whitespace-nowrap']" href="/export/csv" download="expenses.csv">Export to CSV</a>
+          <label :class="[primaryButtonClass, 'text-xs md:text-sm w-full md:w-auto whitespace-nowrap']" for="csv-import-file">Import from CSV</label>
           <input id="csv-import-file" ref="csvImportRef" type="file" accept=".csv" hidden @change="(event) => handleImport(event, '/import/csv')" />
-          <label :class="primaryButtonClass" for="csv-import-file-old">Import from ExpenseOwl v3.20-</label>
-          <input id="csv-import-file-old" ref="csvImportOldRef" type="file" accept=".csv" hidden @change="(event) => handleImport(event, '/import/csvold')" />
         </div>
         <div
           v-if="importMessage.text"
@@ -260,7 +265,7 @@
             <button type="button" :class="iconButtonTiny" @click="editRecurring(expense)">
               <i class="fa-solid fa-pen-to-square"></i>
             </button>
-            <button type="button" :class="iconDangerButtonTiny" @click="deleteRecurring(expense)">
+            <button type="button" :class="iconDangerButtonTiny" @click="openDeleteRecurring(expense)">
               <i class="fa-solid fa-trash-can"></i>
             </button>
           </div>
@@ -268,6 +273,27 @@
       </div>
     </div>
   </section>
+
+  <transition name="fade">
+    <div
+      v-if="showDeleteRecurring"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
+      @click.self="closeDeleteRecurring"
+    >
+      <div class="w-full max-w-md rounded-3xl border border-[var(--border)] bg-[var(--bg-secondary)]/95 p-6 shadow-card backdrop-blur">
+        <h3 class="text-lg font-semibold text-[var(--text-primary)]">Delete Recurring Expense</h3>
+        <p class="mt-2 text-sm text-[var(--text-secondary)]">
+          Are you sure you want to remove this recurring transaction? Future occurrences will be deleted.
+        </p>
+        <div class="mt-6 flex justify-end gap-3">
+          <button :class="primaryButtonClass" @click="closeDeleteRecurring">Cancel</button>
+          <button :class="[primaryButtonClass, 'bg-rose-500 text-white hover:bg-rose-500/90']" @click="confirmDeleteRecurring">
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  </transition>
 </template>
 
 <script setup>
@@ -303,6 +329,7 @@ const currencyOptions = Object.keys(currencyBehaviors);
 const categories = ref([]);
 const newCategory = ref('');
 const categoryMessage = ref({ text: '', type: '' });
+const categoryDisplayCount = ref(5);
 
 const currencyCode = ref(state.currency);
 const currencyMessage = ref({ text: '', type: '' });
@@ -321,6 +348,16 @@ const csvImportOldRef = ref(null);
 const recurringForm = ref(createRecurringForm());
 const recurringMessage = ref({ text: '', type: '' });
 const editingRecurringId = ref(null);
+const showDeleteRecurring = ref(false);
+const expenseToDelete = ref(null);
+
+const visibleCategories = computed(() =>
+  categories.value.map((category, index) => ({ category, index })).slice(0, categoryDisplayCount.value)
+);
+
+const canLoadMoreCategories = computed(
+  () => categoryDisplayCount.value < categories.value.length
+);
 
 const allTags = computed(() => {
   const combined = new Set([...(state.tags || [])]);
@@ -339,6 +376,7 @@ watch(
     if (!currencyOptions.includes(currencyCode.value)) {
       currencyCode.value = state.currency;
     }
+    ensureCategoryDisplayBounds();
   },
   { immediate: true }
 );
@@ -397,10 +435,12 @@ function addCategory() {
   }
   categories.value.push(candidate);
   newCategory.value = '';
+  ensureCategoryDisplayBounds();
 }
 
 function removeCategory(index) {
   categories.value.splice(index, 1);
+  ensureCategoryDisplayBounds();
 }
 
 function moveCategory(index, delta) {
@@ -410,6 +450,7 @@ function moveCategory(index, delta) {
   const [item] = updated.splice(index, 1);
   updated.splice(newIndex, 0, item);
   categories.value = updated;
+  ensureCategoryDisplayBounds();
 }
 
 function setCategoryMessage(text, type) {
@@ -443,6 +484,23 @@ async function saveCategories() {
 function setCurrencyMessage(text, type) {
   currencyMessage.value = { text, type };
   dismissAfter(() => (currencyMessage.value = { text: '', type: '' }));
+}
+
+function loadMoreCategories() {
+  categoryDisplayCount.value = Math.min(categoryDisplayCount.value + 5, categories.value.length);
+}
+
+function ensureCategoryDisplayBounds() {
+  if (categories.value.length === 0) {
+    categoryDisplayCount.value = 5;
+    return;
+  }
+  if (categoryDisplayCount.value > categories.value.length) {
+    categoryDisplayCount.value = categories.value.length;
+  }
+  if (categoryDisplayCount.value < Math.min(5, categories.value.length)) {
+    categoryDisplayCount.value = Math.min(5, categories.value.length);
+  }
 }
 
 async function saveCurrency() {
@@ -630,13 +688,21 @@ function editRecurring(expense) {
   });
 }
 
-async function deleteRecurring(expense) {
-  if (!confirm('Delete this recurring transaction (including future occurrences)?')) {
-    return;
-  }
+function openDeleteRecurring(expense) {
+  expenseToDelete.value = expense;
+  showDeleteRecurring.value = true;
+}
+
+function closeDeleteRecurring() {
+  showDeleteRecurring.value = false;
+  expenseToDelete.value = null;
+}
+
+async function confirmDeleteRecurring() {
+  if (!expenseToDelete.value) return;
   try {
     const params = new URLSearchParams({ removeAll: 'true' });
-    const response = await apiFetch(`/recurring-expense/delete?id=${expense.id}&${params.toString()}`, {
+    const response = await apiFetch(`/recurring-expense/delete?id=${expenseToDelete.value.id}&${params.toString()}`, {
       method: 'DELETE',
     });
     if (!response.ok) {
@@ -648,6 +714,8 @@ async function deleteRecurring(expense) {
   } catch (error) {
     console.error('Failed to delete recurring expense', error);
     setRecurringMessage(error.message || 'Failed to delete recurring expense', 'error');
+  } finally {
+    closeDeleteRecurring();
   }
 }
 
