@@ -13,6 +13,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/tanq16/expenseowl/internal/api"
 	"github.com/tanq16/expenseowl/internal/auth"
+	"github.com/tanq16/expenseowl/internal/integrations/telegram"
 	"github.com/tanq16/expenseowl/internal/storage"
 	"github.com/tanq16/expenseowl/internal/user"
 	"github.com/tanq16/expenseowl/internal/web"
@@ -38,7 +39,9 @@ func runServer() {
 
 	jwtManager := newJWTManager(redisClient)
 
-	handler := api.NewHandler(store, userService, jwtManager)
+	telegramService := telegram.NewService(dbProvider.DB())
+
+	handler := api.NewHandler(store, userService, jwtManager, telegramService)
 
 	mux := http.NewServeMux()
 
@@ -104,8 +107,13 @@ func runServer() {
 	mux.HandleFunc("/import/csv", handler.RequireAPIAuth(handler.ImportCSV))
 	mux.HandleFunc("/import/csvold", handler.RequireAPIAuth(handler.ImportOldCSV))
 
+	// Integrations
+	mux.HandleFunc("/api/v1/integrations/telegram/links", handler.RequireAPIAuth(handler.TelegramLinks))
+	mux.HandleFunc("/api/v1/integrations/telegram/links/complete", handler.AuthenticateExternal(handler.TelegramCompleteLink))
+	mux.HandleFunc("/api/v1/integrations/telegram/resolve", handler.AuthenticateExternal(handler.TelegramResolve))
+
 	// External API
-	mux.HandleFunc("/api/v1/expenses", api.Authenticate(handler.CreateExpenseHandler))
+	mux.HandleFunc("/api/v1/expenses", handler.AuthenticateExternal(handler.CreateExpenseHandler))
 
 	server := &http.Server{
 		Addr:    ":9080",

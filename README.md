@@ -200,6 +200,17 @@ Configure authentication with the following environment variables:
 > [!NOTE]
 > JSON/cookie-based login has been removed. Every client call must include the `Authorization: Bearer <token>` header once authenticated. New registrations default to the `user` role; promote accounts to `admin` via the admin panel or by running `UPDATE users SET role = 'admin' WHERE email = 'you@example.com';` in PostgreSQL.
 
+### Telegram ingestion (n8n)
+
+Multi-user mode introduces scoped ingest tokens so each Telegram chat is mapped to a specific ExpenseOwl account. The bundled n8n workflow (`expensedocs/n8n_workflow.json`) automates extraction and posting of expenses by following this contract:
+
+1. **Create a link** – authenticated users call `POST /api/v1/integrations/telegram/links` to obtain a one-time `linkCode` and a long-lived `ingestToken`. Store the ingest token securely (n8n credentials) because it becomes the `Authorization: Bearer <token>` header when posting expenses.
+2. **Pair the chat** – send `/link <code>` to the bot. The workflow calls `POST /api/v1/integrations/telegram/links/complete` (authenticated with the global `API_KEY` or another approved bearer token) so the chat ID becomes associated with the user account.
+3. **Resolve on every message** – before parsing content, the workflow hits `POST /api/v1/integrations/telegram/resolve` with the chat ID. The response returns the target `userId` and `ingestToken`, which the workflow uses to set the `X-User-ID` header and bearer token for ingestion.
+4. **Send the expense payload** – the workflow posts to `POST /api/v1/expenses` with `Authorization: Bearer <ingestToken>` and `X-User-ID: <userId>`. Only the expense fields are included in the body; metadata is carried in headers for auditing.
+
+Supporting endpoints include `GET /api/v1/integrations/telegram/links` (list a user's active links) and `DELETE /api/v1/integrations/telegram/links?id=<linkId>` (revoke a chat/token pairing). Set the `API_KEY` environment variable on the server so only trusted automation (e.g., n8n) can call the resolve or link-completion endpoints.
+
 ### Profile & Password Self-Service
 
 - The navigation includes a profile option (user icon next to the logout button). From this view you can

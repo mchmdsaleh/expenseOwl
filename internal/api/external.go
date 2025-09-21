@@ -2,12 +2,14 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/tanq16/expenseowl/internal/integrations/telegram"
 	"github.com/tanq16/expenseowl/internal/storage"
 )
 
@@ -22,7 +24,10 @@ func (h *Handler) CreateExpenseHandler(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Invalid request body"})
 		return
 	}
-	userID := r.Header.Get("X-User-ID")
+	userID := externalUserIDFromContext(r.Context())
+	if userID == "" {
+		userID = r.Header.Get("X-User-ID")
+	}
 	if userID == "" {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "X-User-ID header is required"})
 		return
@@ -50,7 +55,7 @@ func (h *Handler) CreateExpenseHandler(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, expense)
 }
 
-func Authenticate(next http.HandlerFunc) http.HandlerFunc {
+func (h *Handler) AuthenticateExternal(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		token := r.Header.Get("X-API-Key")
 		if token == "" {
@@ -64,10 +69,31 @@ func Authenticate(next http.HandlerFunc) http.HandlerFunc {
 			}
 		}
 
-		if os.Getenv("API_KEY") != "" && token != os.Getenv("API_KEY") {
-			writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: "Invalid or missing API key"})
+		apiKey := os.Getenv("API_KEY")
+		switch {
+		case apiKey != "" && token == apiKey:
+			next(w, r)
+			return
+		case apiKey == "" && token == "":
+			next(w, r)
 			return
 		}
-		next(w, r)
+
+		if token != "" && h.telegram != nil {
+			link, err := h.telegram.ResolveToken(r.Context(), token)
+			if err == nil {
+				next(w, r.WithContext(withExternalUserID(r.Context(), link.UserID.String())))
+				return
+			}
+			if errors.Is(err, telegram.ErrTokenInvalid) || errors.Is(err, telegram.ErrNotFound) {
+				writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: "Invalid or missing API key"})
+				return
+			}
+			// For unexpected errors, respond with 500 to signal server issue.
+			writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to validate ingest token"})
+			return
+		}
+
+		writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: "Invalid or missing API key"})
 	}
 }

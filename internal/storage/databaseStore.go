@@ -75,6 +75,34 @@ CREATE TABLE IF NOT EXISTS recurring_expenses (
     tags TEXT
 );
 `
+
+	createTelegramLinksTableSQL = `
+CREATE TABLE IF NOT EXISTS telegram_links (
+    id UUID PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    chat_id BIGINT,
+    label VARCHAR(100) NOT NULL,
+    link_code VARCHAR(64),
+    ingest_token VARCHAR(128) NOT NULL,
+    telegram_username VARCHAR(255),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    linked_at TIMESTAMPTZ,
+    revoked_at TIMESTAMPTZ,
+    last_seen_at TIMESTAMPTZ
+);
+`
+
+	createTelegramLinksLabelIndexSQL = `
+CREATE UNIQUE INDEX IF NOT EXISTS idx_telegram_links_user_label_active
+    ON telegram_links (user_id, lower(label))
+    WHERE revoked_at IS NULL;
+`
+
+	createTelegramLinksChatIndexSQL = `
+CREATE UNIQUE INDEX IF NOT EXISTS idx_telegram_links_chat_id_active
+    ON telegram_links (chat_id)
+    WHERE chat_id IS NOT NULL AND revoked_at IS NULL;
+`
 )
 
 func InitializePostgresStore(baseConfig SystemConfig) (Storage, error) {
@@ -99,7 +127,16 @@ func makeDBURL(baseConfig SystemConfig) string {
 }
 
 func createTables(db *sql.DB) error {
-	queries := []string{createUsersTableSQL, ensureUserRoleColumnSQL, createUserSettingsTableSQL, createExpensesTableSQL, createRecurringExpensesTableSQL}
+	queries := []string{
+		createUsersTableSQL,
+		ensureUserRoleColumnSQL,
+		createUserSettingsTableSQL,
+		createExpensesTableSQL,
+		createRecurringExpensesTableSQL,
+		createTelegramLinksTableSQL,
+		createTelegramLinksLabelIndexSQL,
+		createTelegramLinksChatIndexSQL,
+	}
 	for _, query := range queries {
 		if _, err := db.Exec(query); err != nil {
 			return err

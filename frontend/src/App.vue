@@ -60,6 +60,7 @@ const links = computed(() => {
   const items = [
     { to: '/', icon: 'fa-solid fa-chart-pie', tooltip: 'Dashboard' },
     { to: '/table', icon: 'fa-solid fa-table', tooltip: 'Table View' },
+    { to: '/integrations', icon: 'fa-solid fa-plug', tooltip: 'Integrations' },
     { to: '/settings', icon: 'fa-solid fa-gear', tooltip: 'Settings' },
   ];
   if (state.user?.role === 'admin') {

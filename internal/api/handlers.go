@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/tanq16/expenseowl/internal/auth"
+	"github.com/tanq16/expenseowl/internal/integrations/telegram"
 	"github.com/tanq16/expenseowl/internal/storage"
 	"github.com/tanq16/expenseowl/internal/user"
 	"github.com/tanq16/expenseowl/internal/web"
@@ -17,17 +18,19 @@ import (
 
 // Handler coordinates API requests.
 type Handler struct {
-	storage storage.Storage
-	users   *user.Service
-	auth    *auth.JWTManager
+	storage  storage.Storage
+	users    *user.Service
+	auth     *auth.JWTManager
+	telegram *telegram.Service
 }
 
 // NewHandler creates a new API handler.
-func NewHandler(s storage.Storage, userService *user.Service, authManager *auth.JWTManager) *Handler {
+func NewHandler(s storage.Storage, userService *user.Service, authManager *auth.JWTManager, telegramService *telegram.Service) *Handler {
 	return &Handler{
-		storage: s,
-		users:   userService,
-		auth:    authManager,
+		storage:  s,
+		users:    userService,
+		auth:     authManager,
+		telegram: telegramService,
 	}
 }
 
