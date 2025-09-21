@@ -183,6 +183,8 @@ ExpenseOwl now ships with multi-user support. Accounts are stored in PostgreSQL 
 - `POST /api/v1/user/logout`
 - `GET /api/v1/session`
 - `PATCH /api/v1/user/update_password`
+- `GET /api/v1/user/profile`
+- `PATCH /api/v1/user/profile`
 
 Configure authentication with the following environment variables:
 

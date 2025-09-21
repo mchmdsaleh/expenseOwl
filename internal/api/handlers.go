@@ -651,6 +651,62 @@ func (h *Handler) Session(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, toUserResponse(usr))
 }
 
+func (h *Handler) Profile(w http.ResponseWriter, r *http.Request) {
+	userCtx, err := h.userFromRequest(r)
+	if err != nil {
+		unauthorized(w)
+		return
+	}
+	uid, parseErr := uuid.Parse(userCtx.ID)
+	if parseErr != nil {
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "invalid user identifier"})
+		return
+	}
+
+	switch r.Method {
+	case http.MethodGet:
+		usr, err := h.users.Get(r.Context(), uid)
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to fetch user"})
+			log.Printf("API ERROR: Profile fetch failed: %v\n", err)
+			return
+		}
+		writeJSON(w, http.StatusOK, toUserResponse(usr))
+	case http.MethodPatch:
+		var payload struct {
+			Email     string `json:"email"`
+			FirstName string `json:"firstName"`
+			LastName  string `json:"lastName"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid request body"})
+			return
+		}
+		updated, err := h.users.UpdateProfile(r.Context(), uid, user.UpdateProfileParams{
+			Email:     payload.Email,
+			FirstName: payload.FirstName,
+			LastName:  payload.LastName,
+		})
+		if err != nil {
+			switch err {
+			case user.ErrInvalidArguments:
+				writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid input"})
+			case user.ErrEmailTaken:
+				writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "email already registered"})
+			case user.ErrUserNotFound:
+				writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "user not found"})
+			default:
+				writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to update profile"})
+				log.Printf("API ERROR: Profile update failed: %v\n", err)
+			}
+			return
+		}
+		writeJSON(w, http.StatusOK, toUserResponse(updated))
+	default:
+		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
+	}
+}
+
 func (h *Handler) UpdatePassword(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPatch {
 		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})

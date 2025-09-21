@@ -19,14 +19,27 @@
           <i :class="link.icon"></i>
         </RouterLink>
       </nav>
-      <button
-        type="button"
-        :class="[navIconButton, 'bg-[var(--accent)] text-white hover:bg-[var(--accent)]/90']"
-        title="Logout"
-        @click="handleLogout"
-      >
-        <i class="fa-solid fa-right-from-bracket"></i>
-      </button>
+      <div class="flex items-center gap-3">
+        <RouterLink
+          v-if="state.user"
+          to="/profile"
+          title="Profile"
+          :class="[
+            navIconButton,
+            route.path === '/profile' && 'bg-[var(--accent)] text-white shadow-lg'
+          ]"
+        >
+          <i class="fa-solid fa-user"></i>
+        </RouterLink>
+        <button
+          type="button"
+          :class="[navIconButton, 'bg-[var(--accent)] text-white hover:bg-[var(--accent)]/90']"
+          title="Logout"
+          @click="handleLogout"
+        >
+          <i class="fa-solid fa-right-from-bracket"></i>
+        </button>
+      </div>
     </header>
     <main class="flex-1">
       <RouterView />

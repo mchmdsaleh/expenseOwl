@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/mail"
 	"strings"
 	"time"
 
@@ -66,6 +67,13 @@ type CreateParams struct {
 	Role      string
 }
 
+// UpdateProfileParams captures editable fields for a user profile.
+type UpdateProfileParams struct {
+	Email     string
+	FirstName string
+	LastName  string
+}
+
 func sanitizeName(value string) string {
 	return strings.TrimSpace(value)
 }
@@ -87,6 +95,9 @@ func (s *Service) Register(ctx context.Context, params CreateParams) (*User, err
 	email := strings.TrimSpace(strings.ToLower(params.Email))
 	password := strings.TrimSpace(params.Password)
 	if email == "" || password == "" {
+		return nil, errInvalidArguments
+	}
+	if _, err := mail.ParseAddress(email); err != nil {
 		return nil, errInvalidArguments
 	}
 	if len(password) < 6 {
@@ -172,6 +183,36 @@ func (s *Service) UpdateRole(ctx context.Context, userID uuid.UUID, role string)
 		return err
 	}
 	return s.repo.updateRole(ctx, userID, normalized)
+}
+
+// UpdateProfile updates the basic profile fields for a user and returns the updated record.
+func (s *Service) UpdateProfile(ctx context.Context, userID uuid.UUID, params UpdateProfileParams) (*User, error) {
+	email := strings.TrimSpace(strings.ToLower(params.Email))
+	first := sanitizeName(params.FirstName)
+	last := sanitizeName(params.LastName)
+
+	if email == "" {
+		return nil, errInvalidArguments
+	}
+	if _, err := mail.ParseAddress(email); err != nil {
+		return nil, errInvalidArguments
+	}
+
+	if first == "" {
+		first = "Expense"
+	}
+	if last == "" {
+		last = "Owl"
+	}
+
+	user, err := s.repo.updateProfile(ctx, userID, email, first, last)
+	if err != nil {
+		if strings.Contains(err.Error(), "duplicate key value") {
+			return nil, errEmailTaken
+		}
+		return nil, err
+	}
+	return user, nil
 }
 
 func (r *Repository) create(ctx context.Context, user *User) error {
@@ -274,6 +315,28 @@ func (r *Repository) updateRole(ctx context.Context, id uuid.UUID, role string) 
 		return errUserNotFound
 	}
 	return nil
+}
+
+func (r *Repository) updateProfile(ctx context.Context, id uuid.UUID, email, firstName, lastName string) (*User, error) {
+	row := r.db.QueryRowContext(ctx, `
+        UPDATE users
+        SET email = $1,
+            first_name = $2,
+            last_name = $3,
+            updated_at = $4
+        WHERE id = $5
+        RETURNING id, email, password_hash, first_name, last_name, created_at, updated_at, role
+    `, email, firstName, lastName, time.Now(), id)
+
+	var user User
+	err := row.Scan(&user.ID, &user.Email, &user.PasswordHash, &user.FirstName, &user.LastName, &user.CreatedAt, &user.UpdatedAt, &user.Role)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, errUserNotFound
+		}
+		return nil, err
+	}
+	return &user, nil
 }
 
 // Get retrieves a user by ID.

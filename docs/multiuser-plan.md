@@ -27,6 +27,7 @@
 - Provide admin-only APIs:
   - `GET /api/v1/admin/users`
   - `PATCH /api/v1/admin/users/role`
+- Support self-service profile updates via `/api/v1/user/profile` (GET/PATCH) and password changes at `/api/v1/user/update_password`.
 - Require `Authorization: Bearer <token>` header for protected API routes.
 - Replace `RequireAPIAuth` / `RequireWebAuth` with middleware that validates JWTs and attaches the `user_id` to the request context.
 

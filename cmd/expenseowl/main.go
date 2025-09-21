@@ -58,6 +58,7 @@ func runServer() {
 	mux.HandleFunc("/api/v1/user/logout", handler.Logout)
 	mux.HandleFunc("/api/v1/session", handler.RequireAPIAuth(handler.Session))
 	mux.HandleFunc("/api/v1/user/update_password", handler.RequireAPIAuth(handler.UpdatePassword))
+	mux.HandleFunc("/api/v1/user/profile", handler.RequireAPIAuth(handler.Profile))
 
 	// Admin routes
 	mux.HandleFunc("/api/v1/admin/users", handler.RequireAdmin(handler.AdminListUsers))

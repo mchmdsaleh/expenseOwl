@@ -100,4 +100,8 @@ export function addCategoryLocally(category) {
   }
 }
 
+export function setUser(user) {
+  state.user = user;
+}
+
 export default state;
