@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/tanq16/expenseowl/internal/storage"
 )
 
@@ -21,6 +22,15 @@ func (h *Handler) CreateExpenseHandler(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Invalid request body"})
 		return
 	}
+	userID := r.Header.Get("X-User-ID")
+	if userID == "" {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "X-User-ID header is required"})
+		return
+	}
+	if _, err := uuid.Parse(userID); err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid user identifier"})
+		return
+	}
 
 	if err := expense.Validate(); err != nil {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
@@ -31,7 +41,8 @@ func (h *Handler) CreateExpenseHandler(w http.ResponseWriter, r *http.Request) {
 		expense.Date = time.Now()
 	}
 
-	if err := h.storage.AddExpense(expense); err != nil {
+	expense.UserID = userID
+	if err := h.storage.AddExpense(userID, expense); err != nil {
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to save expense"})
 		return
 	}
