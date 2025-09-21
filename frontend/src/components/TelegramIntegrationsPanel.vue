@@ -1,11 +1,8 @@
 <template>
   <section class="space-y-8">
-    <header class="space-y-1">
-      <h1 class="text-2xl font-semibold text-[var(--text-primary)]">Integrations</h1>
-      <p class="text-sm text-[var(--text-secondary)]">
-        Manage Telegram webhooks for automated expense capture. Generate a pairing code, link it from Telegram using <code>/link &lt;code&gt;</code>, then share the ingest token with your n8n workflow.
-      </p>
-    </header>
+    <p class="text-sm text-[var(--text-secondary)]">
+      Generate a pairing code, link it from Telegram using <code>/link &lt;code&gt;</code>, then store the ingest token in your n8n workflow.
+    </p>
 
     <div v-if="errorMessage" class="rounded-md border border-red-400 bg-red-100 px-3 py-2 text-sm text-red-700">
       {{ errorMessage }}
@@ -14,8 +11,8 @@
       {{ successMessage }}
     </div>
 
-    <form class="space-y-4 rounded-xl bg-[var(--bg-secondary)]/60 p-10 shadow-sm" @submit.prevent="handleCreate">
-      <div class="flex flex-wrap items-center gap-3 md:gap-4">
+    <form class="space-y-4 rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)]/60 p-6 shadow-sm" @submit.prevent="handleCreate">
+      <div class="flex flex-wrap items-end gap-3 md:gap-4">
         <div class="grow space-y-2">
           <label class="block text-sm font-medium text-[var(--text-secondary)]" for="integration-label">Label</label>
           <input
@@ -24,19 +21,19 @@
             type="text"
             maxlength="100"
             placeholder="e.g. Personal Telegram"
-          class="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:border-[var(--accent)] focus:outline-none"
+            class="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:border-[var(--accent)] focus:outline-none"
           />
         </div>
         <button
           type="submit"
-          class="mt-6 w-full rounded-lg border border-[var(--accent)] bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[var(--accent)]/90 disabled:opacity-50 md:mt-0 md:w-auto md:px-5 md:py-1.5"
+          class="w-full rounded-lg border border-[var(--accent)] bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[var(--accent)]/90 disabled:opacity-50 md:w-auto md:px-6 md:py-2.5"
           :disabled="creating"
         >
           {{ creating ? 'Generating…' : 'Generate Link' }}
         </button>
         <button
           type="button"
-          class="mt-6 w-full rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] px-4 py-2 text-sm text-[var(--text-secondary)] transition hover:bg-[var(--bg-secondary)]/80 md:mt-0 md:w-auto md:px-5 md:py-1.5"
+          class="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] px-4 py-2 text-sm text-[var(--text-secondary)] transition hover:bg-[var(--bg-secondary)]/80 md:w-auto md:px-6 md:py-2.5"
           :disabled="loading"
           @click="fetchLinks"
         >

@@ -6,11 +6,20 @@
       <button :class="iconButtonClass" @click="gotoNextMonth"><i class="fa-solid fa-arrow-right"></i></button>
     </div>
 
-    <div class="flex justify-end">
-      <button :class="primaryButtonClass" @click="toggleExpenseForm">
-        <i :class="showExpenseForm ? 'fa-solid fa-times' : 'fa-solid fa-plus'"></i>
-        {{ showExpenseForm ? 'Close' : 'Add Expense' }}
-      </button>
+    <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+      <div
+        v-if="userDisplayName"
+        class="inline-flex items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-secondary)]/70 px-4 py-2 text-sm font-medium text-[var(--text-primary)]"
+      >
+        <i class="fa-solid fa-circle-user text-[var(--accent)]"></i>
+        <span>{{ userDisplayName }}</span>
+      </div>
+      <div class="flex justify-end">
+        <button :class="primaryButtonClass" @click="toggleExpenseForm">
+          <i :class="showExpenseForm ? 'fa-solid fa-times' : 'fa-solid fa-plus'"></i>
+          {{ showExpenseForm ? 'Close' : 'Add Expense' }}
+        </button>
+      </div>
     </div>
 
     <div v-if="showExpenseForm" id="addExpenseContainer">
@@ -158,6 +167,13 @@ const categoryColors = ref({});
 const form = ref(createDefaultForm());
 const formMessage = ref({ text: '', type: '' });
 const rawAmount = ref('');
+
+const userDisplayName = computed(() => {
+  const first = (state.user?.firstName || '').trim();
+  const last = (state.user?.lastName || '').trim();
+  const full = `${first} ${last}`.trim();
+  return full || state.user?.email || '';
+});
 
 const iconButtonClass =
   'inline-flex h-11 w-11 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--bg-secondary)] text-lg text-[var(--text-primary)] transition duration-150 ease-out hover:bg-[var(--accent)] hover:text-white hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40 focus:ring-offset-2 focus:ring-offset-[var(--bg-primary)]';

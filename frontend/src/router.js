@@ -5,7 +5,6 @@ import SettingsView from './views/SettingsView.vue';
 import AuthView from './views/AuthView.vue';
 import ProfileSettingsView from './views/ProfileSettingsView.vue';
 import UserManagementView from './views/UserManagementView.vue';
-import IntegrationsView from './views/IntegrationsView.vue';
 import { getAuthToken } from './lib/api';
 import state, { loadInitialData, loadSession } from './stores/appState';
 
@@ -13,7 +12,6 @@ const routes = [
   { path: '/', name: 'dashboard', component: DashboardView },
   { path: '/table', name: 'table', component: TableView },
   { path: '/settings', name: 'settings', component: SettingsView },
-  { path: '/integrations', name: 'integrations', component: IntegrationsView },
   { path: '/profile', name: 'profile', component: ProfileSettingsView },
   { path: '/admin/users', name: 'admin-users', component: UserManagementView, meta: { requiresAdmin: true } },
   { path: '/login', name: 'login', component: AuthView },

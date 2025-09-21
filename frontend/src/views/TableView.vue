@@ -6,8 +6,15 @@
       <button :class="iconButtonClass" @click="gotoNextMonth"><i class="fa-solid fa-arrow-right"></i></button>
     </div>
 
-    <div class="flex items-center justify-end gap-3 text-sm text-[var(--text-secondary)]">
-      <label for="showAllToggle" class="flex items-center gap-2">
+    <div class="flex flex-col gap-2 text-sm text-[var(--text-secondary)] md:flex-row md:items-center md:justify-between">
+      <div
+        v-if="userDisplayName"
+        class="inline-flex items-center gap-2 self-start rounded-2xl border border-[var(--border)] bg-[var(--bg-secondary)]/70 px-4 py-2 text-[var(--text-primary)] md:self-auto"
+      >
+        <i class="fa-solid fa-circle-user text-[var(--accent)]"></i>
+        <span>{{ userDisplayName }}</span>
+      </div>
+      <label for="showAllToggle" class="flex items-center gap-2 self-end md:self-auto">
         <input id="showAllToggle" v-model="showAll" type="checkbox" :class="checkboxClass" />
         Show All Transactions
       </label>
@@ -163,6 +170,13 @@ const formMessage = ref({ text: '', type: '' });
 const showDeleteModal = ref(false);
 const expenseToDelete = ref(null);
 const rawAmount = ref('');
+
+const userDisplayName = computed(() => {
+  const first = (state.user?.firstName || '').trim();
+  const last = (state.user?.lastName || '').trim();
+  const full = `${first} ${last}`.trim();
+  return full || state.user?.email || '';
+});
 
 const monthLabel = computed(() => formatMonth(currentDate.value));
 

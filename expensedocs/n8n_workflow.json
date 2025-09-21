@@ -1,5 +1,5 @@
 {
-  "name": "My workflow",
+  "name": "My workflow 2",
   "nodes": [
     {
       "parameters": {
@@ -13,10 +13,10 @@
       "type": "n8n-nodes-base.telegramTrigger",
       "typeVersion": 1.2,
       "position": [
-        0,
-        0
+        -1328,
+        160
       ],
-      "id": "927065ee-343b-4041-a0b7-cc23f3d0dad6",
+      "id": "d9b68fc0-fc36-48aa-b8d7-77c72c0e5710",
       "name": "Telegram Trigger",
       "webhookId": "bbdf7d3a-99ce-4a04-86f6-7e817893ec22",
       "credentials": {
@@ -30,7 +30,7 @@
       "parameters": {
         "conditions": {
           "options": {
-            "caseSensitive": false,
+            "caseSensitive": true,
             "leftValue": "",
             "typeValidation": "strict",
             "version": 2
@@ -54,10 +54,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        200,
-        0
+        -1120,
+        160
       ],
-      "id": "f42eb147-9b69-47f5-bf46-2f0462a4ce3f",
+      "id": "d09ac108-f240-409c-976c-7132cd7dcdd6",
       "name": "Check Link Command"
     },
     {
@@ -69,17 +69,15 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ {\n  code: ($json.message?.text || $json.message?.caption || '').replace(/^\\/link\\s+/i, '').trim(),\n  chatId: $json.message.chat.id,\n  username: $json.message.from?.username || ''\n} }}",
-        "options": {
-          "fullResponse": true
-        }
+        "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        440,
-        -120
+        -880,
+        48
       ],
-      "id": "0f67196b-b86d-4c70-90a3-1c77ef2dca73",
+      "id": "68504c1f-91b4-457d-9dbd-266ffd33a465",
       "name": "Complete Link",
       "credentials": {
         "httpBearerAuth": {
@@ -90,15 +88,15 @@
     },
     {
       "parameters": {
-        "jsCode": "const status = $json.statusCode;\nconst body = $json.body || {};\nconst message = $node[\\\"Telegram Trigger\\\"].json?.message || {};\nconst chatId = message.chat?.id;\n\nif (!chatId) {\n  throw new Error('Chat ID missing for link response');\n}\n\nlet text;\nif (status >= 200 && status < 300) {\n  const label = body.label || 'Telegram link';\n  text = 'Akun Telegram berhasil tertaut (' + label + ').';\n} else {\n  const detail = body?.error || body?.message || ('kode tidak valid (status ' + status + ')');\n  text = 'Gagal menautkan Telegram: ' + detail;\n}\n\nreturn [{ json: { chatId, text } }];"
+        "jsCode": "// Code node: Format Link Response (Run Once per Item)\n\n// Ambil pesan asli dari Telegram Trigger (item pertama)\nconst trig = $item(0).$node[\"Telegram Trigger\"].json || {};\nconst msg  = trig.message || {};\n\nconst ok =\n  $json?.status === 'success' ||\n  $json?.ok === true ||\n  $json?.linked === true;\n\nlet text;\nif (ok) {\n  const name = $json?.user?.name || $json?.user?.username || 'User';\n  text =\n    `✅ Link berhasil!\\n` +\n    `Akun: ${name}\\n` +\n    `Sekarang kamu bisa kirim pengeluaran sebagai teks (mis: \"kopi 25k; tol 15k t: jalan-jalan\") ` +\n    `atau foto struk (kirim sebagai *Document*), opsional dengan caption \"t: tag1, tag2\".`;\n} else {\n  const reason = $json?.message || $json?.error || 'Kode link tidak valid / sudah dipakai.';\n  text = `❌ Gagal link.\\n${reason}\\n\\nKetik: /link <kode> lalu kirim lagi.`;\n}\n\n// Keluarkan satu item dengan field yang dibutuhkan node Telegram\nreturn {\n  json: {\n    text,\n    chat_id: msg.chat?.id,\n    reply_to: msg.message_id,\n  }\n};\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        640,
-        -120
+        -688,
+        48
       ],
-      "id": "da58f7f8-3c31-4e1a-9d51-577b93ec663a",
+      "id": "5ad1ba12-c423-4b17-9387-da93e7ed57a3",
       "name": "Format Link Response"
     },
     {
@@ -110,10 +108,10 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        840,
-        -120
+        -480,
+        48
       ],
-      "id": "02b4b8cc-0e37-4bf5-ae3f-1610f7f8584c",
+      "id": "566e91af-20e7-44c4-ab87-56f44adff6d6",
       "name": "Send Link Reply",
       "webhookId": "2a2a0b4c-2663-4bd6-884f-5f0ebea6c8fb",
       "credentials": {
@@ -132,17 +130,15 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ { chatId: $json.message.chat.id } }}",
-        "options": {
-          "fullResponse": true
-        }
+        "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        440,
-        120
+        -880,
+        288
       ],
-      "id": "d3912c6c-0da8-43aa-a543-14701a4d71f7",
+      "id": "4181248b-0ce9-4618-b89c-b774bd5f76c4",
       "name": "Resolve User",
       "credentials": {
         "httpBearerAuth": {
@@ -155,7 +151,7 @@
       "parameters": {
         "conditions": {
           "options": {
-            "caseSensitive": false,
+            "caseSensitive": true,
             "leftValue": "",
             "typeValidation": "strict",
             "version": 2
@@ -170,19 +166,29 @@
                 "operation": "equal",
                 "singleValue": false
               }
+            },
+            {
+              "id": "eb018cf0-4ae6-4000-8d73-0a5f47263b09",
+              "leftValue": "={{ $json[\"linkedAt\"] }}",
+              "rightValue": "",
+              "operator": {
+                "type": "dateTime",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
             }
           ],
-          "combinator": "and"
+          "combinator": "or"
         },
         "options": {}
       },
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        660,
-        120
+        -656,
+        288
       ],
-      "id": "a7d75d52-d689-4ad4-9f13-a4028121f0bc",
+      "id": "6b3304ef-5c07-4a72-9d1a-f3a3bd195868",
       "name": "Is Linked?"
     },
     {
@@ -194,10 +200,10 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        880,
-        240
+        -448,
+        400
       ],
-      "id": "0fba9a2f-64cc-47eb-8c80-d6fbec4d4c40",
+      "id": "aee252cc-4873-4327-b279-4aab6d41717f",
       "name": "Send Link Instructions",
       "webhookId": "9d0b94ab-34ac-4f4c-84ae-b29cc13c4a95",
       "credentials": {
@@ -214,10 +220,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        880,
-        40
+        -448,
+        208
       ],
-      "id": "b6947911-1257-4a96-a2b9-cfa8211d1fb8",
+      "id": "e0da33cf-8799-4ab4-8c16-535308bfc247",
       "name": "Assemble Context"
     },
     {
@@ -248,10 +254,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        1100,
-        40
+        -224,
+        208
       ],
-      "id": "35474f19-013e-4b80-bb76-13dd88576c77",
+      "id": "dcfb7272-57a5-4f9a-bfc2-d10a285d4f9d",
       "name": "If"
     },
     {
@@ -265,12 +271,11 @@
         "messages": {
           "values": [
             {
-              "content": "=Kamu adalah asisten ekstraksi expense. Dari teks Telegram (Indonesia/Inggris), keluarkan hanya JSON sesuai aturan ini:\n\nFormat input\n\nSatu atau banyak transaksi dalam satu pesan.\n\nTransaksi dipisah dengan ; atau baris baru.\n\nOpsi tags di mana pun di akhir pesan: t: tag1, tag2 \u2192 jika ada, masukkan ke field tags (array string). Jika tidak ada, jangan buat field tags.\n\nOutput\n\nJika ada >1 transaksi \u2192 keluarkan array berisi objek-objek transaksi.\n\nJika hanya 1 transaksi \u2192 boleh objek tunggal.\n\nTanpa teks lain, tanpa backticks.\n\nSkema objek transaksi\n\nname (string) \u2014 nama/merchant.\n\ncategory (string, salah satu dari): food_drinks, transport, fuel, shopping, bills_utilities, entertainment, health_fitness, groceries, personal_care, software_subscription, misc.\n\namount (number) \u2014 angka bersih (positif).\n\ncurrency (string, ISO-4217 huruf kecil; default idr bila tidak disebut; deteksi usd/sgd/eur/jpy, atau simbol $ \u20ac \u00a5).\n\ndate (string, ISO-8601 UTC diakhiri Z).\n\ntags (array string) \u2014 hanya tampil bila ada t: di input.\n\nKategori (heuristik, non-limitatif)\n\nbakso, ciomy/siomay, jco, kopi, ayam, sushi \u2192 food_drinks\n\ngojek, grab, ojek, taksi, krl, tol/toll, parkir \u2192 transport\n\nbensin, pertalite, pertamax, shell \u2192 fuel\n\npln/listrik, pdam/air, internet, telkomsel, indihome \u2192 bills_utilities\n\nnetflix, spotify, youtube premium, miitel \u2192 software_subscription (atau entertainment bila lebih tepat)\n\nguardian, watsons, sabun, shampoo \u2192 personal_care (atau groceries sesuai konteks)\n\ntokopedia, shopee, ace, ikea \u2192 shopping\nJika tak jelas \u2192 misc.\n\nAturan amount (Indonesia)\n\nrb / ribu / k \u2192 \u00d71_000\n\njt / juta / million / m \u2192 \u00d71_000_000\n\nPisah ribuan . dan desimal , boleh; normalisasi ke angka murni.\n\nTanggal\n\nJika tak disebut: pakai tanggal dari variabel yang diberikan di prompt (lihat bagian User).\n\nConvert ke ISO-8601 UTC (akhiri Z).\n\nJangan membuat tanggal masa depan acak.\n\nPatuhi\n\nKembalikan hanya JSON (objek atau array).\n\nJangan isi tags bila tidak ada t:.\n\nJangan menambah field lain.",
+              "content": "=Kamu adalah asisten ekstraksi expense. Dari teks Telegram (Indonesia/Inggris), keluarkan hanya JSON sesuai aturan ini:\n\nFormat input\n\nSatu atau banyak transaksi dalam satu pesan.\n\nTransaksi dipisah dengan ; atau baris baru.\n\nOpsi tags di mana pun di akhir pesan: t: tag1, tag2 → jika ada, masukkan ke field tags (array string). Jika tidak ada, jangan buat field tags.\n\nOutput\n\nJika ada >1 transaksi → keluarkan array berisi objek-objek transaksi.\n\nJika hanya 1 transaksi → boleh objek tunggal.\n\nTanpa teks lain, tanpa backticks.\n\nSkema objek transaksi\n\nname (string) — nama/merchant.\n\ncategory (string, salah satu dari): food_drinks, transport, fuel, shopping, bills_utilities, entertainment, health_fitness, groceries, personal_care, software_subscription, misc.\n\namount (number) — angka bersih (positif).\n\ncurrency (string, ISO-4217 huruf kecil; default idr bila tidak disebut; deteksi usd/sgd/eur/jpy, atau simbol $ € ¥).\n\ndate (string, ISO-8601 UTC diakhiri Z).\n\ntags (array string) — hanya tampil bila ada t: di input.\n\nKategori (heuristik, non-limitatif)\n\nbakso, ciomy/siomay, jco, kopi, ayam, sushi → food_drinks\n\ngojek, grab, ojek, taksi, krl, tol/toll, parkir → transport\n\nbensin, pertalite, pertamax, shell → fuel\n\npln/listrik, pdam/air, internet, telkomsel, indihome → bills_utilities\n\nnetflix, spotify, youtube premium, miitel → software_subscription (atau entertainment bila lebih tepat)\n\nguardian, watsons, sabun, shampoo → personal_care (atau groceries sesuai konteks)\n\ntokopedia, shopee, ace, ikea → shopping\nJika tak jelas → misc.\n\nAturan amount (Indonesia)\n\nrb / ribu / k → ×1_000\n\njt / juta / million / m → ×1_000_000\n\nPisah ribuan . dan desimal , boleh; normalisasi ke angka murni.\n\nTanggal\n\nJika tak disebut: pakai tanggal dari variabel yang diberikan di prompt (lihat bagian User).\n\nConvert ke ISO-8601 UTC (akhiri Z).\n\nJangan membuat tanggal masa depan acak.\n\nPatuhi\n\nKembalikan hanya JSON (objek atau array).\n\nJangan isi tags bila tidak ada t:.\n\nJangan menambah field lain.",
               "role": "system"
             },
             {
-              "content": "=Gunakan teks berikut untuk diekstrak. Jika ada beberapa transaksi dipisah ;, keluarkan array objek (satu objek per transaksi).\nJika ada t: ... di akhir pesan, buat tags (array). Jika tidak ada t:, jangan sertakan tags sama sekali.\n\nTeks: \"{{$json.message.text || $json.message.caption}}\"\n\nTanggal default untuk date (pakai waktu kirim Telegram, sudah dalam UTC detik epoch):\nDefaultDateUTC: \"{{ new Date(($json.message.date || $json.date || Math.floor(Date.now()/1000)) * 1000).toISOString() }}\"\n\njika ada lebih dari satu transaksi, WAJIB keluarkan array JSON.\n\nKembalikan hanya JSON sesuai skema.",
-              "role": "user"
+              "content": "=Gunakan teks berikut untuk diekstrak. Jika ada beberapa transaksi dipisah ;, keluarkan array objek (satu objek per transaksi).\nJika ada t: ... di akhir pesan, buat tags (array). Jika tidak ada t:, jangan sertakan tags sama sekali.\n\nTeks: \"{{$json.message.text || $json.message.caption}}\"\n\nTanggal default untuk date (pakai waktu kirim Telegram, sudah dalam UTC detik epoch):\nDefaultDateUTC: \"{{ new Date(($json.message.date || $json.date || Math.floor(Date.now()/1000)) * 1000).toISOString() }}\"\n\njika ada lebih dari satu transaksi, WAJIB keluarkan array JSON.\n\nKembalikan hanya JSON sesuai skema."
             }
           ]
         },
@@ -279,10 +284,10 @@
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 1.8,
       "position": [
-        1320,
-        200
+        0,
+        368
       ],
-      "id": "fe4f03c8-e611-4cb9-a32f-6368c1b59fd8",
+      "id": "6861374c-704a-4673-ba98-ecaaadd5578c",
       "name": "Message a model",
       "credentials": {
         "openAiApi": {
@@ -293,15 +298,15 @@
     },
     {
       "parameters": {
-        "jsCode": "// ===== Helpers =====\nfunction stripFences(text) {\n  return String(text ?? '')\n    .trim()\n    .replace(/^```(?:json)?\\\\s*/i, '')\n    .replace(/```$/i, '')\n    .trim();\n}\n\n// Parse robust: object | array | concatenated objects \"{...}{...}\"\nfunction parseModelContent(raw) {\n  let t = stripFences(raw);\n  try { return JSON.parse(t); } catch {}\n  const joined = `[${t.replace(/}\\\\s*{/g, '},{')}]`;\n  try { return JSON.parse(joined); } catch {}\n  const objs = t.match(/{[\\\\s\\\\S]*?}/g);\n  if (objs && objs.length) {\n    try { return objs.map(s => JSON.parse(s)); } catch {}\n  }\n  throw new Error('Failed to parse JSON from model content');\n}\n\nconst CATEGORY_MAP = {\n  food_drinks:'Food', food:'Food',\n  transport:'Transport', fuel:'Fuel',\n  shopping:'Shopping',\n  bills_utilities:'Bills', bills:'Bills',\n  entertainment:'Entertainment',\n  health_fitness:'Health & Fitness',\n  groceries:'Groceries',\n  personal_care:'Personal Care',\n  software_subscription:'Software',\n  misc:'Miscellaneous', miscellaneous:'Miscellaneous',\n};\nconst mapCategory = (cat) => CATEGORY_MAP[String(cat || '').toLowerCase()] || 'Miscellaneous';\n\nconst now = new Date();\nconst MAX_SKEW_DAYS = 1;\nfunction coerceDate(input) {\n  if (!input) return now.toISOString();\n  const d = new Date(input);\n  if (isNaN(d)) return now.toISOString();\n  const diff = Math.abs(d - now) / 86400000;\n  return diff > MAX_SKEW_DAYS ? now.toISOString() : d.toISOString();\n}\nconst normCurrency = (c) => String(c || 'idr').trim().toLowerCase();\n\nconst base = $item(0).$node['Assemble Context'].json || {};\nconst meta = {\n  userId: base.userId,\n  ingestToken: base.ingestToken,\n  linkId: base.id,\n};\n\nif (!meta.userId || !meta.ingestToken) {\n  throw new Error('Missing ingest metadata');\n}\n// ===== Ambil konten dari node Message a model =====\nconst content =\n  $json?.message?.content ??\n  $json?.output_text ??\n  $json?.choices?.[0]?.message?.content ??\n  $json?.content;\n\nif (typeof content !== 'string') {\n  throw new Error('Assistant content not found \u2014 make sure this node receives output from \"Message a model\".');\n}\n\n// ===== Split pesan mentah jadi CHUNKS (per transaksi) untuk tarik tags lokal =====\nconst rawText =\n  $node['Telegram Trigger'].json?.message?.text ??\n  $node['Telegram Trigger'].json?.message?.caption ?? '';\nconst chunks = String(rawText)\n  .split(';')\n  .map(s => s.trim())\n  .filter(Boolean);\n\n// helper: extract tags from a single chunk (stop before ';')\nfunction tagsFromChunk(chunk) {\n  const m = String(chunk).match(/\\\\bt\\\\s*:\\\\s*([^\\\\n;]+)/i);\n  if (!m) return [];\n  return m[1].split(',').map(s => s.trim()).filter(Boolean);\n}\n\n// ===== Parse & normalize =====\nconst parsed = parseModelContent(content);\nconst arr = Array.isArray(parsed)\n  ? parsed\n  : (Array.isArray(parsed?.items) ? parsed.items : [parsed]);\n\nconst out = [];\nfor (let i = 0; i < arr.length; i++) {\n  const obj = arr[i] || {};\n  const amt = Number(obj.amount);\n\n  // tags lokal berdasar index chunk yang sama\n  const localTags = i < chunks.length ? tagsFromChunk(chunks[i]) : [];\n\n  // tags dari LLM (kalau ada)\n  const llmTags = Array.isArray(obj.tags)\n    ? obj.tags.map(String).map(s => s.trim()).filter(Boolean)\n    : [];\n\n  // merge tanpa duplikat; jika kosong, jangan set field tags\n  const mergedTags = [...new Set([...llmTags, ...localTags])];\n\n  const payload = {\n    name: obj.name ?? 'Expense from n8n',\n    category: mapCategory(obj.category),\n    amount: isNaN(amt) ? 0 : -Math.abs(amt), // expense negatif\n    currency: normCurrency(obj.currency),\n    date: coerceDate(obj.date),\n  };\n  if (mergedTags.length) payload.tags = mergedTags;\n\n  out.push({ json: { ...payload, _meta: meta } });\n}\n\nreturn out;"
+        "jsCode": "// ===== Helpers =====\nfunction stripFences(text) {\n  return String(text ?? '')\n    .trim()\n    .replace(/^```(?:json)?\\s*/i, '')\n    .replace(/```$/i, '')\n    .trim();\n}\n\n// Parse robust: object | array | concatenated objects \"{...}{...}\"\nfunction parseModelContent(raw) {\n  let t = stripFences(raw);\n  try { return JSON.parse(t); } catch {}\n  const joined = `[${t.replace(/}\\s*{/g, '},{')}]`;\n  try { return JSON.parse(joined); } catch {}\n  const objs = t.match(/{[\\s\\S]*?}/g);\n  if (objs && objs.length) {\n    try { return objs.map(s => JSON.parse(s)); } catch {}\n  }\n  throw new Error('Failed to parse JSON from model content');\n}\n\nconst CATEGORY_MAP = {\n  food_drinks:'Food', food:'Food',\n  transport:'Transport', fuel:'Fuel',\n  shopping:'Shopping',\n  bills_utilities:'Bills', bills:'Bills',\n  entertainment:'Entertainment',\n  health_fitness:'Health & Fitness',\n  groceries:'Groceries',\n  personal_care:'Personal Care',\n  software_subscription:'Software',\n  misc:'Miscellaneous', miscellaneous:'Miscellaneous',\n};\nconst mapCategory = (cat) => CATEGORY_MAP[String(cat || '').toLowerCase()] || 'Miscellaneous';\n\nconst now = new Date();\nconst MAX_SKEW_DAYS = 1;\nfunction coerceDate(input) {\n  if (!input) return now.toISOString();\n  const d = new Date(input);\n  if (isNaN(d)) return now.toISOString();\n  const diff = Math.abs(d - now) / 86400000;\n  return diff > MAX_SKEW_DAYS ? now.toISOString() : d.toISOString();\n}\nconst normCurrency = (c) => String(c || 'idr').trim().toLowerCase();\n\n// ===== Ambil konten dari node Message a model =====\nconst content =\n  $json?.message?.content ??\n  $json?.output_text ??\n  $json?.choices?.[0]?.message?.content ??\n  $json?.content;\n\nif (typeof content !== 'string') {\n  throw new Error('Assistant content not found — make sure this node receives output from \"Message a model\".');\n}\n\n// ===== Split pesan mentah jadi CHUNKS (per transaksi) untuk tarik tags lokal =====\nconst rawText =\n  $node[\"Telegram Trigger\"].json?.message?.text ??\n  $node[\"Telegram Trigger\"].json?.message?.caption ?? '';\nconst chunks = String(rawText)\n  .split(';')\n  .map(s => s.trim())\n  .filter(Boolean);\n\n// helper: extract tags from a single chunk (stop before ';')\nfunction tagsFromChunk(chunk) {\n  const m = String(chunk).match(/\\bt\\s*:\\s*([^\\n;]+)/i);\n  if (!m) return [];\n  return m[1].split(',').map(s => s.trim()).filter(Boolean);\n}\n\n// ===== Parse & normalize =====\nconst parsed = parseModelContent(content);\nconst arr = Array.isArray(parsed)\n  ? parsed\n  : (Array.isArray(parsed?.items) ? parsed.items : [parsed]);\n\nconst out = [];\nfor (let i = 0; i < arr.length; i++) {\n  const obj = arr[i] || {};\n  const amt = Number(obj.amount);\n\n  // tags lokal berdasar index chunk yang sama\n  const localTags = i < chunks.length ? tagsFromChunk(chunks[i]) : [];\n\n  // tags dari LLM (kalau ada)\n  const llmTags = Array.isArray(obj.tags)\n    ? obj.tags.map(String).map(s => s.trim()).filter(Boolean)\n    : [];\n\n  // merge tanpa duplikat; jika kosong, jangan set field tags\n  const mergedTags = [...new Set([...llmTags, ...localTags])];\n\n  const payload = {\n    name: obj.name ?? 'Expense from n8n',\n    category: mapCategory(obj.category),\n    amount: isNaN(amt) ? 0 : -Math.abs(amt), // expense negatif\n    currency: normCurrency(obj.currency),\n    date: coerceDate(obj.date),\n  };\n  if (mergedTags.length) payload.tags = mergedTags;\n\n  out.push({ json: payload });\n}\n\nreturn out;"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1550,
-        200
+        304,
+        368
       ],
-      "id": "6cf6e9ac-b630-422e-bf5c-73b16aa17171",
+      "id": "80da1ff2-525d-461e-9aa4-a88229d5e27a",
       "name": "Code in JavaScript"
     },
     {
@@ -323,10 +328,10 @@
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 1.8,
       "position": [
-        1320,
-        -160
+        0,
+        0
       ],
-      "id": "1963908e-fe48-44aa-9264-d9ce9bbb0f25",
+      "id": "eacacdad-0782-4fa8-9096-53a35f10b781",
       "name": "Analyze image",
       "credentials": {
         "openAiApi": {
@@ -342,56 +347,60 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1550,
-        -160
+        240,
+        0
       ],
-      "id": "6960c133-1ab3-4da1-8893-9db836c499c4",
+      "id": "5e65a9ed-fe80-494f-8aad-c474178d98ab",
       "name": "Code in JavaScript2"
     },
     {
       "parameters": {
         "method": "POST",
         "url": "http://43.173.29.17:9080/api/v1/expenses",
-        "authentication": "none",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ Object.fromEntries(Object.entries($json).filter(([key]) => key !== '_meta')) }}",
-        "headerParametersUi": {
-          "parameter": [
-            {
-              "name": "Authorization",
-              "value": "={{'Bearer ' + $json._meta.ingestToken}}"
-            },
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
             {
               "name": "X-User-ID",
-              "value": "={{$json._meta.userId}}"
+              "value": "={{$item(0).$node[\"Resolve User\"].json.userId || $item(0).$node[\"Assemble Context\"].json._meta.userId}}"
             }
           ]
         },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ Object.fromEntries(Object.entries($json).filter(([key]) => key !== '_meta')) }}",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1820,
-        40
+        512,
+        208
       ],
-      "id": "b48cf453-2126-4feb-bbe1-836b540adff0",
-      "name": "HTTP Request"
+      "id": "825d6354-ce5f-4c29-94ec-a5654e69bd9c",
+      "name": "HTTP Request",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "aMaQ8O4pywXICtHy",
+          "name": "Bearer Auth account"
+        }
+      }
     },
     {
       "parameters": {
         "chatId": "={{$item(0).$node[\"Telegram Trigger\"].json.message.chat.id}}",
-        "text": "=Selesai dicatat:\n\u2022 {{$json.name}}\n\u2022 {{$json.category}}\n\u2022 {{$json.amount}} {{$json.currency}}\n\u2022 {{$json.date}}",
+        "text": "=Selesai dicatat:\n• {{$json.name}}\n• {{$json.category}}\n• {{$json.amount}} {{$json.currency}}\n• {{$json.date}}",
         "additionalFields": {}
       },
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        2020,
-        40
+        704,
+        208
       ],
-      "id": "590e3f21-cbb1-4ff2-ad5c-49167065dcf8",
+      "id": "82d0037a-6d27-46a3-a2c1-b906f1dd515f",
       "name": "Send a text message",
       "webhookId": "fc92608c-77d0-4bd1-8d7b-703b0dfb1b0f",
       "credentials": {
@@ -569,15 +578,14 @@
       ]
     }
   },
-  "active": true,
+  "active": false,
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "230e6887-a8c8-43a9-af4b-10e4a27dff3d",
+  "versionId": "59b7e078-2d07-44d4-af54-f5395bfc6185",
   "meta": {
-    "templateCredsSetupCompleted": true,
     "instanceId": "bdca40825baacc2c9b2642517cee77091ffd7457383cf7383b1d95a6828ec0ab"
   },
-  "id": "tBdq5lIWvCk4p3sK",
+  "id": "Vwm7HWN1ifSLjLVh",
   "tags": []
 }
