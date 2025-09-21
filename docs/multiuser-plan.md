@@ -17,12 +17,16 @@
 ## Authentication Flow
 
 - Use JWT access tokens signed with `JWT_SECRET` and persisted in Redis for session invalidation.
+- Support two roles (`admin`, `user`). Admin tokens include the elevated role claim and are required for management endpoints.
 - Expose endpoints inspired by go-auth-boilerplate:
   - `POST /api/v1/user/signup`
   - `POST /api/v1/user/login`
   - `POST /api/v1/user/logout`
   - `GET /api/v1/session` (current user info)
   - `PATCH /api/v1/user/update_password`
+- Provide admin-only APIs:
+  - `GET /api/v1/admin/users`
+  - `PATCH /api/v1/admin/users/role`
 - Require `Authorization: Bearer <token>` header for protected API routes.
 - Replace `RequireAPIAuth` / `RequireWebAuth` with middleware that validates JWTs and attaches the `user_id` to the request context.
 

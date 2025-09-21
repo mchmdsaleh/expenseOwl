@@ -17,6 +17,12 @@ var (
 	errInvalidPassword  = errors.New("invalid credentials")
 	errUserNotFound     = errors.New("user not found")
 	errInvalidArguments = errors.New("invalid arguments")
+	errInvalidRole      = errors.New("invalid role")
+)
+
+const (
+	RoleAdmin = "admin"
+	RoleUser  = "user"
 )
 
 // User represents an ExpenseOwl account holder.
@@ -28,6 +34,7 @@ type User struct {
 	LastName     string
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
+	Role         string
 }
 
 // Repository handles persistence for users.
@@ -56,10 +63,24 @@ type CreateParams struct {
 	Password  string
 	FirstName string
 	LastName  string
+	Role      string
 }
 
 func sanitizeName(value string) string {
 	return strings.TrimSpace(value)
+}
+
+func normalizeRole(role string) (string, error) {
+	role = strings.TrimSpace(strings.ToLower(role))
+	if role == "" {
+		return RoleUser, nil
+	}
+	switch role {
+	case RoleAdmin, RoleUser:
+		return role, nil
+	default:
+		return "", errInvalidRole
+	}
 }
 
 func (s *Service) Register(ctx context.Context, params CreateParams) (*User, error) {
@@ -75,6 +96,10 @@ func (s *Service) Register(ctx context.Context, params CreateParams) (*User, err
 	if err != nil {
 		return nil, fmt.Errorf("failed to hash password: %w", err)
 	}
+	role, err := normalizeRole(params.Role)
+	if err != nil {
+		return nil, err
+	}
 	user := &User{
 		ID:           uuid.New(),
 		Email:        email,
@@ -83,6 +108,7 @@ func (s *Service) Register(ctx context.Context, params CreateParams) (*User, err
 		LastName:     sanitizeName(params.LastName),
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
+		Role:         role,
 	}
 	if user.FirstName == "" {
 		user.FirstName = "Expense"
@@ -134,11 +160,25 @@ func (s *Service) UpdatePassword(ctx context.Context, userID uuid.UUID, current,
 	return s.repo.updatePassword(ctx, userID, string(hash))
 }
 
+// List returns all users ordered by creation time.
+func (s *Service) List(ctx context.Context) ([]User, error) {
+	return s.repo.list(ctx)
+}
+
+// UpdateRole updates a user's role.
+func (s *Service) UpdateRole(ctx context.Context, userID uuid.UUID, role string) error {
+	normalized, err := normalizeRole(role)
+	if err != nil {
+		return err
+	}
+	return s.repo.updateRole(ctx, userID, normalized)
+}
+
 func (r *Repository) create(ctx context.Context, user *User) error {
 	_, err := r.db.ExecContext(ctx, `
-        INSERT INTO users (id, email, password_hash, first_name, last_name, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-    `, user.ID, user.Email, user.PasswordHash, user.FirstName, user.LastName, user.CreatedAt, user.UpdatedAt)
+        INSERT INTO users (id, email, password_hash, first_name, last_name, created_at, updated_at, role)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `, user.ID, user.Email, user.PasswordHash, user.FirstName, user.LastName, user.CreatedAt, user.UpdatedAt, user.Role)
 	if err != nil {
 		if strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
 			return errEmailTaken
@@ -151,10 +191,10 @@ func (r *Repository) create(ctx context.Context, user *User) error {
 func (r *Repository) findByEmail(ctx context.Context, email string) (*User, error) {
 	var user User
 	err := r.db.QueryRowContext(ctx, `
-        SELECT id, email, password_hash, first_name, last_name, created_at, updated_at
+        SELECT id, email, password_hash, first_name, last_name, created_at, updated_at, role
         FROM users
         WHERE email = $1
-    `, email).Scan(&user.ID, &user.Email, &user.PasswordHash, &user.FirstName, &user.LastName, &user.CreatedAt, &user.UpdatedAt)
+    `, email).Scan(&user.ID, &user.Email, &user.PasswordHash, &user.FirstName, &user.LastName, &user.CreatedAt, &user.UpdatedAt, &user.Role)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, errInvalidPassword
@@ -167,10 +207,10 @@ func (r *Repository) findByEmail(ctx context.Context, email string) (*User, erro
 func (r *Repository) findByID(ctx context.Context, id uuid.UUID) (*User, error) {
 	var user User
 	err := r.db.QueryRowContext(ctx, `
-        SELECT id, email, password_hash, first_name, last_name, created_at, updated_at
+        SELECT id, email, password_hash, first_name, last_name, created_at, updated_at, role
         FROM users
         WHERE id = $1
-    `, id).Scan(&user.ID, &user.Email, &user.PasswordHash, &user.FirstName, &user.LastName, &user.CreatedAt, &user.UpdatedAt)
+    `, id).Scan(&user.ID, &user.Email, &user.PasswordHash, &user.FirstName, &user.LastName, &user.CreatedAt, &user.UpdatedAt, &user.Role)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, errUserNotFound
@@ -197,6 +237,45 @@ func (r *Repository) updatePassword(ctx context.Context, id uuid.UUID, newHash s
 	return nil
 }
 
+func (r *Repository) list(ctx context.Context) ([]User, error) {
+	rows, err := r.db.QueryContext(ctx, `
+        SELECT id, email, first_name, last_name, created_at, updated_at, role
+        FROM users
+        ORDER BY created_at
+    `)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list users: %w", err)
+	}
+	defer rows.Close()
+
+	var users []User
+	for rows.Next() {
+		var user User
+		if err := rows.Scan(&user.ID, &user.Email, &user.FirstName, &user.LastName, &user.CreatedAt, &user.UpdatedAt, &user.Role); err != nil {
+			return nil, fmt.Errorf("failed to scan user: %w", err)
+		}
+		users = append(users, user)
+	}
+	return users, rows.Err()
+}
+
+func (r *Repository) updateRole(ctx context.Context, id uuid.UUID, role string) error {
+	res, err := r.db.ExecContext(ctx, `
+        UPDATE users SET role = $1, updated_at = $2 WHERE id = $3
+    `, role, time.Now(), id)
+	if err != nil {
+		return fmt.Errorf("failed to update user role: %w", err)
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to read update result: %w", err)
+	}
+	if rows == 0 {
+		return errUserNotFound
+	}
+	return nil
+}
+
 // Get retrieves a user by ID.
 func (s *Service) Get(ctx context.Context, id uuid.UUID) (*User, error) {
 	return s.repo.findByID(ctx, id)
@@ -213,4 +292,5 @@ var (
 	ErrInvalidPassword  = errInvalidPassword
 	ErrUserNotFound     = errUserNotFound
 	ErrInvalidArguments = errInvalidArguments
+	ErrInvalidRole      = errInvalidRole
 )

@@ -4,6 +4,7 @@ import { apiFetch } from '../lib/api';
 const state = reactive({
   initialized: false,
   loading: false,
+  user: null,
   expenses: [],
   categories: [],
   currency: 'usd',
@@ -23,10 +24,18 @@ function extractTags(expenses) {
   return Array.from(tags);
 }
 
+export async function loadSession() {
+  const response = await apiFetch('/api/v1/session');
+  if (!response.ok) throw new Error('Failed to fetch session');
+  state.user = await response.json();
+}
+
 export async function loadInitialData() {
   if (state.initialized || state.loading) return;
   state.loading = true;
   try {
+    await loadSession();
+
     const configResponse = await apiFetch('/config');
     if (!configResponse.ok) throw new Error('Failed to fetch configuration');
     const config = await configResponse.json();
@@ -72,12 +81,17 @@ export async function refreshRecurringExpenses() {
 export function resetState() {
   state.initialized = false;
   state.loading = false;
+  state.user = null;
   state.expenses = [];
   state.categories = [];
   state.currency = 'usd';
   state.startDate = 1;
   state.tags = [];
   state.recurringExpenses = [];
+}
+
+export function isAdmin() {
+  return state.user?.role === 'admin';
 }
 
 export function addCategoryLocally(category) {

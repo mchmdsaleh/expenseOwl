@@ -28,8 +28,14 @@ CREATE TABLE IF NOT EXISTS users (
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    role VARCHAR(20) NOT NULL DEFAULT 'user'
 );
+`
+
+	ensureUserRoleColumnSQL = `
+ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS role VARCHAR(20) NOT NULL DEFAULT 'user';
 `
 
 	createUserSettingsTableSQL = `
@@ -93,7 +99,7 @@ func makeDBURL(baseConfig SystemConfig) string {
 }
 
 func createTables(db *sql.DB) error {
-	queries := []string{createUsersTableSQL, createUserSettingsTableSQL, createExpensesTableSQL, createRecurringExpensesTableSQL}
+	queries := []string{createUsersTableSQL, ensureUserRoleColumnSQL, createUserSettingsTableSQL, createExpensesTableSQL, createRecurringExpensesTableSQL}
 	for _, query := range queries {
 		if _, err := db.Exec(query); err != nil {
 			return err

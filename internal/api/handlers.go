@@ -39,16 +39,36 @@ func (h *Handler) RequireAPIAuth(next http.HandlerFunc) http.HandlerFunc {
 	return h.auth.RequireWithRefresh(next)
 }
 
-func (h *Handler) userIDFromRequest(r *http.Request) (string, error) {
-	userID, ok := auth.UserIDFromContext(r.Context())
-	if !ok || userID == "" {
-		return "", auth.ErrUnauthorized
+// RequireAdmin enforces admin-only access on top of authenticated sessions.
+func (h *Handler) RequireAdmin(next http.HandlerFunc) http.HandlerFunc {
+	return h.RequireAPIAuth(func(w http.ResponseWriter, r *http.Request) {
+		userCtx, err := h.userFromRequest(r)
+		if err != nil {
+			unauthorized(w)
+			return
+		}
+		if userCtx.Role != user.RoleAdmin {
+			forbidden(w)
+			return
+		}
+		next(w, r)
+	})
+}
+
+func (h *Handler) userFromRequest(r *http.Request) (auth.UserContext, error) {
+	user, ok := auth.UserFromContext(r.Context())
+	if !ok || user.ID == "" {
+		return auth.UserContext{}, auth.ErrUnauthorized
 	}
-	return userID, nil
+	return user, nil
 }
 
 func unauthorized(w http.ResponseWriter) {
 	writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: "authentication required"})
+}
+
+func forbidden(w http.ResponseWriter) {
+	writeJSON(w, http.StatusForbidden, ErrorResponse{Error: "admin privileges required"})
 }
 
 // ErrorResponse is a generic JSON error response
@@ -74,12 +94,12 @@ func (h *Handler) GetConfig(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
 		return
 	}
-	userID, err := h.userIDFromRequest(r)
+	userCtx, err := h.userFromRequest(r)
 	if err != nil {
 		unauthorized(w)
 		return
 	}
-	config, err := h.storage.GetConfig(userID)
+	config, err := h.storage.GetConfig(userCtx.ID)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to get config"})
 		log.Printf("API ERROR: Failed to get config: %v\n", err)
@@ -93,12 +113,12 @@ func (h *Handler) GetCategories(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
 		return
 	}
-	userID, err := h.userIDFromRequest(r)
+	userCtx, err := h.userFromRequest(r)
 	if err != nil {
 		unauthorized(w)
 		return
 	}
-	categories, err := h.storage.GetCategories(userID)
+	categories, err := h.storage.GetCategories(userCtx.ID)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to get categories"})
 		log.Printf("API ERROR: Failed to get categories: %v\n", err)
@@ -112,7 +132,7 @@ func (h *Handler) UpdateCategories(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
 		return
 	}
-	userID, err := h.userIDFromRequest(r)
+	userCtx, err := h.userFromRequest(r)
 	if err != nil {
 		unauthorized(w)
 		return
@@ -132,7 +152,7 @@ func (h *Handler) UpdateCategories(w http.ResponseWriter, r *http.Request) {
 		}
 		sanitizedCategories = append(sanitizedCategories, sanitized)
 	}
-	if err := h.storage.UpdateCategories(userID, sanitizedCategories); err != nil {
+	if err := h.storage.UpdateCategories(userCtx.ID, sanitizedCategories); err != nil {
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to update categories"})
 		log.Printf("API ERROR: Failed to update categories: %v\n", err)
 		return
@@ -145,12 +165,12 @@ func (h *Handler) GetCurrency(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
 		return
 	}
-	userID, err := h.userIDFromRequest(r)
+	userCtx, err := h.userFromRequest(r)
 	if err != nil {
 		unauthorized(w)
 		return
 	}
-	currency, err := h.storage.GetCurrency(userID)
+	currency, err := h.storage.GetCurrency(userCtx.ID)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to get currency"})
 		log.Printf("API ERROR: Failed to get currency: %v\n", err)
@@ -164,7 +184,7 @@ func (h *Handler) UpdateCurrency(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
 		return
 	}
-	userID, err := h.userIDFromRequest(r)
+	userCtx, err := h.userFromRequest(r)
 	if err != nil {
 		unauthorized(w)
 		return
@@ -174,7 +194,7 @@ func (h *Handler) UpdateCurrency(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Invalid request body"})
 		return
 	}
-	if err := h.storage.UpdateCurrency(userID, currency); err != nil {
+	if err := h.storage.UpdateCurrency(userCtx.ID, currency); err != nil {
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 		log.Printf("API ERROR: Failed to update currency: %v\n", err)
 		return
@@ -187,12 +207,12 @@ func (h *Handler) GetStartDate(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
 		return
 	}
-	userID, err := h.userIDFromRequest(r)
+	userCtx, err := h.userFromRequest(r)
 	if err != nil {
 		unauthorized(w)
 		return
 	}
-	startDate, err := h.storage.GetStartDate(userID)
+	startDate, err := h.storage.GetStartDate(userCtx.ID)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to get start date"})
 		log.Printf("API ERROR: Failed to get start date: %v\n", err)
@@ -206,7 +226,7 @@ func (h *Handler) UpdateStartDate(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
 		return
 	}
-	userID, err := h.userIDFromRequest(r)
+	userCtx, err := h.userFromRequest(r)
 	if err != nil {
 		unauthorized(w)
 		return
@@ -216,7 +236,7 @@ func (h *Handler) UpdateStartDate(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Invalid request body"})
 		return
 	}
-	if err := h.storage.UpdateStartDate(userID, startDate); err != nil {
+	if err := h.storage.UpdateStartDate(userCtx.ID, startDate); err != nil {
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 		log.Printf("API ERROR: Failed to update start date: %v\n", err)
 		return
@@ -233,7 +253,7 @@ func (h *Handler) AddExpense(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
 		return
 	}
-	userID, err := h.userIDFromRequest(r)
+	userCtx, err := h.userFromRequest(r)
 	if err != nil {
 		unauthorized(w)
 		return
@@ -250,8 +270,8 @@ func (h *Handler) AddExpense(w http.ResponseWriter, r *http.Request) {
 	if expense.Date.IsZero() {
 		expense.Date = time.Now()
 	}
-	expense.UserID = userID
-	if err := h.storage.AddExpense(userID, expense); err != nil {
+	expense.UserID = userCtx.ID
+	if err := h.storage.AddExpense(userCtx.ID, expense); err != nil {
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to save expense"})
 		log.Printf("API ERROR: Failed to save expense: %v\n", err)
 		return
@@ -264,12 +284,12 @@ func (h *Handler) GetExpenses(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
 		return
 	}
-	userID, err := h.userIDFromRequest(r)
+	userCtx, err := h.userFromRequest(r)
 	if err != nil {
 		unauthorized(w)
 		return
 	}
-	expenses, err := h.storage.GetAllExpenses(userID)
+	expenses, err := h.storage.GetAllExpenses(userCtx.ID)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to retrieve expenses"})
 		log.Printf("API ERROR: Failed to retrieve expenses: %v\n", err)
@@ -283,7 +303,7 @@ func (h *Handler) EditExpense(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
 		return
 	}
-	userID, err := h.userIDFromRequest(r)
+	userCtx, err := h.userFromRequest(r)
 	if err != nil {
 		unauthorized(w)
 		return
@@ -302,7 +322,7 @@ func (h *Handler) EditExpense(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 		return
 	}
-	if err := h.storage.UpdateExpense(userID, id, expense); err != nil {
+	if err := h.storage.UpdateExpense(userCtx.ID, id, expense); err != nil {
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to edit expense"})
 		log.Printf("API ERROR: Failed to edit expense: %v\n", err)
 		return
@@ -315,7 +335,7 @@ func (h *Handler) DeleteExpense(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
 		return
 	}
-	userID, err := h.userIDFromRequest(r)
+	userCtx, err := h.userFromRequest(r)
 	if err != nil {
 		unauthorized(w)
 		return
@@ -325,7 +345,7 @@ func (h *Handler) DeleteExpense(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "ID parameter is required"})
 		return
 	}
-	if err := h.storage.RemoveExpense(userID, id); err != nil {
+	if err := h.storage.RemoveExpense(userCtx.ID, id); err != nil {
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to delete expense"})
 		log.Printf("API ERROR: Failed to delete expense: %v\n", err)
 		return
@@ -338,7 +358,7 @@ func (h *Handler) DeleteMultipleExpenses(w http.ResponseWriter, r *http.Request)
 		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
 		return
 	}
-	userID, err := h.userIDFromRequest(r)
+	userCtx, err := h.userFromRequest(r)
 	if err != nil {
 		unauthorized(w)
 		return
@@ -350,7 +370,7 @@ func (h *Handler) DeleteMultipleExpenses(w http.ResponseWriter, r *http.Request)
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Invalid request body"})
 		return
 	}
-	if err := h.storage.RemoveMultipleExpenses(userID, payload.IDs); err != nil {
+	if err := h.storage.RemoveMultipleExpenses(userCtx.ID, payload.IDs); err != nil {
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to delete multiple expenses"})
 		log.Printf("API ERROR: Failed to delete multiple expenses: %v\n", err)
 		return
@@ -367,7 +387,7 @@ func (h *Handler) AddRecurringExpense(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
 		return
 	}
-	userID, err := h.userIDFromRequest(r)
+	userCtx, err := h.userFromRequest(r)
 	if err != nil {
 		unauthorized(w)
 		return
@@ -381,8 +401,8 @@ func (h *Handler) AddRecurringExpense(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 		return
 	}
-	re.UserID = userID
-	if err := h.storage.AddRecurringExpense(userID, re); err != nil {
+	re.UserID = userCtx.ID
+	if err := h.storage.AddRecurringExpense(userCtx.ID, re); err != nil {
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to add recurring expense"})
 		log.Printf("API ERROR: Failed to add recurring expense: %v\n", err)
 		return
@@ -395,12 +415,12 @@ func (h *Handler) GetRecurringExpenses(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
 		return
 	}
-	userID, err := h.userIDFromRequest(r)
+	userCtx, err := h.userFromRequest(r)
 	if err != nil {
 		unauthorized(w)
 		return
 	}
-	res, err := h.storage.GetRecurringExpenses(userID)
+	res, err := h.storage.GetRecurringExpenses(userCtx.ID)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to get recurring expenses"})
 		log.Printf("API ERROR: Failed to get recurring expenses: %v\n", err)
@@ -414,7 +434,7 @@ func (h *Handler) UpdateRecurringExpense(w http.ResponseWriter, r *http.Request)
 		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
 		return
 	}
-	userID, err := h.userIDFromRequest(r)
+	userCtx, err := h.userFromRequest(r)
 	if err != nil {
 		unauthorized(w)
 		return
@@ -435,8 +455,8 @@ func (h *Handler) UpdateRecurringExpense(w http.ResponseWriter, r *http.Request)
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 		return
 	}
-	re.UserID = userID
-	if err := h.storage.UpdateRecurringExpense(userID, id, re, updateAll); err != nil {
+	re.UserID = userCtx.ID
+	if err := h.storage.UpdateRecurringExpense(userCtx.ID, id, re, updateAll); err != nil {
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to update recurring expense"})
 		log.Printf("API ERROR: Failed to update recurring expense: %v\n", err)
 		return
@@ -449,7 +469,7 @@ func (h *Handler) DeleteRecurringExpense(w http.ResponseWriter, r *http.Request)
 		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
 		return
 	}
-	userID, err := h.userIDFromRequest(r)
+	userCtx, err := h.userFromRequest(r)
 	if err != nil {
 		unauthorized(w)
 		return
@@ -461,7 +481,7 @@ func (h *Handler) DeleteRecurringExpense(w http.ResponseWriter, r *http.Request)
 	}
 	removeAll, _ := strconv.ParseBool(r.URL.Query().Get("removeAll"))
 
-	if err := h.storage.RemoveRecurringExpense(userID, id, removeAll); err != nil {
+	if err := h.storage.RemoveRecurringExpense(userCtx.ID, id, removeAll); err != nil {
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to delete recurring expense"})
 		log.Printf("API ERROR: Failed to delete recurring expense: %v\n", err)
 		return
@@ -479,6 +499,8 @@ type userResponse struct {
 	FirstName string    `json:"firstName"`
 	LastName  string    `json:"lastName"`
 	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+	Role      string    `json:"role"`
 }
 
 type authResponse struct {
@@ -493,6 +515,8 @@ func toUserResponse(u *user.User) userResponse {
 		FirstName: u.FirstName,
 		LastName:  u.LastName,
 		CreatedAt: u.CreatedAt,
+		UpdatedAt: u.UpdatedAt,
+		Role:      u.Role,
 	}
 }
 
@@ -535,7 +559,7 @@ func (h *Handler) Signup(w http.ResponseWriter, r *http.Request) {
 	if err := h.storage.EnsureUserDefaults(usr.ID.String()); err != nil {
 		log.Printf("API ERROR: Failed to provision defaults for user %s: %v\n", usr.ID, err)
 	}
-	token, err := h.auth.Generate(ctx, usr.ID.String())
+	token, err := h.auth.Generate(ctx, usr.ID.String(), usr.Role)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to create session"})
 		log.Printf("API ERROR: Failed to generate token: %v\n", err)
@@ -576,7 +600,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	if err := h.storage.EnsureUserDefaults(usr.ID.String()); err != nil {
 		log.Printf("API ERROR: Failed to ensure defaults for user %s: %v\n", usr.ID, err)
 	}
-	token, err := h.auth.Generate(ctx, usr.ID.String())
+	token, err := h.auth.Generate(ctx, usr.ID.String(), usr.Role)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to create session"})
 		log.Printf("API ERROR: Failed to generate token: %v\n", err)
@@ -608,12 +632,12 @@ func (h *Handler) Session(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
 		return
 	}
-	userID, err := h.userIDFromRequest(r)
+	userCtx, err := h.userFromRequest(r)
 	if err != nil {
 		unauthorized(w)
 		return
 	}
-	uid, parseErr := uuid.Parse(userID)
+	uid, parseErr := uuid.Parse(userCtx.ID)
 	if parseErr != nil {
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "invalid user identifier"})
 		return
@@ -632,12 +656,12 @@ func (h *Handler) UpdatePassword(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
 		return
 	}
-	userID, err := h.userIDFromRequest(r)
+	userCtx, err := h.userFromRequest(r)
 	if err != nil {
 		unauthorized(w)
 		return
 	}
-	uid, parseErr := uuid.Parse(userID)
+	uid, parseErr := uuid.Parse(userCtx.ID)
 	if parseErr != nil {
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "invalid user identifier"})
 		return
@@ -663,6 +687,83 @@ func (h *Handler) UpdatePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "password updated"})
+}
+
+// ------------------------------------------------------------
+// Admin Handlers
+// ------------------------------------------------------------
+
+func (h *Handler) AdminListUsers(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
+		return
+	}
+	if h.users == nil {
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "user service not configured"})
+		return
+	}
+	users, err := h.users.List(r.Context())
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to list users"})
+		log.Printf("API ERROR: Admin list users failed: %v\n", err)
+		return
+	}
+	responses := make([]userResponse, 0, len(users))
+	for i := range users {
+		u := users[i]
+		responses = append(responses, toUserResponse(&u))
+	}
+	writeJSON(w, http.StatusOK, responses)
+}
+
+func (h *Handler) AdminUpdateUserRole(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPatch {
+		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
+		return
+	}
+	if h.users == nil {
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "user service not configured"})
+		return
+	}
+	userCtx, err := h.userFromRequest(r)
+	if err != nil {
+		unauthorized(w)
+		return
+	}
+	var payload struct {
+		ID   string `json:"id"`
+		Role string `json:"role"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid request body"})
+		return
+	}
+	if payload.ID == "" || payload.Role == "" {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "id and role are required"})
+		return
+	}
+	uid, err := uuid.Parse(payload.ID)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid user id"})
+		return
+	}
+	if userCtx.ID == payload.ID && payload.Role != userCtx.Role {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "cannot change your own role"})
+		return
+	}
+	if err := h.users.UpdateRole(r.Context(), uid, payload.Role); err != nil {
+		switch err {
+		case user.ErrInvalidRole:
+			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid role"})
+		case user.ErrUserNotFound:
+			writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "user not found"})
+		default:
+			writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to update role"})
+			log.Printf("API ERROR: Admin update role failed: %v\n", err)
+		}
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "role updated"})
 }
 
 // ServeSPA continues to deliver the frontend bundle.

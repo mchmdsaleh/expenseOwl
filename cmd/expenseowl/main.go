@@ -59,6 +59,10 @@ func runServer() {
 	mux.HandleFunc("/api/v1/session", handler.RequireAPIAuth(handler.Session))
 	mux.HandleFunc("/api/v1/user/update_password", handler.RequireAPIAuth(handler.UpdatePassword))
 
+	// Admin routes
+	mux.HandleFunc("/api/v1/admin/users", handler.RequireAdmin(handler.AdminListUsers))
+	mux.HandleFunc("/api/v1/admin/users/role", handler.RequireAdmin(handler.AdminUpdateUserRole))
+
 	// Static assets for SPA
 	mux.HandleFunc("/assets/", web.ServeAsset)
 	mux.HandleFunc("/manifest.json", web.ServeAsset)

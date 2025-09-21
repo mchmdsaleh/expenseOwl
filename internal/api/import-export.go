@@ -19,12 +19,12 @@ func (h *Handler) ExportCSV(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
 		return
 	}
-	userID, err := h.userIDFromRequest(r)
+	userCtx, err := h.userFromRequest(r)
 	if err != nil {
 		unauthorized(w)
 		return
 	}
-	expenses, err := h.storage.GetAllExpenses(userID)
+	expenses, err := h.storage.GetAllExpenses(userCtx.ID)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to retrieve expenses"})
 		log.Printf("API ERROR: Failed to retrieve expenses for CSV export: %v\n", err)
@@ -67,7 +67,7 @@ func (h *Handler) ImportCSV(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
 		return
 	}
-	userID, err := h.userIDFromRequest(r)
+	userCtx, err := h.userFromRequest(r)
 	if err != nil {
 		unauthorized(w)
 		return
@@ -111,7 +111,7 @@ func (h *Handler) ImportCSV(w http.ResponseWriter, r *http.Request) {
 	tagsIdx, tagsExists := colMap["tags"]
 	currencyIdx, currencyExists := colMap["currency"]
 
-	currentCategories, err := h.storage.GetCategories(userID)
+	currentCategories, err := h.storage.GetCategories(userCtx.ID)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Could not retrieve current categories"})
 		return
@@ -123,7 +123,7 @@ func (h *Handler) ImportCSV(w http.ResponseWriter, r *http.Request) {
 	var newCategories []string
 	var importedCount, skippedCount int
 	// TODO: might be worth setting default currency when we have currency updation behavior
-	currencyVal, err := h.storage.GetCurrency(userID)
+	currencyVal, err := h.storage.GetCurrency(userCtx.ID)
 	if err != nil {
 		log.Printf("Error: Could not retrieve currency, shutting down import: %v\n", err)
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Could not retrieve currency"})
@@ -140,7 +140,7 @@ func (h *Handler) ImportCSV(w http.ResponseWriter, r *http.Request) {
 		// Check if expense exists by ID, if provided - without doing a clash resolution
 		if idExists {
 			id := record[idIdx]
-			if _, err := h.storage.GetExpense(userID, id); err == nil {
+			if _, err := h.storage.GetExpense(userCtx.ID, id); err == nil {
 				log.Printf("Info: Skipping row %d because expense with ID '%s' already exists\n", i+2, id)
 				skippedCount++
 				continue
@@ -200,7 +200,7 @@ func (h *Handler) ImportCSV(w http.ResponseWriter, r *http.Request) {
 			skippedCount++
 			continue
 		}
-		if err := h.storage.AddExpense(userID, expense); err != nil {
+		if err := h.storage.AddExpense(userCtx.ID, expense); err != nil {
 			log.Printf("Error: Could not add expense from row %d: %v\n", i+2, err)
 			skippedCount++
 			continue
@@ -210,7 +210,7 @@ func (h *Handler) ImportCSV(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(newCategories) > 0 {
-		if err := h.storage.UpdateCategories(userID, append(currentCategories, newCategories...)); err != nil {
+		if err := h.storage.UpdateCategories(userCtx.ID, append(currentCategories, newCategories...)); err != nil {
 			log.Printf("Warning: Failed to add new categories to config: %v\n", err)
 		}
 	}
@@ -231,7 +231,7 @@ func (h *Handler) ImportOldCSV(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
 		return
 	}
-	userID, err := h.userIDFromRequest(r)
+	userCtx, err := h.userFromRequest(r)
 	if err != nil {
 		unauthorized(w)
 		return
@@ -270,7 +270,7 @@ func (h *Handler) ImportOldCSV(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	currentCategories, err := h.storage.GetCategories(userID)
+	currentCategories, err := h.storage.GetCategories(userCtx.ID)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Could not retrieve current categories"})
 		return
@@ -322,7 +322,7 @@ func (h *Handler) ImportOldCSV(w http.ResponseWriter, r *http.Request) {
 			skippedCount++
 			continue
 		}
-		if err := h.storage.AddExpense(userID, expense); err != nil {
+		if err := h.storage.AddExpense(userCtx.ID, expense); err != nil {
 			log.Printf("Error: Could not add expense from row %d: %v\n", i+2, err)
 			skippedCount++
 			continue
@@ -332,7 +332,7 @@ func (h *Handler) ImportOldCSV(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(newCategories) > 0 {
-		if err := h.storage.UpdateCategories(userID, append(currentCategories, newCategories...)); err != nil {
+		if err := h.storage.UpdateCategories(userCtx.ID, append(currentCategories, newCategories...)); err != nil {
 			log.Printf("Warning: Failed to add new categories to config: %v\n", err)
 		}
 	}

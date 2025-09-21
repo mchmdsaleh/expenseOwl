@@ -18,13 +18,24 @@ var (
 
 type contextKey string
 
-const userIDContextKey contextKey = "expenseowl_user_id"
+const userContextKey contextKey = "expenseowl_user"
+
+// UserContext stores authenticated user metadata for downstream handlers.
+type UserContext struct {
+	ID   string
+	Role string
+}
 
 // JWTManager issues and validates JWT access tokens stored alongside Redis sessions.
 type JWTManager struct {
 	secret []byte
 	expiry time.Duration
 	redis  *redis.Client
+}
+
+type claims struct {
+	Role string `json:"role"`
+	jwt.RegisteredClaims
 }
 
 // NewJWTManager constructs a new manager.
@@ -47,14 +58,21 @@ func NewJWTManager(secret string, expiry time.Duration, redisClient *redis.Clien
 }
 
 // Generate issues a signed token for the provided user ID.
-func (m *JWTManager) Generate(ctx context.Context, userID string) (string, error) {
+func (m *JWTManager) Generate(ctx context.Context, userID, role string) (string, error) {
 	if userID == "" {
 		return "", fmt.Errorf("userID cannot be empty")
 	}
-	claims := jwt.RegisteredClaims{
-		Subject:   userID,
-		ExpiresAt: jwt.NewNumericDate(time.Now().Add(m.expiry)),
-		IssuedAt:  jwt.NewNumericDate(time.Now()),
+	role = strings.TrimSpace(strings.ToLower(role))
+	if role == "" {
+		role = "user"
+	}
+	claims := claims{
+		Role: role,
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   userID,
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(m.expiry)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	signed, err := token.SignedString(m.secret)
@@ -68,32 +86,32 @@ func (m *JWTManager) Generate(ctx context.Context, userID string) (string, error
 }
 
 // Validate parses and verifies the token, returning the associated user ID.
-func (m *JWTManager) Validate(ctx context.Context, token string) (string, error) {
+func (m *JWTManager) Validate(ctx context.Context, token string) (UserContext, error) {
 	if token == "" {
-		return "", ErrUnauthorized
+		return UserContext{}, ErrUnauthorized
 	}
-	parsed, err := jwt.ParseWithClaims(token, &jwt.RegisteredClaims{}, func(t *jwt.Token) (interface{}, error) {
+	parsed, err := jwt.ParseWithClaims(token, &claims{}, func(t *jwt.Token) (interface{}, error) {
 		if t.Method != jwt.SigningMethodHS256 {
 			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
 		}
 		return m.secret, nil
 	})
 	if err != nil {
-		return "", ErrUnauthorized
+		return UserContext{}, ErrUnauthorized
 	}
-	claims, ok := parsed.Claims.(*jwt.RegisteredClaims)
+	claims, ok := parsed.Claims.(*claims)
 	if !ok || !parsed.Valid {
-		return "", ErrUnauthorized
+		return UserContext{}, ErrUnauthorized
 	}
 	userID := claims.Subject
 	stored, err := m.redis.Get(ctx, token).Result()
 	if err != nil || stored == "" {
-		return "", ErrUnauthorized
+		return UserContext{}, ErrUnauthorized
 	}
 	if stored != userID {
-		return "", ErrUnauthorized
+		return UserContext{}, ErrUnauthorized
 	}
-	return userID, nil
+	return UserContext{ID: userID, Role: claims.Role}, nil
 }
 
 // Revoke removes a token from Redis.
@@ -120,31 +138,34 @@ func ExtractToken(r *http.Request) string {
 	return parts[1]
 }
 
-// WithUserID adds the user ID to the context.
-func WithUserID(ctx context.Context, userID string) context.Context {
-	return context.WithValue(ctx, userIDContextKey, userID)
+// WithUser adds the user metadata to the context.
+func WithUser(ctx context.Context, user UserContext) context.Context {
+	return context.WithValue(ctx, userContextKey, user)
 }
 
-// UserIDFromContext retrieves the authenticated user ID.
-func UserIDFromContext(ctx context.Context) (string, bool) {
-	value := ctx.Value(userIDContextKey)
+// UserFromContext retrieves the authenticated user metadata.
+func UserFromContext(ctx context.Context) (UserContext, bool) {
+	value := ctx.Value(userContextKey)
 	if value == nil {
-		return "", false
+		return UserContext{}, false
 	}
-	uid, ok := value.(string)
-	return uid, ok && uid != ""
+	user, ok := value.(UserContext)
+	if !ok {
+		return UserContext{}, false
+	}
+	return user, user.ID != ""
 }
 
-// Require wraps an http.HandlerFunc enforcing auth and injecting the user ID.
+// Require wraps an http.HandlerFunc enforcing auth and injecting the user metadata.
 func (m *JWTManager) Require(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		token := ExtractToken(r)
-		userID, err := m.Validate(r.Context(), token)
+		user, err := m.Validate(r.Context(), token)
 		if err != nil {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
-		next(w, r.WithContext(WithUserID(r.Context(), userID)))
+		next(w, r.WithContext(WithUser(r.Context(), user)))
 	}
 }
 
@@ -152,12 +173,12 @@ func (m *JWTManager) Require(next http.HandlerFunc) http.HandlerFunc {
 func (m *JWTManager) RequireWithRefresh(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		token := ExtractToken(r)
-		userID, err := m.Validate(r.Context(), token)
+		user, err := m.Validate(r.Context(), token)
 		if err != nil {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
 		_ = m.redis.Expire(r.Context(), token, m.expiry).Err()
-		next(w, r.WithContext(WithUserID(r.Context(), userID)))
+		next(w, r.WithContext(WithUser(r.Context(), user)))
 	}
 }

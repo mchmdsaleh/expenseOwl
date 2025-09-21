@@ -176,7 +176,7 @@ With the exception of [Data backends](#data-backends), all configuration of Expe
 
 ### Authentication
 
-ExpenseOwl now ships with multi-user support. Accounts are stored in PostgreSQL and sessions are issued as short-lived JWTs that are persisted in Redis so administrators can revoke them instantly. The frontend provides a `/auth` screen for sign-up and sign-in, while the JSON API exposes matching endpoints:
+ExpenseOwl now ships with multi-user support. Accounts are stored in PostgreSQL and sessions are issued as short-lived JWTs that are persisted in Redis so administrators can revoke them instantly. Two roles are supported: `admin` and `user`. Administrators can manage accounts via the web UI (`/admin/users`) or the admin API. The frontend provides a `/auth` screen for sign-up and sign-in, while the JSON API exposes matching endpoints:
 
 - `POST /api/v1/user/signup`
 - `POST /api/v1/user/login`
@@ -196,7 +196,7 @@ Configure authentication with the following environment variables:
 | `REDIS_DB` | `0` | Redis database index used for sessions. |
 
 > [!NOTE]
-> JSON/cookie-based login has been removed. Every client call must include the `Authorization: Bearer <token>` header once authenticated.
+> JSON/cookie-based login has been removed. Every client call must include the `Authorization: Bearer <token>` header once authenticated. New registrations default to the `user` role; promote accounts to `admin` via the admin panel or by running `UPDATE users SET role = 'admin' WHERE email = 'you@example.com';` in PostgreSQL.
 
 ### Data Backends
 

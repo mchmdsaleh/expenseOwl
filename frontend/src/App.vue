@@ -38,16 +38,22 @@
 import { computed } from 'vue';
 import { useRoute, useRouter, RouterLink, RouterView } from 'vue-router';
 import { apiFetch, clearAuthToken } from './lib/api';
-import { resetState } from './stores/appState';
+import state, { resetState } from './stores/appState';
 
 const route = useRoute();
 const router = useRouter();
 
-const links = [
-  { to: '/', icon: 'fa-solid fa-chart-pie', tooltip: 'Dashboard' },
-  { to: '/table', icon: 'fa-solid fa-table', tooltip: 'Table View' },
-  { to: '/settings', icon: 'fa-solid fa-gear', tooltip: 'Settings' },
-];
+const links = computed(() => {
+  const items = [
+    { to: '/', icon: 'fa-solid fa-chart-pie', tooltip: 'Dashboard' },
+    { to: '/table', icon: 'fa-solid fa-table', tooltip: 'Table View' },
+    { to: '/settings', icon: 'fa-solid fa-gear', tooltip: 'Settings' },
+  ];
+  if (state.user?.role === 'admin') {
+    items.push({ to: '/admin/users', icon: 'fa-solid fa-users-gear', tooltip: 'User Management' });
+  }
+  return items;
+});
 
 const navIconButton =
   'inline-flex h-12 w-12 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--bg-secondary)] text-lg text-[var(--text-primary)] transition duration-150 ease-out hover:bg-[var(--accent)] hover:text-white hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40 focus:ring-offset-2 focus:ring-offset-[var(--bg-primary)]';
