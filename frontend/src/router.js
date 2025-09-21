@@ -14,7 +14,7 @@ const routes = [
   { path: '/settings', name: 'settings', component: SettingsView },
   { path: '/profile', name: 'profile', component: ProfileSettingsView },
   { path: '/admin/users', name: 'admin-users', component: UserManagementView, meta: { requiresAdmin: true } },
-  { path: '/auth', name: 'auth', component: AuthView },
+  { path: '/login', name: 'login', component: AuthView },
 ];
 
 const router = createRouter({
@@ -24,19 +24,19 @@ const router = createRouter({
 
 router.beforeEach(async (to) => {
   const token = getAuthToken();
-  if (!token && to.name !== 'auth') {
+  if (!token && to.name !== 'login') {
     return {
-      name: 'auth',
+      name: 'login',
       query: { redirect: to.fullPath },
     };
   }
 
-  if (token && to.name === 'auth') {
+  if (token && to.name === 'login') {
     const target = typeof to.query.redirect === 'string' && to.query.redirect ? to.query.redirect : '/';
     return { path: target };
   }
 
-  if (token && !state.initialized && to.name !== 'auth') {
+  if (token && !state.initialized && to.name !== 'login') {
     try {
       await loadInitialData();
     } catch (error) {

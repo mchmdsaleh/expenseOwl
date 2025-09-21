@@ -71,7 +71,7 @@ const links = computed(() => {
 const navIconButton =
   'inline-flex h-12 w-12 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--bg-secondary)] text-lg text-[var(--text-primary)] transition duration-150 ease-out hover:bg-[var(--accent)] hover:text-white hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40 focus:ring-offset-2 focus:ring-offset-[var(--bg-primary)]';
 
-const isAuthRoute = computed(() => route.name === 'auth');
+const isAuthRoute = computed(() => route.name === 'login');
 
 async function handleLogout() {
   try {
@@ -81,7 +81,7 @@ async function handleLogout() {
   } finally {
     clearAuthToken();
     resetState();
-    router.push({ path: '/auth' });
+    router.push({ path: '/login' });
   }
 }
 </script>

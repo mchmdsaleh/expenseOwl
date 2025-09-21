@@ -38,7 +38,7 @@ export async function apiFetch(url, options = {}) {
     clearAuthToken();
     if (typeof window !== 'undefined') {
       const target = encodeURIComponent(window.location.pathname + window.location.search);
-      window.location.href = `/auth?redirect=${target}`;
+      window.location.href = `/login?redirect=${target}`;
     }
     throw new Error('Unauthorized');
   }
