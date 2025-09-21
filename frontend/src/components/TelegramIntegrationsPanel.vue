@@ -1,11 +1,8 @@
 <template>
   <section class="space-y-8">
-    <header class="space-y-1">
-      <h1 class="text-2xl font-semibold text-[var(--text-primary)]">Integrations</h1>
-      <p class="text-sm text-[var(--text-secondary)]">
-        Manage Telegram webhooks for automated expense capture. Generate a pairing code, link it from Telegram using <code>/link &lt;code&gt;</code>, then share the ingest token with your n8n workflow.
-      </p>
-    </header>
+    <p class="text-sm text-[var(--text-secondary)]">
+      Generate a pairing code, link it from Telegram using <code>/link &lt;code&gt;</code>, then store the ingest token in your n8n workflow.
+    </p>
 
     <div v-if="errorMessage" class="rounded-md border border-red-400 bg-red-100 px-3 py-2 text-sm text-red-700">
       {{ errorMessage }}

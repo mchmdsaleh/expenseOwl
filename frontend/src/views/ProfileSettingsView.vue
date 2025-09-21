@@ -152,11 +152,32 @@
       </div>
     </transition>
   </section>
+
+  <section class="mt-12 space-y-4">
+    <button
+      type="button"
+      class="flex w-full items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)]/40 px-4 py-3 text-left text-[var(--text-primary)] transition hover:bg-[var(--bg-secondary)]/70"
+      @click="toggleIntegrations"
+    >
+      <div>
+        <h2 class="text-lg font-semibold">Telegram Integrations</h2>
+        <p class="text-sm text-[var(--text-secondary)]">Generate pairing codes and manage ingest tokens for the Telegram bot.</p>
+      </div>
+      <i :class="['fa-solid', showIntegrations ? 'fa-chevron-up' : 'fa-chevron-down']"></i>
+    </button>
+
+    <transition name="fade">
+      <div v-if="showIntegrations" class="rounded-xl border border-[var(--border)] bg-[var(--bg-primary)]/60 p-4">
+        <TelegramIntegrationsPanel />
+      </div>
+    </transition>
+  </section>
 </template>
 
 <script setup>
 import { reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
+import TelegramIntegrationsPanel from '../components/TelegramIntegrationsPanel.vue';
 import { apiFetch, clearAuthToken } from '../lib/api';
 import state, { resetState, setUser } from '../stores/appState';
 
@@ -168,6 +189,7 @@ const passwordSaving = ref(false);
 const passwordError = ref('');
 const passwordSuccess = ref('');
 const showPasswordModal = ref(false);
+const showIntegrations = ref(false);
 
 const profileForm = reactive({
   email: state.user?.email || '',
@@ -278,6 +300,10 @@ function openPasswordModal() {
 
 function closePasswordModal() {
   showPasswordModal.value = false;
+}
+
+function toggleIntegrations() {
+  showIntegrations.value = !showIntegrations.value;
 }
 </script>
 
