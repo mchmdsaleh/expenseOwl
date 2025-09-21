@@ -9,7 +9,7 @@
     <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
       <div
         v-if="userDisplayName"
-        class="inline-flex items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-secondary)]/70 px-4 py-2 text-sm font-medium text-[var(--text-primary)]"
+        class="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-secondary)]/70 px-4 py-2 text-sm font-medium text-[var(--text-primary)] md:w-auto md:justify-start"
       >
         <i class="fa-solid fa-circle-user text-[var(--accent)]"></i>
         <span>{{ userDisplayName }}</span>
