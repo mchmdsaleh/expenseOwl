@@ -200,6 +200,13 @@ Configure authentication with the following environment variables:
 > [!NOTE]
 > JSON/cookie-based login has been removed. Every client call must include the `Authorization: Bearer <token>` header once authenticated. New registrations default to the `user` role; promote accounts to `admin` via the admin panel or by running `UPDATE users SET role = 'admin' WHERE email = 'you@example.com';` in PostgreSQL.
 
+### Profile & Password Self-Service
+
+- The navigation includes a profile option (user icon next to the logout button). From this view you can
+  - Update account email, first name, and last name.
+  - Change the password using a modal dialog. Successful updates forcibly log the user out to ensure re-authentication with the new credentials.
+
+
 ### Data Backends
 
 ExpenseOwl now requires PostgreSQL for multi-user operation. The legacy JSON backend has been disabled to avoid inconsistent per-user state.
