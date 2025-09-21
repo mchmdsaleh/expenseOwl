@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/tanq16/expenseowl/internal/integrations/telegram"
@@ -111,7 +112,25 @@ func (h *Handler) TelegramCompleteLink(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, status, ErrorResponse{Error: err.Error()})
 		return
 	}
-	writeJSON(w, http.StatusOK, telegram.SanitizeLink(*link, false))
+
+	userRecord, err := h.users.Get(r.Context(), link.UserID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to load linked user"})
+		return
+	}
+
+	payload := telegram.SanitizeLink(*link, false)
+	if userRecord != nil {
+		payload["user"] = map[string]any{
+			"id":        userRecord.ID,
+			"email":     userRecord.Email,
+			"firstName": userRecord.FirstName,
+			"lastName":  userRecord.LastName,
+			"name":      strings.TrimSpace(userRecord.FirstName + " " + userRecord.LastName),
+		}
+	}
+
+	writeJSON(w, http.StatusOK, payload)
 }
 
 // TelegramResolve identifies the ExpenseOwl user linked to a Telegram chat.
