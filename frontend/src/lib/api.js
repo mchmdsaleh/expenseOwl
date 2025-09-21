@@ -38,9 +38,42 @@ export async function apiFetch(url, options = {}) {
     clearAuthToken();
     if (typeof window !== 'undefined') {
       const target = encodeURIComponent(window.location.pathname + window.location.search);
-      window.location.href = `/auth?redirect=${target}`;
+      window.location.href = `/login?redirect=${target}`;
     }
     throw new Error('Unauthorized');
   }
   return response;
+}
+
+export async function listTelegramLinks() {
+  const response = await apiFetch('/api/v1/integrations/telegram/links');
+  if (!response.ok) {
+    throw new Error('Failed to load Telegram links');
+  }
+  return response.json();
+}
+
+export async function createTelegramLink({ label }) {
+  const response = await apiFetch('/api/v1/integrations/telegram/links', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ label }),
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data?.error || 'Failed to create Telegram link');
+  }
+  return response.json();
+}
+
+export async function revokeTelegramLink(id) {
+  const response = await apiFetch(`/api/v1/integrations/telegram/links?id=${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data?.error || 'Failed to revoke Telegram link');
+  }
 }

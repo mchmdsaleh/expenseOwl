@@ -1,0 +1,583 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {
+          "download": true
+        }
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "927065ee-343b-4041-a0b7-cc23f3d0dad6",
+      "name": "Telegram Trigger",
+      "webhookId": "bbdf7d3a-99ce-4a04-86f6-7e817893ec22",
+      "credentials": {
+        "telegramApi": {
+          "id": "K1bGdJ6otbVFxD0V",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cd7a0bb7-62cb-4ea7-8d23-838d3a3c8451",
+              "leftValue": "={{ ($json.message?.text || $json.message?.caption || '').match(/^\\/link\\s+/i) !== null }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        200,
+        0
+      ],
+      "id": "f42eb147-9b69-47f5-bf46-2f0462a4ce3f",
+      "name": "Check Link Command"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://43.173.29.17:9080/api/v1/integrations/telegram/links/complete",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpBearerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  code: ($json.message?.text || $json.message?.caption || '').replace(/^\\/link\\s+/i, '').trim(),\n  chatId: $json.message.chat.id,\n  username: $json.message.from?.username || ''\n} }}",
+        "options": {
+          "fullResponse": true
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        -120
+      ],
+      "id": "0f67196b-b86d-4c70-90a3-1c77ef2dca73",
+      "name": "Complete Link",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "aMaQ8O4pywXICtHy",
+          "name": "Bearer Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const status = $json.statusCode;\nconst body = $json.body || {};\nconst message = $node[\\\"Telegram Trigger\\\"].json?.message || {};\nconst chatId = message.chat?.id;\n\nif (!chatId) {\n  throw new Error('Chat ID missing for link response');\n}\n\nlet text;\nif (status >= 200 && status < 300) {\n  const label = body.label || 'Telegram link';\n  text = 'Akun Telegram berhasil tertaut (' + label + ').';\n} else {\n  const detail = body?.error || body?.message || ('kode tidak valid (status ' + status + ')');\n  text = 'Gagal menautkan Telegram: ' + detail;\n}\n\nreturn [{ json: { chatId, text } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        -120
+      ],
+      "id": "da58f7f8-3c31-4e1a-9d51-577b93ec663a",
+      "name": "Format Link Response"
+    },
+    {
+      "parameters": {
+        "chatId": "={{$json.chatId}}",
+        "text": "={{$json.text}}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        840,
+        -120
+      ],
+      "id": "02b4b8cc-0e37-4bf5-ae3f-1610f7f8584c",
+      "name": "Send Link Reply",
+      "webhookId": "2a2a0b4c-2663-4bd6-884f-5f0ebea6c8fb",
+      "credentials": {
+        "telegramApi": {
+          "id": "K1bGdJ6otbVFxD0V",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://43.173.29.17:9080/api/v1/integrations/telegram/resolve",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpBearerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { chatId: $json.message.chat.id } }}",
+        "options": {
+          "fullResponse": true
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        120
+      ],
+      "id": "d3912c6c-0da8-43aa-a543-14701a4d71f7",
+      "name": "Resolve User",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "aMaQ8O4pywXICtHy",
+          "name": "Bearer Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "d84cc63b-0816-4b2b-9540-7f8de06f99e0",
+              "leftValue": "={{ $json.statusCode }}",
+              "rightValue": 200,
+              "operator": {
+                "type": "number",
+                "operation": "equal",
+                "singleValue": false
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        660,
+        120
+      ],
+      "id": "a7d75d52-d689-4ad4-9f13-a4028121f0bc",
+      "name": "Is Linked?"
+    },
+    {
+      "parameters": {
+        "chatId": "={{$node[\"Telegram Trigger\"].json.message.chat.id}}",
+        "text": "=Halo! Akun ini belum tertaut. Silakan buka ExpenseOwl, buat kode baru di Integrations > Telegram, lalu kirim /link <kode> di sini.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        880,
+        240
+      ],
+      "id": "0fba9a2f-64cc-47eb-8c80-d6fbec4d4c40",
+      "name": "Send Link Instructions",
+      "webhookId": "9d0b94ab-34ac-4f4c-84ae-b29cc13c4a95",
+      "credentials": {
+        "telegramApi": {
+          "id": "K1bGdJ6otbVFxD0V",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $json.body || {};\nconst message = $node[\"Telegram Trigger\"].json?.message || {};\nconst binary = $node[\"Telegram Trigger\"].binary || undefined;\n\nreturn [{\n  json: {\n    ...response,\n    message,\n    chat: message.chat,\n    chatId: message.chat?.id\n  },\n  binary\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        40
+      ],
+      "id": "b6947911-1257-4a96-a2b9-cfa8211d1fb8",
+      "name": "Assemble Context"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1e8aa1d-ce8f-43e9-9769-bee6d19c5cac",
+              "leftValue": "={{ Object.keys($binary || {}).length > 0 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1100,
+        40
+      ],
+      "id": "35474f19-013e-4b80-bb76-13dd88576c77",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-3.5-turbo",
+          "mode": "list",
+          "cachedResultName": "GPT-3.5-TURBO"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Kamu adalah asisten ekstraksi expense. Dari teks Telegram (Indonesia/Inggris), keluarkan hanya JSON sesuai aturan ini:\n\nFormat input\n\nSatu atau banyak transaksi dalam satu pesan.\n\nTransaksi dipisah dengan ; atau baris baru.\n\nOpsi tags di mana pun di akhir pesan: t: tag1, tag2 \u2192 jika ada, masukkan ke field tags (array string). Jika tidak ada, jangan buat field tags.\n\nOutput\n\nJika ada >1 transaksi \u2192 keluarkan array berisi objek-objek transaksi.\n\nJika hanya 1 transaksi \u2192 boleh objek tunggal.\n\nTanpa teks lain, tanpa backticks.\n\nSkema objek transaksi\n\nname (string) \u2014 nama/merchant.\n\ncategory (string, salah satu dari): food_drinks, transport, fuel, shopping, bills_utilities, entertainment, health_fitness, groceries, personal_care, software_subscription, misc.\n\namount (number) \u2014 angka bersih (positif).\n\ncurrency (string, ISO-4217 huruf kecil; default idr bila tidak disebut; deteksi usd/sgd/eur/jpy, atau simbol $ \u20ac \u00a5).\n\ndate (string, ISO-8601 UTC diakhiri Z).\n\ntags (array string) \u2014 hanya tampil bila ada t: di input.\n\nKategori (heuristik, non-limitatif)\n\nbakso, ciomy/siomay, jco, kopi, ayam, sushi \u2192 food_drinks\n\ngojek, grab, ojek, taksi, krl, tol/toll, parkir \u2192 transport\n\nbensin, pertalite, pertamax, shell \u2192 fuel\n\npln/listrik, pdam/air, internet, telkomsel, indihome \u2192 bills_utilities\n\nnetflix, spotify, youtube premium, miitel \u2192 software_subscription (atau entertainment bila lebih tepat)\n\nguardian, watsons, sabun, shampoo \u2192 personal_care (atau groceries sesuai konteks)\n\ntokopedia, shopee, ace, ikea \u2192 shopping\nJika tak jelas \u2192 misc.\n\nAturan amount (Indonesia)\n\nrb / ribu / k \u2192 \u00d71_000\n\njt / juta / million / m \u2192 \u00d71_000_000\n\nPisah ribuan . dan desimal , boleh; normalisasi ke angka murni.\n\nTanggal\n\nJika tak disebut: pakai tanggal dari variabel yang diberikan di prompt (lihat bagian User).\n\nConvert ke ISO-8601 UTC (akhiri Z).\n\nJangan membuat tanggal masa depan acak.\n\nPatuhi\n\nKembalikan hanya JSON (objek atau array).\n\nJangan isi tags bila tidak ada t:.\n\nJangan menambah field lain.",
+              "role": "system"
+            },
+            {
+              "content": "=Gunakan teks berikut untuk diekstrak. Jika ada beberapa transaksi dipisah ;, keluarkan array objek (satu objek per transaksi).\nJika ada t: ... di akhir pesan, buat tags (array). Jika tidak ada t:, jangan sertakan tags sama sekali.\n\nTeks: \"{{$json.message.text || $json.message.caption}}\"\n\nTanggal default untuk date (pakai waktu kirim Telegram, sudah dalam UTC detik epoch):\nDefaultDateUTC: \"{{ new Date(($json.message.date || $json.date || Math.floor(Date.now()/1000)) * 1000).toISOString() }}\"\n\njika ada lebih dari satu transaksi, WAJIB keluarkan array JSON.\n\nKembalikan hanya JSON sesuai skema.",
+              "role": "user"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        1320,
+        200
+      ],
+      "id": "fe4f03c8-e611-4cb9-a32f-6368c1b59fd8",
+      "name": "Message a model",
+      "credentials": {
+        "openAiApi": {
+          "id": "pNCqjFpKGh3GKivR",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== Helpers =====\nfunction stripFences(text) {\n  return String(text ?? '')\n    .trim()\n    .replace(/^```(?:json)?\\\\s*/i, '')\n    .replace(/```$/i, '')\n    .trim();\n}\n\n// Parse robust: object | array | concatenated objects \"{...}{...}\"\nfunction parseModelContent(raw) {\n  let t = stripFences(raw);\n  try { return JSON.parse(t); } catch {}\n  const joined = `[${t.replace(/}\\\\s*{/g, '},{')}]`;\n  try { return JSON.parse(joined); } catch {}\n  const objs = t.match(/{[\\\\s\\\\S]*?}/g);\n  if (objs && objs.length) {\n    try { return objs.map(s => JSON.parse(s)); } catch {}\n  }\n  throw new Error('Failed to parse JSON from model content');\n}\n\nconst CATEGORY_MAP = {\n  food_drinks:'Food', food:'Food',\n  transport:'Transport', fuel:'Fuel',\n  shopping:'Shopping',\n  bills_utilities:'Bills', bills:'Bills',\n  entertainment:'Entertainment',\n  health_fitness:'Health & Fitness',\n  groceries:'Groceries',\n  personal_care:'Personal Care',\n  software_subscription:'Software',\n  misc:'Miscellaneous', miscellaneous:'Miscellaneous',\n};\nconst mapCategory = (cat) => CATEGORY_MAP[String(cat || '').toLowerCase()] || 'Miscellaneous';\n\nconst now = new Date();\nconst MAX_SKEW_DAYS = 1;\nfunction coerceDate(input) {\n  if (!input) return now.toISOString();\n  const d = new Date(input);\n  if (isNaN(d)) return now.toISOString();\n  const diff = Math.abs(d - now) / 86400000;\n  return diff > MAX_SKEW_DAYS ? now.toISOString() : d.toISOString();\n}\nconst normCurrency = (c) => String(c || 'idr').trim().toLowerCase();\n\nconst base = $item(0).$node['Assemble Context'].json || {};\nconst meta = {\n  userId: base.userId,\n  ingestToken: base.ingestToken,\n  linkId: base.id,\n};\n\nif (!meta.userId || !meta.ingestToken) {\n  throw new Error('Missing ingest metadata');\n}\n// ===== Ambil konten dari node Message a model =====\nconst content =\n  $json?.message?.content ??\n  $json?.output_text ??\n  $json?.choices?.[0]?.message?.content ??\n  $json?.content;\n\nif (typeof content !== 'string') {\n  throw new Error('Assistant content not found \u2014 make sure this node receives output from \"Message a model\".');\n}\n\n// ===== Split pesan mentah jadi CHUNKS (per transaksi) untuk tarik tags lokal =====\nconst rawText =\n  $node['Telegram Trigger'].json?.message?.text ??\n  $node['Telegram Trigger'].json?.message?.caption ?? '';\nconst chunks = String(rawText)\n  .split(';')\n  .map(s => s.trim())\n  .filter(Boolean);\n\n// helper: extract tags from a single chunk (stop before ';')\nfunction tagsFromChunk(chunk) {\n  const m = String(chunk).match(/\\\\bt\\\\s*:\\\\s*([^\\\\n;]+)/i);\n  if (!m) return [];\n  return m[1].split(',').map(s => s.trim()).filter(Boolean);\n}\n\n// ===== Parse & normalize =====\nconst parsed = parseModelContent(content);\nconst arr = Array.isArray(parsed)\n  ? parsed\n  : (Array.isArray(parsed?.items) ? parsed.items : [parsed]);\n\nconst out = [];\nfor (let i = 0; i < arr.length; i++) {\n  const obj = arr[i] || {};\n  const amt = Number(obj.amount);\n\n  // tags lokal berdasar index chunk yang sama\n  const localTags = i < chunks.length ? tagsFromChunk(chunks[i]) : [];\n\n  // tags dari LLM (kalau ada)\n  const llmTags = Array.isArray(obj.tags)\n    ? obj.tags.map(String).map(s => s.trim()).filter(Boolean)\n    : [];\n\n  // merge tanpa duplikat; jika kosong, jangan set field tags\n  const mergedTags = [...new Set([...llmTags, ...localTags])];\n\n  const payload = {\n    name: obj.name ?? 'Expense from n8n',\n    category: mapCategory(obj.category),\n    amount: isNaN(amt) ? 0 : -Math.abs(amt), // expense negatif\n    currency: normCurrency(obj.currency),\n    date: coerceDate(obj.date),\n  };\n  if (mergedTags.length) payload.tags = mergedTags;\n\n  out.push({ json: { ...payload, _meta: meta } });\n}\n\nreturn out;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1550,
+        200
+      ],
+      "id": "6cf6e9ac-b630-422e-bf5c-73b16aa17171",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "text": "=Extract an expense from this receipt image and return ONLY valid JSON with keys:\n{\n  \"name\": string,                // merchant/store\n  \"category\": one of [\"food_drinks\",\"transport\",\"fuel\",\"shopping\",\"bills_utilities\",\"entertainment\",\"health_fitness\",\"groceries\",\"personal_care\",\"software_subscription\",\"misc\"],\n  \"amount\": number,              // total paid\n  \"currency\": string (iso-4217, lowercase), // default \"idr\"\n  \"date\": string (ISO-8601 UTC, ends with Z)\n}\nRules:\n- Prefer the printed total (Total/Grand Total/Amount).\n- If no currency visible, set \"idr\".\n- If date is unreadable, set exactly {{$now.toISO()}}.\n- Output ONLY the JSON object, no extra text.\n",
+        "inputType": "base64",
+        "options": {
+          "detail": "low"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        1320,
+        -160
+      ],
+      "id": "1963908e-fe48-44aa-9264-d9ce9bbb0f25",
+      "name": "Analyze image",
+      "credentials": {
+        "openAiApi": {
+          "id": "pNCqjFpKGh3GKivR",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Code node (Run Once per Item)\n * Input:\n *  - Jika dari Analyze image (Resource=Image), biasanya $json.content = \"```json {...} ```\"\n *  - Jika sudah structured JSON, langsung ada di $json\n * Output: { name, category, amount, currency, date }\n */\n\nconst MAP = {\n  food_drinks:'Food', food:'Food',\n  transport:'Transport', fuel:'Fuel',\n  shopping:'Shopping',\n  bills_utilities:'Bills', bills:'Bills',\n  entertainment:'Entertainment',\n  health_fitness:'Health & Fitness',\n  groceries:'Groceries',\n  personal_care:'Personal Care',\n  software_subscription:'Software',\n  misc:'Miscellaneous', miscellaneous:'Miscellaneous',\n};\n\nconst now = new Date();\nconst MAX_SKEW_DAYS = 7;\n\nfunction saneDate(s) {\n  const d = s ? new Date(s) : now;\n  if (isNaN(d)) return now.toISOString();\n  const diffDays = Math.abs(d - now) / 86400000;\n  return diffDays > MAX_SKEW_DAYS ? now.toISOString() : d.toISOString();\n}\n\nfunction normCurrency(c) {\n  return String(c || 'idr').trim().toLowerCase();\n}\n\nfunction normCat(raw) {\n  // normalisasi: lowercase, non-alnum jadi underscore, collapse underscores\n  const k = String(raw || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g,'');\n  return MAP[k] || 'Miscellaneous';\n}\n\nfunction parseLooseJson(text) {\n  let t = String(text ?? '').trim();\n  // strip code fences ```json ... ```\n  t = t.replace(/^```(?:json)?\\\\s*/i, '').replace(/```$/i, '').trim();\n  try { return JSON.parse(t); } catch (e) {\n    // fallback: ambil blok {...} pertama\n    const s = t.indexOf('{'), e2 = t.lastIndexOf('}');\n    if (s !== -1 && e2 > s) {\n      return JSON.parse(t.slice(s, e2 + 1));\n    }\n    throw new Error('Failed to parse JSON from content');\n  }\n}\n\n// ---- ambil sumber data dari Analyze image ----\nlet obj;\nif (typeof $json?.content === 'string') {\n  obj = parseLooseJson($json.content);\n} else {\n  // sudah berupa object dari upstream (structured outputs)\n  obj = $json || {};\n}\n\nconst base = $item(0).$node['Assemble Context'].json || {};\nconst meta = {\n  userId: base.userId,\n  ingestToken: base.ingestToken,\n  linkId: base.id,\n};\n\nif (!meta.userId || !meta.ingestToken) {\n  throw new Error('Missing ingest metadata');\n}\n// ---- bentuk payload final ----\nreturn {\n  json: {\n    name: obj.name ?? 'Expense from n8n',\n    category: normCat(obj.category),\n    amount: -Math.abs(Number(obj.amount ?? 0)),\n    currency: normCurrency(obj.currency),\n    date: saneDate(obj.date),\n    _meta: meta\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1550,
+        -160
+      ],
+      "id": "6960c133-1ab3-4da1-8893-9db836c499c4",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://43.173.29.17:9080/api/v1/expenses",
+        "authentication": "none",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ Object.fromEntries(Object.entries($json).filter(([key]) => key !== '_meta')) }}",
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Authorization",
+              "value": "={{'Bearer ' + $json._meta.ingestToken}}"
+            },
+            {
+              "name": "X-User-ID",
+              "value": "={{$json._meta.userId}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1820,
+        40
+      ],
+      "id": "b48cf453-2126-4feb-bbe1-836b540adff0",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "chatId": "={{$item(0).$node[\"Telegram Trigger\"].json.message.chat.id}}",
+        "text": "=Selesai dicatat:\n\u2022 {{$json.name}}\n\u2022 {{$json.category}}\n\u2022 {{$json.amount}} {{$json.currency}}\n\u2022 {{$json.date}}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2020,
+        40
+      ],
+      "id": "590e3f21-cbb1-4ff2-ad5c-49167065dcf8",
+      "name": "Send a text message",
+      "webhookId": "fc92608c-77d0-4bd1-8d7b-703b0dfb1b0f",
+      "credentials": {
+        "telegramApi": {
+          "id": "K1bGdJ6otbVFxD0V",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Check Link Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Link Command": {
+      "main": [
+        [
+          {
+            "node": "Complete Link",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Resolve User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Complete Link": {
+      "main": [
+        [
+          {
+            "node": "Format Link Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Link Response": {
+      "main": [
+        [
+          {
+            "node": "Send Link Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolve User": {
+      "main": [
+        [
+          {
+            "node": "Is Linked?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Linked?": {
+      "main": [
+        [
+          {
+            "node": "Assemble Context",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Link Instructions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Assemble Context": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Analyze image",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze image": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "230e6887-a8c8-43a9-af4b-10e4a27dff3d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "bdca40825baacc2c9b2642517cee77091ffd7457383cf7383b1d95a6828ec0ab"
+  },
+  "id": "tBdq5lIWvCk4p3sK",
+  "tags": []
+}

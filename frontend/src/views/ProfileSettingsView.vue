@@ -218,7 +218,7 @@ async function saveProfile() {
     if (originalEmail && data.email && originalEmail !== data.email) {
       clearAuthToken();
       resetState();
-      router.push({ path: '/auth' });
+      router.push({ path: '/login' });
     }
   } catch (error) {
     console.error('Failed to update profile', error);
@@ -258,7 +258,7 @@ async function changePassword() {
 
     clearAuthToken();
     resetState();
-    router.push({ path: '/auth' });
+    router.push({ path: '/login' });
   } catch (error) {
     console.error('Failed to update password', error);
     passwordError.value = error.message || 'Failed to update password';
