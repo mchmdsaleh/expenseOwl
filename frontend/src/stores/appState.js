@@ -69,6 +69,17 @@ export async function refreshRecurringExpenses() {
       : [];
 }
 
+export function resetState() {
+  state.initialized = false;
+  state.loading = false;
+  state.expenses = [];
+  state.categories = [];
+  state.currency = 'usd';
+  state.startDate = 1;
+  state.tags = [];
+  state.recurringExpenses = [];
+}
+
 export function addCategoryLocally(category) {
   if (!state.categories.includes(category)) {
     state.categories = [...state.categories, category];

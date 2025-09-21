@@ -176,30 +176,37 @@ With the exception of [Data backends](#data-backends), all configuration of Expe
 
 ### Authentication
 
-ExpenseOwl includes a simple session-based login that protects the web UI and JSON API. The server refuses to start unless the base credentials are provided.
+ExpenseOwl now ships with multi-user support. Accounts are stored in PostgreSQL and sessions are issued as short-lived JWTs that are persisted in Redis so administrators can revoke them instantly. The frontend provides a `/auth` screen for sign-up and sign-in, while the JSON API exposes matching endpoints:
 
-| Variable | Sample Value | Details |
+- `POST /api/v1/user/signup`
+- `POST /api/v1/user/login`
+- `POST /api/v1/user/logout`
+- `GET /api/v1/session`
+- `PATCH /api/v1/user/update_password`
+
+Configure authentication with the following environment variables:
+
+| Variable | Default | Details |
 | --- | --- | --- |
-| APP_USERNAME | expenseowl | Required. Username presented on the login form. |
-| APP_PASSWORD | supersecret | Required. Password verified at login. |
-| SESSION_COOKIE_NAME | expenseowl_session | Optional. Overrides the cookie name used for sessions. |
-| SESSION_COOKIE_DOMAIN | example.com | Optional. Sets the cookie domain when you serve ExpenseOwl behind a reverse proxy. |
-| SESSION_COOKIE_SECURE | true | Optional. Mark the session cookie as Secure (enable when serving over HTTPS). |
-| SESSION_DURATION_HOURS | 24 | Optional. Lifetime of a session before the user must log in again. |
+| `JWT_SECRET` | _(required)_ | Secret used to sign JWT access tokens. Change this in production. |
+| `JWT_EXPIRY_HOURS` | `24` | Number of hours a token remains valid before re-authentication is required. |
+| `REDIS_HOST` | `localhost` | Redis host used for token persistence and revocation. |
+| `REDIS_PORT` | `6380` | Redis port. |
+| `REDIS_PASSWORD` | _(empty)_ | Optional Redis password. |
+| `REDIS_DB` | `0` | Redis database index used for sessions. |
 
-The login screen is available at `/login` and a `POST /logout` endpoint clears the active session. All frontend calls automatically include the session cookie and redirect to the login page when a session expires.
+> [!NOTE]
+> JSON/cookie-based login has been removed. Every client call must include the `Authorization: Bearer <token>` header once authenticated.
 
 ### Data Backends
 
-ExpenseOwl supports two data backends - JSON (default), and Postgres. Postgres was added with v4.0 of the app primarily for homelabbers to reuse their Postgres instances as needed for better backup compatibility.
-
-Ideally, you need not configure anything differently for the JSON backend. ExpenseOwl automatically creates the data directory and the `.json` files. You may, however, want to mount a specific volume to `/app/data` within the container for persistence.
+ExpenseOwl now requires PostgreSQL for multi-user operation. The legacy JSON backend has been disabled to avoid inconsistent per-user state.
 
 For configuring Postgres, use the following environment variables:
 
 | Variable | Sample Value | Details |
 | --- | --- | --- |
-| STORAGE_TYPE | postgres | defaults to `json`, hence JSON backend is default |
+| STORAGE_TYPE | postgres | Must be `postgres`. |
 | STORAGE_URL | "localhost:5432/expenseowldb" | format - SERVER/DB - the sslmode value is set by the next variable |
 | STORAGE_SSL | require | can be one of `disable` (default), `verify-full`, `verify-ca`, or `require` |
 | STORAGE_USER | testuser | the user to authenticate with your Postgres instance |
