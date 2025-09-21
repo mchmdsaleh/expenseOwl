@@ -170,13 +170,12 @@
           <label class="text-sm font-medium text-[var(--text-secondary)]" for="recurringAmount">Amount</label>
           <input
             id="recurringAmount"
-            v-model.number="recurringForm.amount"
-            type="number"
-            step="0.01"
-            min="0.01"
-            max="9000000000000000"
+            :value="formattedRecurringAmount"
+            inputmode="decimal"
             :class="inputClass"
             required
+            @input="handleRecurringAmountInput"
+            @blur="normalizeRecurringAmount"
           />
         </div>
         <div class="flex flex-col gap-2">
@@ -350,6 +349,7 @@ const recurringMessage = ref({ text: '', type: '' });
 const editingRecurringId = ref(null);
 const showDeleteRecurring = ref(false);
 const expenseToDelete = ref(null);
+const rawRecurringAmount = ref('');
 
 const visibleCategories = computed(() =>
   categories.value.map((category, index) => ({ category, index })).slice(0, categoryDisplayCount.value)
@@ -368,6 +368,14 @@ const allTags = computed(() => {
 });
 
 const recurringCardRef = ref(null);
+const formattedRecurringAmount = computed(() => {
+  if (!rawRecurringAmount.value) return '';
+  const numeric = Number(rawRecurringAmount.value.replace(/[^0-9.-]/g, '')) || 0;
+  return new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(numeric);
+});
 
 watch(
   () => state.categories,
@@ -612,6 +620,16 @@ async function handleImport(event, endpoint) {
   }
 }
 
+function handleRecurringAmountInput(event) {
+  rawRecurringAmount.value = event.target.value.replace(/[^0-9.-]/g, '');
+}
+
+function normalizeRecurringAmount(event) {
+  const numeric = Number(rawRecurringAmount.value.replace(/[^0-9.-]/g, '')) || 0;
+  rawRecurringAmount.value = numeric === 0 ? '' : String(numeric);
+  event.target.value = formattedRecurringAmount.value;
+}
+
 function setRecurringMessage(text, type) {
   recurringMessage.value = { text, type };
   dismissAfter(() => (recurringMessage.value = { text: '', type: '' }));
@@ -620,6 +638,7 @@ function setRecurringMessage(text, type) {
 function resetRecurringForm() {
   recurringForm.value = createRecurringForm();
   editingRecurringId.value = null;
+  rawRecurringAmount.value = '';
 }
 
 async function submitRecurring() {
@@ -627,7 +646,7 @@ async function submitRecurring() {
     setRecurringMessage('Please select a category.', 'error');
     return;
   }
-  let amount = Number(recurringForm.value.amount || 0);
+  let amount = Number(rawRecurringAmount.value.replace(/[^0-9.-]/g, ''));
   if (Number.isNaN(amount) || amount === 0) {
     setRecurringMessage('Please enter a valid amount.', 'error');
     return;
@@ -687,6 +706,7 @@ function editRecurring(expense) {
     reportGain: expense.amount > 0,
     submitLabel: 'Update Recurring Transaction',
   };
+  rawRecurringAmount.value = String(Math.abs(expense.amount));
   nextTick(() => {
     recurringCardRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });

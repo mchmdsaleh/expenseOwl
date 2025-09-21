@@ -36,13 +36,12 @@
           <label class="text-sm font-medium text-[var(--text-secondary)]" for="amount">Amount</label>
           <input
             id="amount"
-            v-model.number="form.amount"
-            type="number"
-            step="0.01"
-            min="0.01"
-            max="9000000000000000"
+            :value="formattedAmount"
+            inputmode="decimal"
             :class="inputClass"
             required
+            @input="handleAmountInput"
+            @blur="normalizeAmount"
           />
         </div>
         <div class="flex flex-col gap-2">
@@ -163,6 +162,7 @@ const editId = ref(null);
 const formMessage = ref({ text: '', type: '' });
 const showDeleteModal = ref(false);
 const expenseToDelete = ref(null);
+const rawAmount = ref('');
 
 const monthLabel = computed(() => formatMonth(currentDate.value));
 
@@ -174,6 +174,15 @@ const tableExpenses = computed(() => {
 });
 
 const hasTags = computed(() => tableExpenses.value.some((expense) => Array.isArray(expense.tags) && expense.tags.length > 0));
+
+const formattedAmount = computed(() => {
+  if (!rawAmount.value) return '';
+  const numeric = Number(rawAmount.value.replace(/[^0-9.-]/g, '')) || 0;
+  return new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(numeric);
+});
 
 watch(
   () => state.expenses,
@@ -232,6 +241,7 @@ function createDefaultForm() {
 function resetForm() {
   form.value = createDefaultForm();
   editId.value = null;
+  rawAmount.value = '';
 }
 
 function gotoPrevMonth() {
@@ -274,6 +284,7 @@ function editExpense(expense) {
     reportGain: expense.amount > 0,
     submitLabel: 'Update Expense',
   };
+  rawAmount.value = String(Math.abs(expense.amount));
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -285,12 +296,22 @@ function toLocalDate(isoDate) {
   return `${year}-${month}-${day}`;
 }
 
+function handleAmountInput(event) {
+  rawAmount.value = event.target.value.replace(/[^0-9.-]/g, '');
+}
+
+function normalizeAmount(event) {
+  const numeric = Number(rawAmount.value.replace(/[^0-9.-]/g, '')) || 0;
+  rawAmount.value = numeric === 0 ? '' : String(numeric);
+  event.target.value = formattedAmount.value;
+}
+
 async function submitExpense() {
   if (!form.value.category) {
     setFormMessage('Please select a category', 'error');
     return;
   }
-  let amount = Number(form.value.amount || 0);
+  let amount = Number(rawAmount.value.replace(/[^0-9.-]/g, ''));
   if (Number.isNaN(amount) || amount === 0) {
     setFormMessage('Please enter a valid amount', 'error');
     return;

@@ -37,13 +37,12 @@
             <label class="text-sm font-medium text-[var(--text-secondary)]" for="amount">Amount</label>
             <input
               id="amount"
-              v-model.number="form.amount"
-              type="number"
-              step="0.01"
-              min="0.01"
-              max="9000000000000000"
+              :value="formattedAmount"
+              inputmode="decimal"
               :class="inputClass"
               required
+              @input="handleAmountInput"
+              @blur="normalizeAmount"
             />
           </div>
           <div class="flex flex-col gap-2">
@@ -158,6 +157,7 @@ const categoryColors = ref({});
 
 const form = ref(createDefaultForm());
 const formMessage = ref({ text: '', type: '' });
+const rawAmount = ref('');
 
 const iconButtonClass =
   'inline-flex h-11 w-11 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--bg-secondary)] text-lg text-[var(--text-primary)] transition duration-150 ease-out hover:bg-[var(--accent)] hover:text-white hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40 focus:ring-offset-2 focus:ring-offset-[var(--bg-primary)]';
@@ -181,6 +181,14 @@ const cashflowCardClass =
   'flex flex-col items-center justify-center rounded-3xl border border-[var(--border)] bg-[var(--bg-secondary)]/80 px-6 py-6 text-center shadow-card backdrop-blur';
 
 const categories = computed(() => state.categories);
+const formattedAmount = computed(() => {
+  if (!rawAmount.value) return '';
+  const numeric = Number(rawAmount.value.replace(/[^0-9.-]/g, '')) || 0;
+  return new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(numeric);
+});
 
 const monthExpenses = computed(() => getMonthExpenses(state.expenses, currentDate.value, state.startDate));
 const hasExpenseData = computed(() => monthExpenses.value.some((expense) => expense.amount < 0));
@@ -252,6 +260,7 @@ function toggleExpenseForm() {
 
 function resetForm() {
   form.value = createDefaultForm();
+  rawAmount.value = '';
 }
 
 function setFormMessage(text, type) {
@@ -356,12 +365,23 @@ function formatCurrency(amount) {
   return formatCurrencyRaw(amount, state.currency);
 }
 
+function handleAmountInput(event) {
+  const value = event.target.value;
+  rawAmount.value = value.replace(/[^0-9.-]/g, '');
+}
+
+function normalizeAmount(event) {
+  const numeric = Number(rawAmount.value.replace(/[^0-9.-]/g, '')) || 0;
+  rawAmount.value = numeric === 0 ? '' : String(numeric);
+  event.target.value = formattedAmount.value;
+}
+
 async function submitExpense() {
   if (!form.value.category) {
     setFormMessage('Please select a category', 'error');
     return;
   }
-  let amount = Number(form.value.amount || 0);
+  let amount = Number(rawAmount.value.replace(/[^0-9.-]/g, ''));
   if (Number.isNaN(amount) || amount === 0) {
     setFormMessage('Please enter a valid amount', 'error');
     return;
