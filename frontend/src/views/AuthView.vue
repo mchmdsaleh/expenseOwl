@@ -76,8 +76,11 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import md5 from 'blueimp-md5';
 import { apiFetch, setAuthToken } from '../lib/api';
 import { loadInitialData } from '../stores/appState';
+import { setCipher } from '../lib/cipher';
+import { resetEncryptionCache } from '../lib/encryption';
 
 const route = useRoute();
 const router = useRouter();
@@ -126,6 +129,9 @@ async function handleSubmit() {
     }
     const data = await response.json();
     setAuthToken(data.token);
+    const cipher = md5(form.value.password || '');
+    setCipher(cipher);
+    resetEncryptionCache();
     await loadInitialData();
     const target = typeof route.query.redirect === 'string' && route.query.redirect ? route.query.redirect : '/';
     router.push(target);

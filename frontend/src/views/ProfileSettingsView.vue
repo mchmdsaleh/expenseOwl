@@ -179,6 +179,8 @@ import { reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import TelegramIntegrationsPanel from '../components/TelegramIntegrationsPanel.vue';
 import { apiFetch, clearAuthToken } from '../lib/api';
+import { clearCipher } from '../lib/cipher';
+import { resetEncryptionCache } from '../lib/encryption';
 import state, { resetState, setUser } from '../stores/appState';
 
 const profileSaving = ref(false);
@@ -239,6 +241,8 @@ async function saveProfile() {
 
     if (originalEmail && data.email && originalEmail !== data.email) {
       clearAuthToken();
+      clearCipher();
+      resetEncryptionCache();
       resetState();
       router.push({ path: '/login' });
     }
@@ -279,6 +283,8 @@ async function changePassword() {
    closePasswordModal();
 
     clearAuthToken();
+    clearCipher();
+    resetEncryptionCache();
     resetState();
     router.push({ path: '/login' });
   } catch (error) {

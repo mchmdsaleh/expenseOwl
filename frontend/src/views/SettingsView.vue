@@ -300,6 +300,7 @@ import { ref, computed, watch, onMounted, nextTick } from 'vue';
 import TagInput from '../components/TagInput.vue';
 import state, { loadInitialData, refreshExpenses, refreshRecurringExpenses } from '../stores/appState';
 import { apiFetch } from '../lib/api';
+import { encryptPayload } from '../lib/encryption';
 import { currencyBehaviors, formatCurrency as formatCurrencyRaw, getISODateWithLocalTime } from '../lib/utils';
 
 const primaryButtonClass =
@@ -663,6 +664,10 @@ async function submitRecurring() {
     startDate: getISODateWithLocalTime(recurringForm.value.startDate),
     occurrences: recurringForm.value.occurrences,
   };
+  const blob = await encryptPayload(payload);
+  if (blob) {
+    payload.blob = blob;
+  }
   const isEdit = Boolean(editingRecurringId.value);
   try {
     let response;

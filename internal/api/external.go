@@ -24,6 +24,15 @@ func (h *Handler) CreateExpenseHandler(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Invalid request body"})
 		return
 	}
+	manager, err := h.encryptionManagerFromRequest(r)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return
+	}
+	if err := decryptExpense(manager, &expense); err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return
+	}
 	userID := externalUserIDFromContext(r.Context())
 	if userID == "" {
 		userID = r.Header.Get("X-User-ID")
@@ -47,6 +56,10 @@ func (h *Handler) CreateExpenseHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	expense.UserID = userID
+	if err := ensureExpenseBlob(manager, &expense); err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return
+	}
 	if err := h.storage.AddExpense(userID, expense); err != nil {
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to save expense"})
 		return

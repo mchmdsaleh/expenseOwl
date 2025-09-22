@@ -1,6 +1,9 @@
 package storage
 
-import "fmt"
+import (
+    "fmt"
+    "github.com/tanq16/expenseowl/internal/encryption"
+)
 
 // jsonStore is intentionally unimplemented in multi-user mode.
 type jsonStore struct{}
@@ -41,14 +44,14 @@ func (s *jsonStore) GetRecurringExpenses(userID string) ([]RecurringExpense, err
 func (s *jsonStore) GetRecurringExpense(userID, id string) (RecurringExpense, error) {
 	return RecurringExpense{}, fmt.Errorf("json backend not available")
 }
-func (s *jsonStore) AddRecurringExpense(userID string, recurringExpense RecurringExpense) error {
-	return fmt.Errorf("json backend not available")
+func (s *jsonStore) AddRecurringExpense(userID string, recurringExpense RecurringExpense, enc *encryption.Manager) error {
+    return fmt.Errorf("json backend not available")
 }
 func (s *jsonStore) RemoveRecurringExpense(userID, id string, removeAll bool) error {
 	return fmt.Errorf("json backend not available")
 }
-func (s *jsonStore) UpdateRecurringExpense(userID, id string, recurringExpense RecurringExpense, updateAll bool) error {
-	return fmt.Errorf("json backend not available")
+func (s *jsonStore) UpdateRecurringExpense(userID, id string, recurringExpense RecurringExpense, updateAll bool, enc *encryption.Manager) error {
+    return fmt.Errorf("json backend not available")
 }
 func (s *jsonStore) GetAllExpenses(userID string) ([]Expense, error) {
 	return nil, fmt.Errorf("json backend not available")

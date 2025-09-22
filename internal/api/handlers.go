@@ -266,6 +266,15 @@ func (h *Handler) AddExpense(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Invalid request body"})
 		return
 	}
+	manager, err := h.encryptionManagerFromRequest(r)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return
+	}
+	if err := decryptExpense(manager, &expense); err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return
+	}
 	if err := expense.Validate(); err != nil {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 		return
@@ -274,6 +283,10 @@ func (h *Handler) AddExpense(w http.ResponseWriter, r *http.Request) {
 		expense.Date = time.Now()
 	}
 	expense.UserID = userCtx.ID
+	if err := ensureExpenseBlob(manager, &expense); err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return
+	}
 	if err := h.storage.AddExpense(userCtx.ID, expense); err != nil {
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to save expense"})
 		log.Printf("API ERROR: Failed to save expense: %v\n", err)
@@ -292,13 +305,26 @@ func (h *Handler) GetExpenses(w http.ResponseWriter, r *http.Request) {
 		unauthorized(w)
 		return
 	}
-	expenses, err := h.storage.GetAllExpenses(userCtx.ID)
+	manager, err := h.encryptionManagerFromRequest(r)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to retrieve expenses"})
-		log.Printf("API ERROR: Failed to retrieve expenses: %v\n", err)
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 		return
 	}
-	writeJSON(w, http.StatusOK, expenses)
+    expenses, err := h.storage.GetAllExpenses(userCtx.ID)
+    if err != nil {
+        writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to retrieve expenses"})
+        log.Printf("API ERROR: Failed to retrieve expenses: %v\n", err)
+        return
+    }
+    if manager != nil {
+        for i := range expenses {
+            // Decrypt blob so frontend receives usable fields
+            if err := decryptExpense(manager, &expenses[i]); err != nil {
+                log.Printf("API ERROR: Failed to decrypt expense %s: %v\n", expenses[i].ID, err)
+            }
+        }
+    }
+    writeJSON(w, http.StatusOK, expenses)
 }
 
 func (h *Handler) EditExpense(w http.ResponseWriter, r *http.Request) {
@@ -321,7 +347,23 @@ func (h *Handler) EditExpense(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Invalid request body"})
 		return
 	}
+	manager, err := h.encryptionManagerFromRequest(r)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return
+	}
+	if err := decryptExpense(manager, &expense); err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return
+	}
 	if err := expense.Validate(); err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return
+	}
+	if expense.ID == "" {
+		expense.ID = id
+	}
+	if err := ensureExpenseBlob(manager, &expense); err != nil {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 		return
 	}
@@ -400,16 +442,29 @@ func (h *Handler) AddRecurringExpense(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Invalid request body"})
 		return
 	}
+	manager, err := h.encryptionManagerFromRequest(r)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return
+	}
+	if err := decryptRecurring(manager, &re); err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return
+	}
 	if err := re.Validate(); err != nil {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 		return
 	}
 	re.UserID = userCtx.ID
-	if err := h.storage.AddRecurringExpense(userCtx.ID, re); err != nil {
-		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to add recurring expense"})
-		log.Printf("API ERROR: Failed to add recurring expense: %v\n", err)
+	if err := ensureRecurringBlob(manager, &re); err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 		return
 	}
+    if err := h.storage.AddRecurringExpense(userCtx.ID, re, manager); err != nil {
+        writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to add recurring expense"})
+        log.Printf("API ERROR: Failed to add recurring expense: %v\n", err)
+        return
+    }
 	writeJSON(w, http.StatusCreated, re)
 }
 
@@ -423,13 +478,26 @@ func (h *Handler) GetRecurringExpenses(w http.ResponseWriter, r *http.Request) {
 		unauthorized(w)
 		return
 	}
-	res, err := h.storage.GetRecurringExpenses(userCtx.ID)
+	manager, err := h.encryptionManagerFromRequest(r)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to get recurring expenses"})
-		log.Printf("API ERROR: Failed to get recurring expenses: %v\n", err)
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 		return
 	}
-	writeJSON(w, http.StatusOK, res)
+    res, err := h.storage.GetRecurringExpenses(userCtx.ID)
+    if err != nil {
+        writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to get recurring expenses"})
+        log.Printf("API ERROR: Failed to get recurring expenses: %v\n", err)
+        return
+    }
+    if manager != nil {
+        for i := range res {
+            // Decrypt blob so frontend receives usable fields
+            if err := decryptRecurring(manager, &res[i]); err != nil {
+                log.Printf("API ERROR: Failed to decrypt recurring expense %s: %v\n", res[i].ID, err)
+            }
+        }
+    }
+    writeJSON(w, http.StatusOK, res)
 }
 
 func (h *Handler) UpdateRecurringExpense(w http.ResponseWriter, r *http.Request) {
@@ -454,16 +522,32 @@ func (h *Handler) UpdateRecurringExpense(w http.ResponseWriter, r *http.Request)
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Invalid request body"})
 		return
 	}
+	manager, err := h.encryptionManagerFromRequest(r)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return
+	}
+	if err := decryptRecurring(manager, &re); err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return
+	}
 	if err := re.Validate(); err != nil {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 		return
 	}
 	re.UserID = userCtx.ID
-	if err := h.storage.UpdateRecurringExpense(userCtx.ID, id, re, updateAll); err != nil {
-		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to update recurring expense"})
-		log.Printf("API ERROR: Failed to update recurring expense: %v\n", err)
+	if re.ID == "" {
+		re.ID = id
+	}
+	if err := ensureRecurringBlob(manager, &re); err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 		return
 	}
+    if err := h.storage.UpdateRecurringExpense(userCtx.ID, id, re, updateAll, manager); err != nil {
+        writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to update recurring expense"})
+        log.Printf("API ERROR: Failed to update recurring expense: %v\n", err)
+        return
+    }
 	writeJSON(w, http.StatusOK, map[string]string{"status": "success"})
 }
 
