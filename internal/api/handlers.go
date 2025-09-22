@@ -447,20 +447,27 @@ func (h *Handler) AddRecurringExpense(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 		return
 	}
-	if err := decryptRecurring(manager, &re); err != nil {
-		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
-		return
-	}
+    if err := decryptRecurring(manager, &re); err != nil {
+        writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+        return
+    }
 	if err := re.Validate(); err != nil {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 		return
 	}
-	re.UserID = userCtx.ID
-	if err := ensureRecurringBlob(manager, &re); err != nil {
-		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
-		return
-	}
-    if err := h.storage.AddRecurringExpense(userCtx.ID, re, manager); err != nil {
+    re.UserID = userCtx.ID
+    // Choose effective manager: client-supplied or server fallback
+    effManager := manager
+    if effManager == nil {
+        if srv, _ := serverEncryptionManager(); srv != nil {
+            effManager = srv
+        }
+    }
+    if err := ensureRecurringBlob(effManager, &re); err != nil {
+        writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+        return
+    }
+    if err := h.storage.AddRecurringExpense(userCtx.ID, re, effManager); err != nil {
         writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to add recurring expense"})
         log.Printf("API ERROR: Failed to add recurring expense: %v\n", err)
         return
@@ -527,23 +534,29 @@ func (h *Handler) UpdateRecurringExpense(w http.ResponseWriter, r *http.Request)
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 		return
 	}
-	if err := decryptRecurring(manager, &re); err != nil {
-		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
-		return
-	}
+    if err := decryptRecurring(manager, &re); err != nil {
+        writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+        return
+    }
 	if err := re.Validate(); err != nil {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 		return
 	}
-	re.UserID = userCtx.ID
-	if re.ID == "" {
-		re.ID = id
-	}
-	if err := ensureRecurringBlob(manager, &re); err != nil {
-		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
-		return
-	}
-    if err := h.storage.UpdateRecurringExpense(userCtx.ID, id, re, updateAll, manager); err != nil {
+    re.UserID = userCtx.ID
+    if re.ID == "" {
+        re.ID = id
+    }
+    effManager := manager
+    if effManager == nil {
+        if srv, _ := serverEncryptionManager(); srv != nil {
+            effManager = srv
+        }
+    }
+    if err := ensureRecurringBlob(effManager, &re); err != nil {
+        writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+        return
+    }
+    if err := h.storage.UpdateRecurringExpense(userCtx.ID, id, re, updateAll, effManager); err != nil {
         writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to update recurring expense"})
         log.Printf("API ERROR: Failed to update recurring expense: %v\n", err)
         return
