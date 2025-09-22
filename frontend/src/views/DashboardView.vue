@@ -150,6 +150,7 @@ import state, { loadInitialData, refreshExpenses } from '../stores/appState';
 import TagInput from '../components/TagInput.vue';
 import { formatMonth, getMonthExpenses, formatCurrency as formatCurrencyRaw, getISODateWithLocalTime, colorPalette } from '../lib/utils';
 import { apiFetch } from '../lib/api';
+import { encryptPayload } from '../lib/encryption';
 
 Chart.register(...registerables);
 Chart.defaults.color = '#b3b3b3';
@@ -412,6 +413,10 @@ async function submitExpense() {
     date: getISODateWithLocalTime(form.value.date),
     tags: form.value.tags,
   };
+  const blob = await encryptPayload(body);
+  if (blob) {
+    body.blob = blob;
+  }
   try {
     const response = await apiFetch('/expense', {
       method: 'PUT',

@@ -160,6 +160,7 @@ import { ref, computed, watch, onMounted } from 'vue';
 import TagInput from '../components/TagInput.vue';
 import state, { loadInitialData, refreshExpenses } from '../stores/appState';
 import { apiFetch } from '../lib/api';
+import { encryptPayload } from '../lib/encryption';
 import { formatMonth, getMonthExpenses, getISODateWithLocalTime, formatDateFromUTC, formatCurrency as formatCurrencyRaw } from '../lib/utils';
 
 const currentDate = ref(new Date());
@@ -340,6 +341,10 @@ async function submitExpense() {
     date: getISODateWithLocalTime(form.value.date),
     tags: form.value.tags,
   };
+  const blob = await encryptPayload(payload);
+  if (blob) {
+    payload.blob = blob;
+  }
   const url = editId.value ? `/expense/edit?id=${editId.value}` : '/expense';
   try {
     const response = await apiFetch(url, {

@@ -24,12 +24,20 @@ func (h *Handler) ExportCSV(w http.ResponseWriter, r *http.Request) {
 		unauthorized(w)
 		return
 	}
-	expenses, err := h.storage.GetAllExpenses(userCtx.ID)
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to retrieve expenses"})
-		log.Printf("API ERROR: Failed to retrieve expenses for CSV export: %v\n", err)
-		return
-	}
+    expenses, err := h.storage.GetAllExpenses(userCtx.ID)
+    if err != nil {
+        writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to retrieve expenses"})
+        log.Printf("API ERROR: Failed to retrieve expenses for CSV export: %v\n", err)
+        return
+    }
+    // If client provided encryption key, decrypt blobs for export
+    if manager, err := h.encryptionManagerFromRequest(r); err == nil && manager != nil {
+        for i := range expenses {
+            if err := decryptExpense(manager, &expenses[i]); err != nil {
+                log.Printf("API ERROR: Failed to decrypt expense %s for CSV export: %v\n", expenses[i].ID, err)
+            }
+        }
+    }
 	w.Header().Set("Content-Type", "text/csv")
 	w.Header().Set("Content-Disposition", "attachment; filename=expenses.csv")
 	writer := csv.NewWriter(w)
@@ -70,6 +78,11 @@ func (h *Handler) ImportCSV(w http.ResponseWriter, r *http.Request) {
 	userCtx, err := h.userFromRequest(r)
 	if err != nil {
 		unauthorized(w)
+		return
+	}
+	manager, err := h.encryptionManagerFromRequest(r)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 		return
 	}
 	if err := r.ParseMultipartForm(10 << 20); err != nil { // 10MB max file size
@@ -200,6 +213,11 @@ func (h *Handler) ImportCSV(w http.ResponseWriter, r *http.Request) {
 			skippedCount++
 			continue
 		}
+		if err := ensureExpenseBlob(manager, &expense); err != nil {
+			log.Printf("Warning: Skipping row %d due to encryption error: %v\n", i+2, err)
+			skippedCount++
+			continue
+		}
 		if err := h.storage.AddExpense(userCtx.ID, expense); err != nil {
 			log.Printf("Error: Could not add expense from row %d: %v\n", i+2, err)
 			skippedCount++
@@ -234,6 +252,11 @@ func (h *Handler) ImportOldCSV(w http.ResponseWriter, r *http.Request) {
 	userCtx, err := h.userFromRequest(r)
 	if err != nil {
 		unauthorized(w)
+		return
+	}
+	manager, err := h.encryptionManagerFromRequest(r)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 		return
 	}
 	if err := r.ParseMultipartForm(10 << 20); err != nil { // 10MB max file size
@@ -319,6 +342,11 @@ func (h *Handler) ImportOldCSV(w http.ResponseWriter, r *http.Request) {
 		}
 		if err := expense.Validate(); err != nil {
 			log.Printf("Warning: Skipping row %d due to validation error: %v\n", i+2, err)
+			skippedCount++
+			continue
+		}
+		if err := ensureExpenseBlob(manager, &expense); err != nil {
+			log.Printf("Warning: Skipping row %d due to encryption error: %v\n", i+2, err)
 			skippedCount++
 			continue
 		}

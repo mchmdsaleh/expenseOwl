@@ -51,6 +51,8 @@
 import { computed } from 'vue';
 import { useRoute, useRouter, RouterLink, RouterView } from 'vue-router';
 import { apiFetch, clearAuthToken } from './lib/api';
+import { clearCipher } from './lib/cipher';
+import { resetEncryptionCache } from './lib/encryption';
 import state, { resetState } from './stores/appState';
 
 const route = useRoute();
@@ -80,6 +82,8 @@ async function handleLogout() {
     console.error('Failed to log out', error);
   } finally {
     clearAuthToken();
+    clearCipher();
+    resetEncryptionCache();
     resetState();
     router.push({ path: '/login' });
   }

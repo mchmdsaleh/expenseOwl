@@ -1,11 +1,13 @@
 package storage
 
 import (
-	"fmt"
-	"os"
-	"regexp"
-	"strings"
-	"time"
+    "fmt"
+    "os"
+    "regexp"
+    "strings"
+    "time"
+    
+    "github.com/tanq16/expenseowl/internal/encryption"
 )
 
 // Storage interface for all storage types
@@ -27,9 +29,9 @@ type Storage interface {
 	// Recurring Expenses
 	GetRecurringExpenses(userID string) ([]RecurringExpense, error)
 	GetRecurringExpense(userID, id string) (RecurringExpense, error)
-	AddRecurringExpense(userID string, recurringExpense RecurringExpense) error
+    AddRecurringExpense(userID string, recurringExpense RecurringExpense, enc *encryption.Manager) error
 	RemoveRecurringExpense(userID, id string, removeAll bool) error
-	UpdateRecurringExpense(userID, id string, recurringExpense RecurringExpense, updateAll bool) error
+    UpdateRecurringExpense(userID, id string, recurringExpense RecurringExpense, updateAll bool, enc *encryption.Manager) error
 
 	// Expenses
 	GetAllExpenses(userID string) ([]Expense, error)
@@ -65,6 +67,7 @@ type RecurringExpense struct {
 	StartDate   time.Time `json:"startDate"`   // date of the first occurrence
 	Interval    string    `json:"interval"`    // daily, weekly, monthly, yearly
 	Occurrences int       `json:"occurrences"` // 0 for 3000 occurrences (heuristic)
+	Blob        string    `json:"blob,omitempty"`
 }
 
 type BackendType string
@@ -94,6 +97,7 @@ type Expense struct {
 	Amount      float64   `json:"amount"`
 	Currency    string    `json:"currency"`
 	Date        time.Time `json:"date"`
+	Blob        string    `json:"blob,omitempty"`
 }
 
 func (c *Config) SetBaseConfig() {
@@ -218,9 +222,10 @@ func (e *RecurringExpense) Validate() error {
 		}
 		e.Tags = cleanedTags
 	}
-	if e.Occurrences < 2 {
-		return fmt.Errorf("at least 2 occurences required to recur")
-	}
+    // Allow 0 (interpreted as open-ended/heuristic) or >= 2 occurrences.
+    if e.Occurrences != 0 && e.Occurrences < 2 {
+        return fmt.Errorf("occurrences must be 0 or at least 2")
+    }
 	if e.StartDate.IsZero() {
 		return fmt.Errorf("start date for recurring expense must be specified")
 	}

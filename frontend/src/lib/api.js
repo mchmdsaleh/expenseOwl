@@ -1,3 +1,6 @@
+import { getCipher, clearCipher } from './cipher';
+import { resetEncryptionCache } from './encryption';
+
 const TOKEN_KEY = 'expenseowl_token';
 
 export function getAuthToken() {
@@ -33,9 +36,15 @@ export async function apiFetch(url, options = {}) {
   if (token && !opts.headers.Authorization) {
     opts.headers.Authorization = `Bearer ${token}`;
   }
+  const cipher = getCipher();
+  if (cipher && !opts.headers['X-Encryption-Key']) {
+    opts.headers['X-Encryption-Key'] = cipher;
+  }
   const response = await fetch(url, opts);
   if (response.status === 401) {
     clearAuthToken();
+    clearCipher();
+    resetEncryptionCache();
     if (typeof window !== 'undefined') {
       const target = encodeURIComponent(window.location.pathname + window.location.search);
       window.location.href = `/login?redirect=${target}`;
