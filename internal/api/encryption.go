@@ -1,9 +1,12 @@
 package api
 
 import (
+    "crypto/sha256"
+    "encoding/hex"
     "encoding/json"
     "fmt"
     "net/http"
+    "os"
     "strings"
 
     "github.com/tanq16/expenseowl/internal/encryption"
@@ -11,6 +14,38 @@ import (
 )
 
 const encryptionHeader = "X-Encryption-Key"
+
+// serverEncryptionManager returns a manager based on a server-side key.
+// Set EXTERNAL_ENCRYPTION_KEY to enable automatic at-rest encryption for
+// inbound integrations (e.g., n8n) without requiring the client key.
+func serverEncryptionManager() (*encryption.Manager, error) {
+    key := strings.TrimSpace(os.Getenv("EXTERNAL_ENCRYPTION_KEY"))
+    if key == "" {
+        return nil, nil
+    }
+    return encryption.NewManagerFromCipher(key)
+}
+
+// deriveExternalCipher returns a hex(SHA-256(EXTERNAL_ENCRYPTION_KEY + ":" + userID)).
+// Returns empty string if the base key is not configured or userID is empty.
+func deriveExternalCipher(userID string) string {
+    base := strings.TrimSpace(os.Getenv("EXTERNAL_ENCRYPTION_KEY"))
+    uid := strings.TrimSpace(userID)
+    if base == "" || uid == "" {
+        return ""
+    }
+    h := sha256.Sum256([]byte(base + ":" + uid))
+    return hex.EncodeToString(h[:])
+}
+
+// externalManagerForUser returns an encryption manager derived per-user when configured.
+func externalManagerForUser(userID string) (*encryption.Manager, error) {
+    cipher := deriveExternalCipher(userID)
+    if cipher == "" {
+        return nil, nil
+    }
+    return encryption.NewManagerFromCipher(cipher)
+}
 
 func (h *Handler) encryptionManagerFromRequest(r *http.Request) (*encryption.Manager, error) {
 	cipher := strings.TrimSpace(r.Header.Get(encryptionHeader))
@@ -28,47 +63,60 @@ func decryptExpense(manager *encryption.Manager, expense *storage.Expense) error
     if expense == nil || expense.Blob == "" {
         return nil
     }
-    // If no manager is provided, attempt to parse plaintext JSON blobs.
-    if manager == nil {
-        var plain storage.Expense
-        if err := json.Unmarshal([]byte(expense.Blob), &plain); err != nil {
-            return fmt.Errorf("encrypted expense provided without %s header", encryptionHeader)
-        }
-        if plain.ID == "" {
-            plain.ID = expense.ID
-        }
-        if plain.UserID == "" {
-            plain.UserID = expense.UserID
-        }
-        plain.Blob = expense.Blob
-        *expense = plain
-        return nil
-    }
+    // Try in order: user manager, per-user derived manager, server fallback, plaintext JSON
     var decrypted storage.Expense
-    if err := manager.Decrypt(expense.Blob, &decrypted); err != nil {
-        // Fallback: try to parse as plaintext JSON if decryption fails.
-        var plain storage.Expense
-        if jsonErr := json.Unmarshal([]byte(expense.Blob), &plain); jsonErr != nil {
-            return fmt.Errorf("failed to decrypt expense: %w", err)
+    if manager != nil {
+        if err := manager.Decrypt(expense.Blob, &decrypted); err == nil {
+            if decrypted.ID == "" {
+                decrypted.ID = expense.ID
+            }
+            if decrypted.UserID == "" {
+                decrypted.UserID = expense.UserID
+            }
+            decrypted.Blob = expense.Blob
+            *expense = decrypted
+            return nil
         }
-        if plain.ID == "" {
-            plain.ID = expense.ID
+    }
+    if ext, _ := externalManagerForUser(expense.UserID); ext != nil {
+        if err := ext.Decrypt(expense.Blob, &decrypted); err == nil {
+            if decrypted.ID == "" {
+                decrypted.ID = expense.ID
+            }
+            if decrypted.UserID == "" {
+                decrypted.UserID = expense.UserID
+            }
+            decrypted.Blob = expense.Blob
+            *expense = decrypted
+            return nil
         }
-        if plain.UserID == "" {
-            plain.UserID = expense.UserID
+    }
+    if srv, _ := serverEncryptionManager(); srv != nil {
+        if err := srv.Decrypt(expense.Blob, &decrypted); err == nil {
+            if decrypted.ID == "" {
+                decrypted.ID = expense.ID
+            }
+            if decrypted.UserID == "" {
+                decrypted.UserID = expense.UserID
+            }
+            decrypted.Blob = expense.Blob
+            *expense = decrypted
+            return nil
         }
-        plain.Blob = expense.Blob
-        *expense = plain
-        return nil
     }
-    if decrypted.ID == "" {
-        decrypted.ID = expense.ID
+    // Fallback: parse as plaintext JSON
+    var plain storage.Expense
+    if err := json.Unmarshal([]byte(expense.Blob), &plain); err != nil {
+        return fmt.Errorf("encrypted expense provided without %s header", encryptionHeader)
     }
-    if decrypted.UserID == "" {
-        decrypted.UserID = expense.UserID
+    if plain.ID == "" {
+        plain.ID = expense.ID
     }
-    decrypted.Blob = expense.Blob
-    *expense = decrypted
+    if plain.UserID == "" {
+        plain.UserID = expense.UserID
+    }
+    plain.Blob = expense.Blob
+    *expense = plain
     return nil
 }
 
@@ -78,6 +126,7 @@ func ensureExpenseBlob(manager *encryption.Manager, expense *storage.Expense) er
     }
     payload := *expense
     payload.Blob = ""
+    // Prefer client-supplied key, else per-user derived key, else server key, else plaintext
     if manager != nil {
         blob, err := manager.Encrypt(payload)
         if err != nil {
@@ -86,7 +135,22 @@ func ensureExpenseBlob(manager *encryption.Manager, expense *storage.Expense) er
         expense.Blob = blob
         return nil
     }
-    // No encryption: store plaintext JSON blob
+    if ext, _ := externalManagerForUser(expense.UserID); ext != nil {
+        blob, err := ext.Encrypt(payload)
+        if err != nil {
+            return fmt.Errorf("failed to encrypt expense: %w", err)
+        }
+        expense.Blob = blob
+        return nil
+    }
+    if srv, _ := serverEncryptionManager(); srv != nil {
+        blob, err := srv.Encrypt(payload)
+        if err != nil {
+            return fmt.Errorf("failed to encrypt expense: %w", err)
+        }
+        expense.Blob = blob
+        return nil
+    }
     raw, err := json.Marshal(payload)
     if err != nil {
         return fmt.Errorf("failed to serialize expense: %w", err)
@@ -99,46 +163,59 @@ func decryptRecurring(manager *encryption.Manager, recurring *storage.RecurringE
     if recurring == nil || recurring.Blob == "" {
         return nil
     }
-    if manager == nil {
-        var plain storage.RecurringExpense
-        if err := json.Unmarshal([]byte(recurring.Blob), &plain); err != nil {
-            return fmt.Errorf("encrypted recurring expense provided without %s header", encryptionHeader)
-        }
-        if plain.ID == "" {
-            plain.ID = recurring.ID
-        }
-        if plain.UserID == "" {
-            plain.UserID = recurring.UserID
-        }
-        plain.Blob = recurring.Blob
-        *recurring = plain
-        return nil
-    }
+    // Try: user manager, per-user derived manager, server manager, plaintext
     var decrypted storage.RecurringExpense
-    if err := manager.Decrypt(recurring.Blob, &decrypted); err != nil {
-        // Fallback to plaintext JSON if decryption fails
-        var plain storage.RecurringExpense
-        if jsonErr := json.Unmarshal([]byte(recurring.Blob), &plain); jsonErr != nil {
-            return fmt.Errorf("failed to decrypt recurring expense: %w", err)
+    if manager != nil {
+        if err := manager.Decrypt(recurring.Blob, &decrypted); err == nil {
+            if decrypted.ID == "" {
+                decrypted.ID = recurring.ID
+            }
+            if decrypted.UserID == "" {
+                decrypted.UserID = recurring.UserID
+            }
+            decrypted.Blob = recurring.Blob
+            *recurring = decrypted
+            return nil
         }
-        if plain.ID == "" {
-            plain.ID = recurring.ID
+    }
+    if ext, _ := externalManagerForUser(recurring.UserID); ext != nil {
+        if err := ext.Decrypt(recurring.Blob, &decrypted); err == nil {
+            if decrypted.ID == "" {
+                decrypted.ID = recurring.ID
+            }
+            if decrypted.UserID == "" {
+                decrypted.UserID = recurring.UserID
+            }
+            decrypted.Blob = recurring.Blob
+            *recurring = decrypted
+            return nil
         }
-        if plain.UserID == "" {
-            plain.UserID = recurring.UserID
+    }
+    if srv, _ := serverEncryptionManager(); srv != nil {
+        if err := srv.Decrypt(recurring.Blob, &decrypted); err == nil {
+            if decrypted.ID == "" {
+                decrypted.ID = recurring.ID
+            }
+            if decrypted.UserID == "" {
+                decrypted.UserID = recurring.UserID
+            }
+            decrypted.Blob = recurring.Blob
+            *recurring = decrypted
+            return nil
         }
-        plain.Blob = recurring.Blob
-        *recurring = plain
-        return nil
     }
-    if decrypted.ID == "" {
-        decrypted.ID = recurring.ID
+    var plain storage.RecurringExpense
+    if err := json.Unmarshal([]byte(recurring.Blob), &plain); err != nil {
+        return fmt.Errorf("encrypted recurring expense provided without %s header", encryptionHeader)
     }
-    if decrypted.UserID == "" {
-        decrypted.UserID = recurring.UserID
+    if plain.ID == "" {
+        plain.ID = recurring.ID
     }
-    decrypted.Blob = recurring.Blob
-    *recurring = decrypted
+    if plain.UserID == "" {
+        plain.UserID = recurring.UserID
+    }
+    plain.Blob = recurring.Blob
+    *recurring = plain
     return nil
 }
 
@@ -156,7 +233,22 @@ func ensureRecurringBlob(manager *encryption.Manager, recurring *storage.Recurri
         recurring.Blob = blob
         return nil
     }
-    // No encryption: store plaintext JSON blob
+    if ext, _ := externalManagerForUser(recurring.UserID); ext != nil {
+        blob, err := ext.Encrypt(payload)
+        if err != nil {
+            return fmt.Errorf("failed to encrypt recurring expense: %w", err)
+        }
+        recurring.Blob = blob
+        return nil
+    }
+    if srv, _ := serverEncryptionManager(); srv != nil {
+        blob, err := srv.Encrypt(payload)
+        if err != nil {
+            return fmt.Errorf("failed to encrypt recurring expense: %w", err)
+        }
+        recurring.Blob = blob
+        return nil
+    }
     raw, err := json.Marshal(payload)
     if err != nil {
         return fmt.Errorf("failed to serialize recurring expense: %w", err)
