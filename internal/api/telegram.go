@@ -144,31 +144,40 @@ func (h *Handler) TelegramResolve(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    // Allow resolving either by chatId (from Telegram bot) or by ingest token via headers.
+    // Allow resolving either by chatId (preferred) or by Bearer token (Authorization header only).
     var body struct {
         ChatID int64 `json:"chatId"`
     }
-    _ = json.NewDecoder(r.Body).Decode(&body) // best-effort decode; missing body is fine if token is provided
+    _ = json.NewDecoder(r.Body).Decode(&body) // best-effort decode; body may be empty
 
-    // Try token-based resolution first if a token is provided in headers
-    token := r.Header.Get("X-API-Key")
-    if token == "" {
-        // Also support Authorization: Bearer <token>
+    var link *telegram.Link
+    var err error
+
+    // If chatId is provided, prefer resolving by chat and ignore Authorization headers entirely.
+    if body.ChatID != 0 {
+        link, err = h.telegram.ResolveChat(r.Context(), body.ChatID)
+    } else {
+        // Fallback: allow Authorization: Bearer <ingest-token> only (do not accept X-API-Key here)
         authHeader := r.Header.Get("Authorization")
         if authHeader != "" {
             parts := strings.Split(authHeader, " ")
             if len(parts) == 2 && strings.ToLower(parts[0]) == "bearer" {
-                token = parts[1]
+                token := parts[1]
+                link, err = h.telegram.ResolveToken(r.Context(), token)
+                if err != nil {
+                    if errors.Is(err, telegram.ErrTokenInvalid) || errors.Is(err, telegram.ErrNotFound) {
+                        writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: "invalid or missing token"})
+                        return
+                    }
+                }
+            } else {
+                writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: "invalid authorization header"})
+                return
             }
+        } else {
+            writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "chatId or Authorization Bearer token required"})
+            return
         }
-    }
-
-    var link *telegram.Link
-    var err error
-    if token != "" {
-        link, err = h.telegram.ResolveToken(r.Context(), token)
-    } else {
-        link, err = h.telegram.ResolveChat(r.Context(), body.ChatID)
     }
     if err != nil {
         status := http.StatusInternalServerError
