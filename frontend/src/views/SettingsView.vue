@@ -131,9 +131,27 @@
       <div :class="cardClass">
         <h2 align="center" class="text-xl font-semibold text-[var(--text-primary)]">Import/Export Data</h2>
         <div class="mt-4 flex flex-col items-center justify-center gap-3 text-xs md:flex-row md:text-sm">
-          <a :class="[primaryButtonClass, 'text-xs md:text-sm w-full md:w-auto whitespace-nowrap']" href="/export/csv" download="expenses.csv">Export to CSV</a>
+          <button
+            type="button"
+            :class="[primaryButtonClass, 'text-xs md:text-sm w-full md:w-auto whitespace-nowrap']"
+            @click="exportCsv"
+            :disabled="exportingCsv"
+          >
+            {{ exportingCsv ? 'Exporting…' : 'Export to CSV' }}
+          </button>
           <label :class="[primaryButtonClass, 'text-xs md:text-sm w-full md:w-auto whitespace-nowrap']" for="csv-import-file">Import from CSV</label>
           <input id="csv-import-file" ref="csvImportRef" type="file" accept=".csv" hidden @change="(event) => handleImport(event, '/import/csv')" />
+        </div>
+        <div
+          v-if="exportMessage.text"
+          :class="[
+            'mt-3 rounded-full px-4 py-2 text-center text-sm font-medium',
+            exportMessage.type === 'success'
+              ? 'bg-emerald-500/20 text-emerald-200'
+              : 'bg-rose-500/20 text-rose-200'
+          ]"
+        >
+          {{ exportMessage.text }}
         </div>
         <div
           v-if="importMessage.text"
@@ -341,6 +359,8 @@ const theme = ref(localStorage.getItem('theme') || 'system');
 const themeMessage = ref({ text: '', type: '' });
 
 const importMessage = ref({ text: '', type: '' });
+const exportMessage = ref({ text: '', type: '' });
+const exportingCsv = ref(false);
 const importSummary = ref(null);
 const csvImportRef = ref(null);
 const csvImportOldRef = ref(null);
@@ -499,6 +519,13 @@ function setCurrencyMessage(text, type) {
   dismissAfter(() => (currencyMessage.value = { text: '', type: '' }));
 }
 
+function setExportMessage(text, type) {
+  exportMessage.value = { text, type };
+  if (text) {
+    dismissAfter(() => (exportMessage.value = { text: '', type: '' }));
+  }
+}
+
 function loadMoreCategories() {
   categoryDisplayCount.value = Math.min(categoryDisplayCount.value + 5, categories.value.length);
 }
@@ -532,6 +559,37 @@ async function saveCurrency() {
   } catch (error) {
     console.error('Failed to save currency', error);
     setCurrencyMessage(error.message || 'Failed to save currency', 'error');
+  }
+}
+
+async function exportCsv() {
+  if (exportingCsv.value) return;
+  exportingCsv.value = true;
+  setExportMessage('', '');
+  try {
+    const response = await apiFetch('/export/csv', {
+      method: 'GET',
+      headers: { Accept: 'text/csv' },
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || 'Failed to export CSV');
+    }
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'expenses.csv';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+    setExportMessage('Download should begin shortly.', 'success');
+  } catch (error) {
+    console.error('Failed to export CSV', error);
+    setExportMessage(error.message || 'Failed to export CSV', 'error');
+  } finally {
+    exportingCsv.value = false;
   }
 }
 
