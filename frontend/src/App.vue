@@ -1,10 +1,9 @@
 <template>
   <RouterView v-if="isAuthRoute" />
-  <div
-    v-else
-    class="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-6 px-4 pb-10 pt-6"
-  >
-    <header class="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--border)] pb-4">
+  <div v-else class="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-6 px-4 pb-10">
+    <header
+      class="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-4 border-b border-[var(--border)] bg-[var(--bg-primary)] py-4"
+    >
       <nav class="flex flex-wrap items-center gap-3">
         <RouterLink
           v-for="link in links"
