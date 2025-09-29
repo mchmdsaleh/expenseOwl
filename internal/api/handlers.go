@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -248,6 +249,162 @@ func (h *Handler) UpdateStartDate(w http.ResponseWriter, r *http.Request) {
 }
 
 // ------------------------------------------------------------
+// Budget Handlers
+// ------------------------------------------------------------
+
+func (h *Handler) GetBudgets(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
+		return
+	}
+	userCtx, err := h.userFromRequest(r)
+	if err != nil {
+		unauthorized(w)
+		return
+	}
+	budgets, err := h.storage.GetBudgets(userCtx.ID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to load budgets"})
+		log.Printf("API ERROR: Failed to load budgets: %v\n", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, budgets)
+}
+
+func (h *Handler) AddBudget(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPut {
+		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
+		return
+	}
+	userCtx, err := h.userFromRequest(r)
+	if err != nil {
+		unauthorized(w)
+		return
+	}
+	var payload storage.Budget
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Invalid request body"})
+		return
+	}
+	normalizedCategory, err := h.ensureBudgetCategory(userCtx.ID, payload.Category)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return
+	}
+	payload.Category = normalizedCategory
+	if payload.Amount <= 0 {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Amount must be greater than 0"})
+		return
+	}
+	payload.UserID = userCtx.ID
+	if payload.Period == "" {
+		payload.Period = storage.BudgetPeriodMonthly
+	}
+	budget, err := h.storage.AddBudget(userCtx.ID, payload)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, budget)
+}
+
+func (h *Handler) UpdateBudget(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPut {
+		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
+		return
+	}
+	userCtx, err := h.userFromRequest(r)
+	if err != nil {
+		unauthorized(w)
+		return
+	}
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "ID parameter is required"})
+		return
+	}
+	var payload storage.Budget
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Invalid request body"})
+		return
+	}
+	if payload.Category == "" {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Category is required"})
+		return
+	}
+	normalizedCategory, err := h.ensureBudgetCategory(userCtx.ID, payload.Category)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return
+	}
+	payload.Category = normalizedCategory
+	if payload.Amount <= 0 {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Amount must be greater than 0"})
+		return
+	}
+	payload.UserID = userCtx.ID
+	if payload.Period == "" {
+		payload.Period = storage.BudgetPeriodMonthly
+	}
+	budget, err := h.storage.UpdateBudget(userCtx.ID, id, payload)
+	if err != nil {
+		status := http.StatusBadRequest
+		if strings.Contains(strings.ToLower(err.Error()), "not found") {
+			status = http.StatusNotFound
+		}
+		writeJSON(w, status, ErrorResponse{Error: err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, budget)
+}
+
+func (h *Handler) DeleteBudget(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
+		return
+	}
+	userCtx, err := h.userFromRequest(r)
+	if err != nil {
+		unauthorized(w)
+		return
+	}
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "ID parameter is required"})
+		return
+	}
+	if err := h.storage.RemoveBudget(userCtx.ID, id); err != nil {
+		status := http.StatusBadRequest
+		if strings.Contains(strings.ToLower(err.Error()), "not found") {
+			status = http.StatusNotFound
+		}
+		writeJSON(w, status, ErrorResponse{Error: err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "success"})
+}
+
+func (h *Handler) ensureBudgetCategory(userID, category string) (string, error) {
+	if category == "" {
+		return "", fmt.Errorf("category is required")
+	}
+	sanitized, err := storage.ValidateCategory(category)
+	if err != nil {
+		return "", err
+	}
+	categories, err := h.storage.GetCategories(userID)
+	if err != nil {
+		return "", fmt.Errorf("failed to validate category: %w", err)
+	}
+	for _, existing := range categories {
+		if strings.EqualFold(existing, sanitized) {
+			return existing, nil
+		}
+	}
+	return "", fmt.Errorf("category '%s' is not configured", category)
+}
+
+// ------------------------------------------------------------
 // Expense Handlers
 // ------------------------------------------------------------
 
@@ -310,21 +467,21 @@ func (h *Handler) GetExpenses(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 		return
 	}
-    expenses, err := h.storage.GetAllExpenses(userCtx.ID)
-    if err != nil {
-        writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to retrieve expenses"})
-        log.Printf("API ERROR: Failed to retrieve expenses: %v\n", err)
-        return
-    }
-    if manager != nil {
-        for i := range expenses {
-            // Decrypt blob so frontend receives usable fields
-            if err := decryptExpense(manager, &expenses[i]); err != nil {
-                log.Printf("API ERROR: Failed to decrypt expense %s: %v\n", expenses[i].ID, err)
-            }
-        }
-    }
-    writeJSON(w, http.StatusOK, expenses)
+	expenses, err := h.storage.GetAllExpenses(userCtx.ID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to retrieve expenses"})
+		log.Printf("API ERROR: Failed to retrieve expenses: %v\n", err)
+		return
+	}
+	if manager != nil {
+		for i := range expenses {
+			// Decrypt blob so frontend receives usable fields
+			if err := decryptExpense(manager, &expenses[i]); err != nil {
+				log.Printf("API ERROR: Failed to decrypt expense %s: %v\n", expenses[i].ID, err)
+			}
+		}
+	}
+	writeJSON(w, http.StatusOK, expenses)
 }
 
 func (h *Handler) EditExpense(w http.ResponseWriter, r *http.Request) {
@@ -460,11 +617,11 @@ func (h *Handler) AddRecurringExpense(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 		return
 	}
-    if err := h.storage.AddRecurringExpense(userCtx.ID, re, manager); err != nil {
-        writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to add recurring expense"})
-        log.Printf("API ERROR: Failed to add recurring expense: %v\n", err)
-        return
-    }
+	if err := h.storage.AddRecurringExpense(userCtx.ID, re, manager); err != nil {
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to add recurring expense"})
+		log.Printf("API ERROR: Failed to add recurring expense: %v\n", err)
+		return
+	}
 	writeJSON(w, http.StatusCreated, re)
 }
 
@@ -483,21 +640,21 @@ func (h *Handler) GetRecurringExpenses(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 		return
 	}
-    res, err := h.storage.GetRecurringExpenses(userCtx.ID)
-    if err != nil {
-        writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to get recurring expenses"})
-        log.Printf("API ERROR: Failed to get recurring expenses: %v\n", err)
-        return
-    }
-    if manager != nil {
-        for i := range res {
-            // Decrypt blob so frontend receives usable fields
-            if err := decryptRecurring(manager, &res[i]); err != nil {
-                log.Printf("API ERROR: Failed to decrypt recurring expense %s: %v\n", res[i].ID, err)
-            }
-        }
-    }
-    writeJSON(w, http.StatusOK, res)
+	res, err := h.storage.GetRecurringExpenses(userCtx.ID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to get recurring expenses"})
+		log.Printf("API ERROR: Failed to get recurring expenses: %v\n", err)
+		return
+	}
+	if manager != nil {
+		for i := range res {
+			// Decrypt blob so frontend receives usable fields
+			if err := decryptRecurring(manager, &res[i]); err != nil {
+				log.Printf("API ERROR: Failed to decrypt recurring expense %s: %v\n", res[i].ID, err)
+			}
+		}
+	}
+	writeJSON(w, http.StatusOK, res)
 }
 
 func (h *Handler) UpdateRecurringExpense(w http.ResponseWriter, r *http.Request) {
@@ -543,11 +700,11 @@ func (h *Handler) UpdateRecurringExpense(w http.ResponseWriter, r *http.Request)
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 		return
 	}
-    if err := h.storage.UpdateRecurringExpense(userCtx.ID, id, re, updateAll, manager); err != nil {
-        writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to update recurring expense"})
-        log.Printf("API ERROR: Failed to update recurring expense: %v\n", err)
-        return
-    }
+	if err := h.storage.UpdateRecurringExpense(userCtx.ID, id, re, updateAll, manager); err != nil {
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to update recurring expense"})
+		log.Printf("API ERROR: Failed to update recurring expense: %v\n", err)
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "success"})
 }
 

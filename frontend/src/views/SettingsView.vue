@@ -60,6 +60,87 @@
             {{ categoryMessage.text }}
           </div>
         </div>
+    </div>
+  </div>
+
+    <div :class="cardClass">
+      <h2 align="center" class="text-xl font-semibold text-[var(--text-primary)]">Budget Settings</h2>
+      <form class="mt-4 grid gap-4 md:grid-cols-2" @submit.prevent="submitBudget">
+        <div class="flex flex-col gap-2">
+          <label class="text-sm font-medium text-[var(--text-secondary)]" for="budgetCategory">Category</label>
+          <select id="budgetCategory" v-model="budgetForm.category" :class="inputClass" required>
+            <option value="" disabled>Select category</option>
+            <option v-for="category in budgetCategoryOptions" :key="category" :value="category">
+              {{ category }}
+            </option>
+          </select>
+        </div>
+        <div class="flex flex-col gap-2">
+          <label class="text-sm font-medium text-[var(--text-secondary)]" for="budgetAmount">Monthly Limit</label>
+          <input
+            id="budgetAmount"
+            :value="formattedBudgetAmount"
+            inputmode="decimal"
+            :class="inputClass"
+            required
+            @input="handleBudgetAmountInput"
+            @blur="normalizeBudgetAmount"
+          />
+        </div>
+        <div class="flex flex-col gap-2 md:col-span-2 md:flex-row md:items-center md:justify-between">
+          <div class="flex gap-2">
+            <button type="submit" :class="[primaryButtonClass, 'w-full md:w-auto']">{{ budgetForm.submitLabel }}</button>
+            <button
+              v-if="budgetForm.id"
+              type="button"
+              :class="[primaryButtonClass, 'w-full md:w-auto']"
+              @click="resetBudgetForm"
+            >
+              Cancel
+            </button>
+          </div>
+          <div
+            v-if="budgetMessage.text"
+            :class="[
+              'rounded-full px-4 py-2 text-center text-sm font-medium',
+              budgetMessage.type === 'success'
+                ? 'bg-emerald-500/20 text-emerald-200'
+                : 'bg-rose-500/20 text-rose-200'
+            ]"
+          >
+            {{ budgetMessage.text }}
+          </div>
+        </div>
+      </form>
+
+      <div class="mt-6 space-y-3">
+        <template v-if="budgetList.length === 0">
+          <div
+            class="rounded-3xl border border-dashed border-[var(--border)] bg-[var(--bg-secondary)]/60 py-6 text-center text-sm italic text-[var(--text-secondary)]"
+          >
+            No budgets configured yet. Add one above to get started.
+          </div>
+        </template>
+        <template v-else>
+          <div
+            v-for="budget in budgetList"
+            :key="budget.id"
+            class="flex flex-col gap-3 rounded-3xl border border-[var(--border)] bg-[var(--bg-secondary)]/60 px-5 py-4 shadow-card backdrop-blur sm:flex-row sm:items-center sm:justify-between"
+          >
+            <div class="space-y-1 text-sm text-[var(--text-secondary)]">
+              <div class="text-base font-semibold text-[var(--text-primary)]">{{ budget.category }}</div>
+              <div>Monthly limit: <span class="font-mono text-[var(--text-primary)]">{{ formatCurrency(budget.amount) }}</span></div>
+            </div>
+            <div class="flex items-center gap-2">
+              <button type="button" :class="iconButtonTiny" @click="editBudget(budget)">
+                <i class="fa-solid fa-pen-to-square"></i>
+              </button>
+              <button type="button" :class="iconDangerButtonTiny" @click="deleteBudget(budget)">
+                <i class="fa-solid fa-trash-can"></i>
+              </button>
+            </div>
+          </div>
+        </template>
       </div>
     </div>
 
@@ -316,7 +397,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, nextTick } from 'vue';
 import TagInput from '../components/TagInput.vue';
-import state, { loadInitialData, refreshExpenses, refreshRecurringExpenses } from '../stores/appState';
+import state, { loadInitialData, refreshExpenses, refreshRecurringExpenses, refreshBudgets } from '../stores/appState';
 import { apiFetch } from '../lib/api';
 import { encryptPayload } from '../lib/encryption';
 import { currencyBehaviors, formatCurrency as formatCurrencyRaw, getISODateWithLocalTime } from '../lib/utils';
@@ -365,6 +446,10 @@ const importSummary = ref(null);
 const csvImportRef = ref(null);
 const csvImportOldRef = ref(null);
 
+const budgetForm = ref(createBudgetForm());
+const budgetMessage = ref({ text: '', type: '' });
+const rawBudgetAmount = ref('');
+
 const recurringForm = ref(createRecurringForm());
 const recurringMessage = ref({ text: '', type: '' });
 const editingRecurringId = ref(null);
@@ -388,10 +473,26 @@ const allTags = computed(() => {
   return Array.from(combined);
 });
 
+const budgetList = computed(() => {
+  if (!Array.isArray(state.budgets)) return [];
+  return [...state.budgets].sort((a, b) => a.category.localeCompare(b.category));
+});
+
+const budgetCategoryOptions = computed(() => [...state.categories].sort((a, b) => a.localeCompare(b)));
+
 const recurringCardRef = ref(null);
 const formattedRecurringAmount = computed(() => {
   if (!rawRecurringAmount.value) return '';
   const numeric = Number(rawRecurringAmount.value.replace(/[^0-9.-]/g, '')) || 0;
+  return new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(numeric);
+});
+
+const formattedBudgetAmount = computed(() => {
+  if (!rawBudgetAmount.value) return '';
+  const numeric = Number(rawBudgetAmount.value.replace(/[^0-9.-]/g, '')) || 0;
   return new Intl.NumberFormat('en-US', {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
@@ -430,6 +531,14 @@ onMounted(async () => {
   await loadInitialData();
 });
 
+function createBudgetForm() {
+  return {
+    id: null,
+    category: '',
+    submitLabel: 'Add Budget',
+  };
+}
+
 function createRecurringForm() {
   const today = new Date();
   const year = today.getFullYear();
@@ -450,6 +559,95 @@ function createRecurringForm() {
 
 function sanitizeCategory(value) {
   return value.replace(/[<>]/g, ' ').trim();
+}
+
+function handleBudgetAmountInput(event) {
+  rawBudgetAmount.value = event.target.value.replace(/[^0-9.-]/g, '');
+}
+
+function normalizeBudgetAmount(event) {
+  const numeric = Number(rawBudgetAmount.value.replace(/[^0-9.-]/g, '')) || 0;
+  rawBudgetAmount.value = numeric === 0 ? '' : String(numeric);
+  event.target.value = formattedBudgetAmount.value;
+}
+
+function setBudgetMessage(text, type) {
+  budgetMessage.value = { text, type };
+  dismissAfter(() => (budgetMessage.value = { text: '', type: '' }));
+}
+
+function resetBudgetForm() {
+  budgetForm.value = createBudgetForm();
+  rawBudgetAmount.value = '';
+}
+
+async function submitBudget() {
+  if (!budgetForm.value.category) {
+    setBudgetMessage('Please choose a category.', 'error');
+    return;
+  }
+  const amount = Number(rawBudgetAmount.value.replace(/[^0-9.-]/g, '')) || 0;
+  if (amount <= 0) {
+    setBudgetMessage('Enter a valid amount greater than zero.', 'error');
+    return;
+  }
+  const payload = {
+    category: budgetForm.value.category,
+    amount,
+    currency: state.currency,
+  };
+  const isEdit = Boolean(budgetForm.value.id);
+  const url = isEdit
+    ? `/budget/edit?id=${encodeURIComponent(budgetForm.value.id)}`
+    : '/budget';
+  try {
+    const response = await apiFetch(url, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || 'Failed to save budget');
+    }
+    await refreshBudgets();
+    setBudgetMessage(isEdit ? 'Budget updated.' : 'Budget added.', 'success');
+    resetBudgetForm();
+  } catch (error) {
+    console.error('Failed to save budget', error);
+    setBudgetMessage(error.message || 'Failed to save budget', 'error');
+  }
+}
+
+function editBudget(budget) {
+  budgetForm.value = {
+    id: budget.id,
+    category: budget.category,
+    submitLabel: 'Update Budget',
+  };
+  rawBudgetAmount.value = String(budget.amount);
+}
+
+async function deleteBudget(budget) {
+  const confirmed = window.confirm(`Remove budget for "${budget.category}"?`);
+  if (!confirmed) return;
+  try {
+    const response = await apiFetch(`/budget/delete?id=${encodeURIComponent(budget.id)}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || 'Failed to delete budget');
+    }
+    await refreshBudgets();
+    setBudgetMessage('Budget removed.', 'success');
+    if (budgetForm.value.id === budget.id) {
+      resetBudgetForm();
+    }
+  } catch (error) {
+    console.error('Failed to delete budget', error);
+    setBudgetMessage(error.message || 'Failed to delete budget', 'error');
+  }
 }
 
 function addCategory() {

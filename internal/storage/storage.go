@@ -1,13 +1,13 @@
 package storage
 
 import (
-    "fmt"
-    "os"
-    "regexp"
-    "strings"
-    "time"
-    
-    "github.com/tanq16/expenseowl/internal/encryption"
+	"fmt"
+	"os"
+	"regexp"
+	"strings"
+	"time"
+
+	"github.com/tanq16/expenseowl/internal/encryption"
 )
 
 // Storage interface for all storage types
@@ -26,12 +26,18 @@ type Storage interface {
 	GetStartDate(userID string) (int, error)
 	UpdateStartDate(userID string, startDate int) error
 
+	// Budgets
+	GetBudgets(userID string) ([]Budget, error)
+	AddBudget(userID string, budget Budget) (Budget, error)
+	UpdateBudget(userID, id string, budget Budget) (Budget, error)
+	RemoveBudget(userID, id string) error
+
 	// Recurring Expenses
 	GetRecurringExpenses(userID string) ([]RecurringExpense, error)
 	GetRecurringExpense(userID, id string) (RecurringExpense, error)
-    AddRecurringExpense(userID string, recurringExpense RecurringExpense, enc *encryption.Manager) error
+	AddRecurringExpense(userID string, recurringExpense RecurringExpense, enc *encryption.Manager) error
 	RemoveRecurringExpense(userID, id string, removeAll bool) error
-    UpdateRecurringExpense(userID, id string, recurringExpense RecurringExpense, updateAll bool, enc *encryption.Manager) error
+	UpdateRecurringExpense(userID, id string, recurringExpense RecurringExpense, updateAll bool, enc *encryption.Manager) error
 
 	// Expenses
 	GetAllExpenses(userID string) ([]Expense, error)
@@ -99,6 +105,19 @@ type Expense struct {
 	Date        time.Time `json:"date"`
 	Blob        string    `json:"blob,omitempty"`
 }
+
+type Budget struct {
+	ID        string    `json:"id"`
+	UserID    string    `json:"userId"`
+	Category  string    `json:"category"`
+	Amount    float64   `json:"amount"`
+	Currency  string    `json:"currency"`
+	Period    string    `json:"period"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+const BudgetPeriodMonthly = "monthly"
 
 func (c *Config) SetBaseConfig() {
 	c.Categories = defaultCategories
@@ -222,10 +241,10 @@ func (e *RecurringExpense) Validate() error {
 		}
 		e.Tags = cleanedTags
 	}
-    // Allow 0 (interpreted as open-ended/heuristic) or >= 2 occurrences.
-    if e.Occurrences != 0 && e.Occurrences < 2 {
-        return fmt.Errorf("occurrences must be 0 or at least 2")
-    }
+	// Allow 0 (interpreted as open-ended/heuristic) or >= 2 occurrences.
+	if e.Occurrences != 0 && e.Occurrences < 2 {
+		return fmt.Errorf("occurrences must be 0 or at least 2")
+	}
 	if e.StartDate.IsZero() {
 		return fmt.Errorf("start date for recurring expense must be specified")
 	}

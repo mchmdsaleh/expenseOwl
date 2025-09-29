@@ -1,17 +1,19 @@
 package storage
 
 import (
-    "database/sql"
-    "encoding/json"
-    "errors"
-    "fmt"
-    "log"
-    "slices"
-    "time"
+	"database/sql"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"log"
+	"math"
+	"slices"
+	"strings"
+	"time"
 
-    "github.com/google/uuid"
-    "github.com/lib/pq"
-    "github.com/tanq16/expenseowl/internal/encryption"
+	"github.com/google/uuid"
+	"github.com/lib/pq"
+	"github.com/tanq16/expenseowl/internal/encryption"
 )
 
 // databaseStore implements the Storage interface for PostgreSQL.
@@ -54,6 +56,20 @@ CREATE TABLE IF NOT EXISTS expenses (
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     recurring_id UUID,
     blob TEXT NOT NULL
+);
+`
+
+	createBudgetsTableSQL = `
+CREATE TABLE IF NOT EXISTS budgets (
+    id UUID PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    category VARCHAR(255) NOT NULL,
+    amount NUMERIC(12, 2) NOT NULL,
+    currency VARCHAR(3) NOT NULL,
+    period VARCHAR(20) NOT NULL DEFAULT 'monthly',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (user_id, category, period)
 );
 `
 
@@ -139,6 +155,7 @@ func createTables(db *sql.DB) error {
 		ensureUserRoleColumnSQL,
 		createUserSettingsTableSQL,
 		createExpensesTableSQL,
+		createBudgetsTableSQL,
 		ensureExpensesBlobColumnSQL,
 		createRecurringExpensesTableSQL,
 		ensureRecurringBlobColumnSQL,
@@ -357,6 +374,175 @@ func (s *databaseStore) UpdateStartDate(userID string, startDate int) error {
 	return err
 }
 
+func (s *databaseStore) GetBudgets(userID string) ([]Budget, error) {
+	rows, err := s.db.Query(`
+		SELECT id, user_id, category, amount::float8, currency, period, created_at, updated_at
+		FROM budgets
+		WHERE user_id = $1
+		ORDER BY category
+	`, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query budgets: %v", err)
+	}
+	defer rows.Close()
+
+	var budgets []Budget
+	for rows.Next() {
+		budget, err := scanBudget(rows)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan budget: %v", err)
+		}
+		budgets = append(budgets, budget)
+	}
+	return budgets, nil
+}
+
+func (s *databaseStore) AddBudget(userID string, budget Budget) (Budget, error) {
+	if userID == "" {
+		return Budget{}, errors.New("userID is required")
+	}
+	if err := s.EnsureUserDefaults(userID); err != nil {
+		return Budget{}, err
+	}
+	if budget.Category == "" {
+		return Budget{}, fmt.Errorf("category is required")
+	}
+	sanitized, err := ValidateCategory(budget.Category)
+	if err != nil {
+		return Budget{}, err
+	}
+	budget.Category = sanitized
+	if budget.Amount <= 0 {
+		return Budget{}, fmt.Errorf("budget amount must be greater than 0")
+	}
+	budget.Amount = math.Round(budget.Amount*100) / 100
+	if budget.Currency == "" {
+		currency, err := s.GetCurrency(userID)
+		if err != nil {
+			return Budget{}, err
+		}
+		budget.Currency = currency
+	}
+	period := budget.Period
+	if period == "" {
+		period = BudgetPeriodMonthly
+	}
+	period = strings.ToLower(period)
+	if period != BudgetPeriodMonthly {
+		return Budget{}, fmt.Errorf("unsupported budget period: %s", budget.Period)
+	}
+	budget.Period = period
+	if budget.ID == "" {
+		budget.ID = uuid.New().String()
+	}
+	budget.UserID = userID
+	err = s.db.QueryRow(`
+		INSERT INTO budgets (id, user_id, category, amount, currency, period)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING created_at, updated_at
+	`, budget.ID, userID, budget.Category, budget.Amount, budget.Currency, budget.Period).Scan(&budget.CreatedAt, &budget.UpdatedAt)
+	if err != nil {
+		var pqErr *pq.Error
+		if errors.As(err, &pqErr) {
+			switch pqErr.Code {
+			case "23505":
+				return Budget{}, fmt.Errorf("budget for category '%s' already exists", budget.Category)
+			}
+		}
+		return Budget{}, fmt.Errorf("failed to insert budget: %v", err)
+	}
+	return budget, nil
+}
+
+func (s *databaseStore) UpdateBudget(userID, id string, budget Budget) (Budget, error) {
+	if id == "" {
+		return Budget{}, fmt.Errorf("budget ID is required")
+	}
+	if userID == "" {
+		return Budget{}, errors.New("userID is required")
+	}
+	if err := s.EnsureUserDefaults(userID); err != nil {
+		return Budget{}, err
+	}
+	if budget.Category == "" {
+		return Budget{}, fmt.Errorf("category is required")
+	}
+	sanitized, err := ValidateCategory(budget.Category)
+	if err != nil {
+		return Budget{}, err
+	}
+	budget.Category = sanitized
+	if budget.Amount <= 0 {
+		return Budget{}, fmt.Errorf("budget amount must be greater than 0")
+	}
+	budget.Amount = math.Round(budget.Amount*100) / 100
+	if budget.Currency == "" {
+		currency, err := s.GetCurrency(userID)
+		if err != nil {
+			return Budget{}, err
+		}
+		budget.Currency = currency
+	}
+	period := budget.Period
+	if period == "" {
+		period = BudgetPeriodMonthly
+	}
+	period = strings.ToLower(period)
+	if period != BudgetPeriodMonthly {
+		return Budget{}, fmt.Errorf("unsupported budget period: %s", budget.Period)
+	}
+	budget.Period = period
+	budget.ID = id
+	budget.UserID = userID
+	err = s.db.QueryRow(`
+		UPDATE budgets
+		SET category = $1, amount = $2, currency = $3, period = $4, updated_at = NOW()
+		WHERE id = $5 AND user_id = $6
+		RETURNING created_at, updated_at
+	`, budget.Category, budget.Amount, budget.Currency, budget.Period, id, userID).Scan(&budget.CreatedAt, &budget.UpdatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return Budget{}, fmt.Errorf("budget not found")
+		}
+		var pqErr *pq.Error
+		if errors.As(err, &pqErr) {
+			switch pqErr.Code {
+			case "23505":
+				return Budget{}, fmt.Errorf("budget for category '%s' already exists", budget.Category)
+			}
+		}
+		return Budget{}, fmt.Errorf("failed to update budget: %v", err)
+	}
+	return budget, nil
+}
+
+func (s *databaseStore) RemoveBudget(userID, id string) error {
+	if id == "" {
+		return fmt.Errorf("budget ID is required")
+	}
+	res, err := s.db.Exec(`DELETE FROM budgets WHERE id = $1 AND user_id = $2`, id, userID)
+	if err != nil {
+		return fmt.Errorf("failed to delete budget: %v", err)
+	}
+	count, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to read delete result: %v", err)
+	}
+	if count == 0 {
+		return fmt.Errorf("budget not found")
+	}
+	return nil
+}
+
+func scanBudget(scanner interface{ Scan(...any) error }) (Budget, error) {
+	var budget Budget
+	err := scanner.Scan(&budget.ID, &budget.UserID, &budget.Category, &budget.Amount, &budget.Currency, &budget.Period, &budget.CreatedAt, &budget.UpdatedAt)
+	if err != nil {
+		return Budget{}, err
+	}
+	return budget, nil
+}
+
 func scanExpense(scanner interface{ Scan(...any) error }) (Expense, error) {
 	var expense Expense
 	var recurringID sql.NullString
@@ -422,15 +608,15 @@ func (s *databaseStore) AddExpense(userID string, expense Expense) error {
 		expense.ID = uuid.New().String()
 	}
 	expense.UserID = userID
-    if expense.Blob == "" {
-        payload := expense
-        payload.Blob = ""
-        raw, err := json.Marshal(payload)
-        if err != nil {
-            return fmt.Errorf("failed to serialize expense: %v", err)
-        }
-        expense.Blob = string(raw)
-    }
+	if expense.Blob == "" {
+		payload := expense
+		payload.Blob = ""
+		raw, err := json.Marshal(payload)
+		if err != nil {
+			return fmt.Errorf("failed to serialize expense: %v", err)
+		}
+		expense.Blob = string(raw)
+	}
 	_, err := s.db.Exec(`
         INSERT INTO expenses (id, user_id, recurring_id, blob)
         VALUES ($1, $2, $3, $4)
@@ -439,15 +625,15 @@ func (s *databaseStore) AddExpense(userID string, expense Expense) error {
 }
 
 func (s *databaseStore) UpdateExpense(userID, id string, expense Expense) error {
-    if expense.Blob == "" {
-        payload := expense
-        payload.Blob = ""
-        raw, err := json.Marshal(payload)
-        if err != nil {
-            return fmt.Errorf("failed to serialize expense: %v", err)
-        }
-        expense.Blob = string(raw)
-    }
+	if expense.Blob == "" {
+		payload := expense
+		payload.Blob = ""
+		raw, err := json.Marshal(payload)
+		if err != nil {
+			return fmt.Errorf("failed to serialize expense: %v", err)
+		}
+		expense.Blob = string(raw)
+	}
 	res, err := s.db.Exec(`
         UPDATE expenses
         SET blob = $1, recurring_id = $2
@@ -502,15 +688,15 @@ func (s *databaseStore) AddMultipleExpenses(userID string, expenses []Expense) e
 			exp.ID = uuid.New().String()
 		}
 		exp.UserID = userID
-        if exp.Blob == "" {
-            payload := exp
-            payload.Blob = ""
-            raw, err := json.Marshal(payload)
-            if err != nil {
-                return fmt.Errorf("failed to serialize expense: %v", err)
-            }
-            exp.Blob = string(raw)
-        }
+		if exp.Blob == "" {
+			payload := exp
+			payload.Blob = ""
+			raw, err := json.Marshal(payload)
+			if err != nil {
+				return fmt.Errorf("failed to serialize expense: %v", err)
+			}
+			exp.Blob = string(raw)
+		}
 		if _, err := stmt.Exec(exp.ID, userID, nullString(exp.RecurringID), exp.Blob); err != nil {
 			return fmt.Errorf("failed to insert expense: %v", err)
 		}
@@ -624,11 +810,11 @@ func (s *databaseStore) AddRecurringExpense(userID string, recurringExpense Recu
 		return fmt.Errorf("failed to insert recurring expense: %v", err)
 	}
 
-    expensesToAdd := generateExpensesFromRecurring(userID, recurringExpense, false)
-    if err := bulkInsertExpenses(tx, expensesToAdd, enc); err != nil {
-        return err
-    }
-    return tx.Commit()
+	expensesToAdd := generateExpensesFromRecurring(userID, recurringExpense, false)
+	if err := bulkInsertExpenses(tx, expensesToAdd, enc); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (s *databaseStore) UpdateRecurringExpense(userID, id string, recurringExpense RecurringExpense, updateAll bool, enc *encryption.Manager) error {
@@ -677,11 +863,11 @@ func (s *databaseStore) UpdateRecurringExpense(userID, id string, recurringExpen
 		}
 	}
 
-    expensesToAdd := generateExpensesFromRecurring(userID, recurringExpense, !updateAll)
-    if err := bulkInsertExpenses(tx, expensesToAdd, enc); err != nil {
-        return err
-    }
-    return tx.Commit()
+	expensesToAdd := generateExpensesFromRecurring(userID, recurringExpense, !updateAll)
+	if err := bulkInsertExpenses(tx, expensesToAdd, enc); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (s *databaseStore) RemoveRecurringExpense(userID, id string, removeAll bool) error {
@@ -716,42 +902,42 @@ func (s *databaseStore) RemoveRecurringExpense(userID, id string, removeAll bool
 }
 
 func bulkInsertExpenses(tx *sql.Tx, expenses []Expense, enc *encryption.Manager) error {
-    if len(expenses) == 0 {
-        return nil
-    }
-    stmt, err := tx.Prepare(pq.CopyIn("expenses", "id", "user_id", "recurring_id", "blob"))
-    if err != nil {
-        return fmt.Errorf("failed to prepare expense bulk insert: %v", err)
-    }
-    defer stmt.Close()
+	if len(expenses) == 0 {
+		return nil
+	}
+	stmt, err := tx.Prepare(pq.CopyIn("expenses", "id", "user_id", "recurring_id", "blob"))
+	if err != nil {
+		return fmt.Errorf("failed to prepare expense bulk insert: %v", err)
+	}
+	defer stmt.Close()
 
-    for _, exp := range expenses {
-        if exp.Blob == "" {
-            // Build payload without nested blob, then encrypt or store plaintext
-            payload := exp
-            payload.Blob = ""
-            if enc != nil {
-                blob, encErr := enc.Encrypt(payload)
-                if encErr != nil {
-                    return fmt.Errorf("failed to encrypt generated expense: %v", encErr)
-                }
-                exp.Blob = blob
-            } else {
-                raw, mErr := json.Marshal(payload)
-                if mErr != nil {
-                    return fmt.Errorf("failed to serialize expense: %v", mErr)
-                }
-                exp.Blob = string(raw)
-            }
-        }
-        if _, err := stmt.Exec(exp.ID, exp.UserID, nullString(exp.RecurringID), exp.Blob); err != nil {
-            return fmt.Errorf("failed to copy expense: %v", err)
-        }
-    }
-    if _, err := stmt.Exec(); err != nil {
-        return fmt.Errorf("failed to finalize expense batch: %v", err)
-    }
-    return nil
+	for _, exp := range expenses {
+		if exp.Blob == "" {
+			// Build payload without nested blob, then encrypt or store plaintext
+			payload := exp
+			payload.Blob = ""
+			if enc != nil {
+				blob, encErr := enc.Encrypt(payload)
+				if encErr != nil {
+					return fmt.Errorf("failed to encrypt generated expense: %v", encErr)
+				}
+				exp.Blob = blob
+			} else {
+				raw, mErr := json.Marshal(payload)
+				if mErr != nil {
+					return fmt.Errorf("failed to serialize expense: %v", mErr)
+				}
+				exp.Blob = string(raw)
+			}
+		}
+		if _, err := stmt.Exec(exp.ID, exp.UserID, nullString(exp.RecurringID), exp.Blob); err != nil {
+			return fmt.Errorf("failed to copy expense: %v", err)
+		}
+	}
+	if _, err := stmt.Exec(); err != nil {
+		return fmt.Errorf("failed to finalize expense batch: %v", err)
+	}
+	return nil
 }
 
 func generateExpensesFromRecurring(userID string, recExp RecurringExpense, fromToday bool) []Expense {

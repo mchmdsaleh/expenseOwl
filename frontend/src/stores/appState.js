@@ -11,6 +11,7 @@ const state = reactive({
   startDate: 1,
   tags: [],
   recurringExpenses: [],
+  budgets: [],
   theme: typeof window !== 'undefined' ? (localStorage.getItem('theme') || 'system') : 'system',
 });
 
@@ -45,6 +46,7 @@ export async function loadInitialData() {
 
     await refreshExpenses();
     await refreshRecurringExpenses();
+    await refreshBudgets();
 
     state.initialized = true;
   } finally {
@@ -78,6 +80,16 @@ export async function refreshRecurringExpenses() {
       : [];
 }
 
+export async function refreshBudgets() {
+  const response = await apiFetch('/budgets');
+  if (!response.ok) {
+    state.budgets = [];
+    return;
+  }
+  const data = await response.json();
+  state.budgets = Array.isArray(data) ? data : [];
+}
+
 export function resetState() {
   state.initialized = false;
   state.loading = false;
@@ -88,6 +100,7 @@ export function resetState() {
   state.startDate = 1;
   state.tags = [];
   state.recurringExpenses = [];
+  state.budgets = [];
 }
 
 export function isAdmin() {

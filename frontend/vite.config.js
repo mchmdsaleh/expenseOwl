@@ -10,6 +10,10 @@ const apiPrefixes = [
   '/expenses',
   '/recurring-expense',
   '/recurring-expenses',
+  '/budget',          // new
+  '/budget/edit',     // new
+  '/budget/delete',   // new
+  '/budgets',         // new
   '/import',
   '/export',
   '/login',
