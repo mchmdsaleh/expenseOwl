@@ -1,8 +1,9 @@
 package storage
 
 import (
-    "fmt"
-    "github.com/tanq16/expenseowl/internal/encryption"
+	"fmt"
+	"github.com/tanq16/expenseowl/internal/encryption"
+	"time"
 )
 
 // jsonStore is intentionally unimplemented in multi-user mode.
@@ -38,6 +39,33 @@ func (s *jsonStore) GetStartDate(userID string) (int, error) {
 func (s *jsonStore) UpdateStartDate(userID string, startDate int) error {
 	return fmt.Errorf("json backend not available")
 }
+func (s *jsonStore) GetBudgets(userID string) ([]Budget, error) {
+	return nil, fmt.Errorf("json backend not available")
+}
+func (s *jsonStore) AddBudget(userID string, budget Budget) (Budget, error) {
+	return Budget{}, fmt.Errorf("json backend not available")
+}
+func (s *jsonStore) UpdateBudget(userID, id string, budget Budget) (Budget, error) {
+	return Budget{}, fmt.Errorf("json backend not available")
+}
+func (s *jsonStore) RemoveBudget(userID, id string) error {
+	return fmt.Errorf("json backend not available")
+}
+func (s *jsonStore) GetBudgetSummaries(userID string, month time.Time) ([]BudgetSummary, error) {
+	return nil, fmt.Errorf("json backend not available")
+}
+func (s *jsonStore) UpsertBudgetOverride(userID, budgetID string, month time.Time, amount float64) (BudgetOverride, error) {
+	return BudgetOverride{}, fmt.Errorf("json backend not available")
+}
+func (s *jsonStore) DeleteBudgetOverride(userID, overrideID string) error {
+	return fmt.Errorf("json backend not available")
+}
+func (s *jsonStore) UpsertBudgetAdjustment(userID, budgetID string, month time.Time, amount float64) (BudgetAdjustment, error) {
+	return BudgetAdjustment{}, fmt.Errorf("json backend not available")
+}
+func (s *jsonStore) DeleteBudgetAdjustment(userID, adjustmentID string) error {
+	return fmt.Errorf("json backend not available")
+}
 func (s *jsonStore) GetRecurringExpenses(userID string) ([]RecurringExpense, error) {
 	return nil, fmt.Errorf("json backend not available")
 }
@@ -45,13 +73,13 @@ func (s *jsonStore) GetRecurringExpense(userID, id string) (RecurringExpense, er
 	return RecurringExpense{}, fmt.Errorf("json backend not available")
 }
 func (s *jsonStore) AddRecurringExpense(userID string, recurringExpense RecurringExpense, enc *encryption.Manager) error {
-    return fmt.Errorf("json backend not available")
+	return fmt.Errorf("json backend not available")
 }
 func (s *jsonStore) RemoveRecurringExpense(userID, id string, removeAll bool) error {
 	return fmt.Errorf("json backend not available")
 }
 func (s *jsonStore) UpdateRecurringExpense(userID, id string, recurringExpense RecurringExpense, updateAll bool, enc *encryption.Manager) error {
-    return fmt.Errorf("json backend not available")
+	return fmt.Errorf("json backend not available")
 }
 func (s *jsonStore) GetAllExpenses(userID string) ([]Expense, error) {
 	return nil, fmt.Errorf("json backend not available")
