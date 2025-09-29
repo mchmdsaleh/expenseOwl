@@ -150,9 +150,6 @@
                 </div>
               </div>
               <div class="flex items-center gap-2">
-                <button type="button" :class="iconButtonTiny" @click="editBudget(budget)">
-                  <i class="fa-solid fa-pen-to-square"></i>
-                </button>
                 <button type="button" :class="iconDangerButtonTiny" @click="deleteBudget(budget)">
                   <i class="fa-solid fa-trash-can"></i>
                 </button>
