@@ -150,7 +150,7 @@
                 </div>
               </div>
               <div class="flex items-center gap-2">
-                <button type="button" :class="iconDangerButtonTiny" @click="deleteBudget(budget)">
+                <button type="button" :class="iconDangerButtonTiny" @click="openDeleteBudget(budget)">
                   <i class="fa-solid fa-trash-can"></i>
                 </button>
               </div>
@@ -445,6 +445,28 @@
 
   <transition name="fade">
     <div
+      v-if="showDeleteBudget"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
+      @click.self="closeDeleteBudget"
+    >
+      <div class="w-full max-w-md rounded-3xl border border-[var(--border)] bg-[var(--bg-secondary)]/95 p-6 shadow-card backdrop-blur">
+        <h3 class="text-lg font-semibold text-[var(--text-primary)]">Delete Budget</h3>
+        <p class="mt-2 text-sm text-[var(--text-secondary)]">
+          Are you sure you want to remove the budget for
+          <span class="font-semibold text-[var(--text-primary)]">{{ budgetToDelete?.category }}</span>? Any overrides or adjustments for this month will also be cleared.
+        </p>
+        <div class="mt-6 flex justify-end gap-3">
+          <button :class="primaryButtonClass" @click="closeDeleteBudget">Cancel</button>
+          <button :class="[primaryButtonClass, 'bg-rose-500 text-white hover:bg-rose-500/90']" @click="confirmDeleteBudget">
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  </transition>
+
+  <transition name="fade">
+    <div
       v-if="showDeleteRecurring"
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
       @click.self="closeDeleteRecurring"
@@ -529,6 +551,8 @@ const editingRecurringId = ref(null);
 const showDeleteRecurring = ref(false);
 const expenseToDelete = ref(null);
 const rawRecurringAmount = ref('');
+const showDeleteBudget = ref(false);
+const budgetToDelete = ref(null);
 
 const visibleCategories = computed(() =>
   categories.value.map((category, index) => ({ category, index })).slice(0, categoryDisplayCount.value)
@@ -828,11 +852,23 @@ function editBudget(budget) {
   rawBudgetAmount.value = String(budget.amount);
 }
 
-async function deleteBudget(budget) {
-  const confirmed = window.confirm(`Remove budget for "${budget.category}"?`);
-  if (!confirmed) return;
+function openDeleteBudget(budget) {
+  budgetToDelete.value = budget;
+  showDeleteBudget.value = true;
+}
+
+function closeDeleteBudget() {
+  showDeleteBudget.value = false;
+  budgetToDelete.value = null;
+}
+
+async function confirmDeleteBudget() {
+  if (!budgetToDelete.value) {
+    return;
+  }
+  const target = budgetToDelete.value;
   try {
-    const response = await apiFetch(`/budget/delete?id=${encodeURIComponent(budget.id)}`, {
+    const response = await apiFetch(`/budget/delete?id=${encodeURIComponent(target.id)}`, {
       method: 'DELETE',
     });
     if (!response.ok) {
@@ -842,12 +878,14 @@ async function deleteBudget(budget) {
     await refreshBudgets();
     await loadBudgetSummaries();
     setBudgetMessage('Budget removed.', 'success');
-    if (budgetForm.value.id === budget.id) {
+    if (budgetForm.value.id === target.id) {
       resetBudgetForm();
     }
   } catch (error) {
     console.error('Failed to delete budget', error);
     setBudgetMessage(error.message || 'Failed to delete budget', 'error');
+  } finally {
+    closeDeleteBudget();
   }
 }
 
