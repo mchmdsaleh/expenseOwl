@@ -113,7 +113,14 @@
         </div>
       </form>
 
-      <div class="mt-6 space-y-3">
+      <div class="mt-6 space-y-4">
+        <div v-if="budgetList.length" class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <label class="text-sm font-medium text-[var(--text-secondary)]" for="budgetMonth">Adjust month</label>
+          <div class="flex items-center gap-3 sm:gap-4">
+            <input id="budgetMonth" type="month" v-model="budgetMonth" :class="inputClass" @change="handleBudgetMonthChange" />
+            <span class="text-xs text-[var(--text-secondary)]">Showing overrides for {{ budgetMonthLabel }}</span>
+          </div>
+        </div>
         <template v-if="budgetList.length === 0">
           <div
             class="rounded-3xl border border-dashed border-[var(--border)] bg-[var(--bg-secondary)]/60 py-6 text-center text-sm italic text-[var(--text-secondary)]"
@@ -125,19 +132,86 @@
           <div
             v-for="budget in budgetList"
             :key="budget.id"
-            class="flex flex-col gap-3 rounded-3xl border border-[var(--border)] bg-[var(--bg-secondary)]/60 px-5 py-4 shadow-card backdrop-blur sm:flex-row sm:items-center sm:justify-between"
+            class="space-y-4 rounded-3xl border border-[var(--border)] bg-[var(--bg-secondary)]/60 px-5 py-5 shadow-card backdrop-blur"
           >
-            <div class="space-y-1 text-sm text-[var(--text-secondary)]">
-              <div class="text-base font-semibold text-[var(--text-primary)]">{{ budget.category }}</div>
-              <div>Monthly limit: <span class="font-mono text-[var(--text-primary)]">{{ formatCurrency(budget.amount) }}</span></div>
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div class="space-y-1 text-sm text-[var(--text-secondary)]">
+                <div class="text-base font-semibold text-[var(--text-primary)]">{{ budget.category }}</div>
+                <div>Base limit: <span class="font-mono text-[var(--text-primary)]">{{ formatCurrency(budget.amount) }}</span></div>
+                <div v-if="budgetSummaryMap[budget.id]" class="text-xs text-[var(--text-secondary)]">
+                  Effective for {{ budgetMonthLabel }}:
+                  <span class="font-mono text-[var(--text-primary)]">{{ formatCurrency(budgetSummaryMap[budget.id].effectiveAmount || budget.amount) }}</span>
+                </div>
+                <div v-if="budgetSummaryMap[budget.id]?.overrideAmount != null" class="text-xs text-[var(--text-secondary)]">
+                  Override: {{ formatCurrency(budgetSummaryMap[budget.id].overrideAmount || 0) }}
+                </div>
+                <div v-if="budgetSummaryMap[budget.id]?.adjustmentId" class="text-xs text-[var(--text-secondary)]">
+                  Adjustment: {{ formatCurrency(budgetSummaryMap[budget.id].adjustmentAmount || 0) }}
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <button type="button" :class="iconButtonTiny" @click="editBudget(budget)">
+                  <i class="fa-solid fa-pen-to-square"></i>
+                </button>
+                <button type="button" :class="iconDangerButtonTiny" @click="deleteBudget(budget)">
+                  <i class="fa-solid fa-trash-can"></i>
+                </button>
+              </div>
             </div>
-            <div class="flex items-center gap-2">
-              <button type="button" :class="iconButtonTiny" @click="editBudget(budget)">
-                <i class="fa-solid fa-pen-to-square"></i>
-              </button>
-              <button type="button" :class="iconDangerButtonTiny" @click="deleteBudget(budget)">
-                <i class="fa-solid fa-trash-can"></i>
-              </button>
+            <div class="grid gap-4 md:grid-cols-2" v-if="budgetForms[budget.id]">
+              <div class="space-y-2">
+                <label class="text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]" :for="`override-${budget.id}`">
+                  Per-month override
+                </label>
+                <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <input
+                    :id="`override-${budget.id}`"
+                    v-model="budgetForms[budget.id].override"
+                    :class="inputClass"
+                    placeholder="Override amount"
+                  />
+                  <div class="flex gap-2">
+                    <button type="button" :class="[primaryButtonClass, 'text-xs px-4 py-1.5']" @click="saveBudgetOverride(budget)">
+                      Save
+                    </button>
+                    <button
+                      v-if="budgetSummaryMap[budget.id]?.overrideId"
+                      type="button"
+                      :class="[primaryButtonClass, 'text-xs px-4 py-1.5']"
+                      @click="clearBudgetOverride(budget)"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div class="space-y-2">
+                <label class="text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]" :for="`adjustment-${budget.id}`">
+                  One-time adjustment
+                </label>
+                <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <input
+                    :id="`adjustment-${budget.id}`"
+                    v-model="budgetForms[budget.id].adjustment"
+                    :class="inputClass"
+                    placeholder="Adjustment (e.g., 50 or -25)"
+                  />
+                  <div class="flex gap-2">
+                    <button type="button" :class="[primaryButtonClass, 'text-xs px-4 py-1.5']" @click="saveBudgetAdjustment(budget)">
+                      Save
+                    </button>
+                    <button
+                      v-if="budgetSummaryMap[budget.id]?.adjustmentId"
+                      type="button"
+                      :class="[primaryButtonClass, 'text-xs px-4 py-1.5']"
+                      @click="clearBudgetAdjustment(budget)"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+                <p class="text-[11px] text-[var(--text-secondary)]">Positive numbers add to the limit; negative numbers reduce it for this month only.</p>
+              </div>
             </div>
           </div>
         </template>
@@ -395,12 +469,12 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, nextTick } from 'vue';
+import { ref, reactive, computed, watch, onMounted, nextTick } from 'vue';
 import TagInput from '../components/TagInput.vue';
-import state, { loadInitialData, refreshExpenses, refreshRecurringExpenses, refreshBudgets } from '../stores/appState';
+import state, { loadInitialData, refreshExpenses, refreshRecurringExpenses, refreshBudgets, refreshBudgetSummaries } from '../stores/appState';
 import { apiFetch } from '../lib/api';
 import { encryptPayload } from '../lib/encryption';
-import { currencyBehaviors, formatCurrency as formatCurrencyRaw, getISODateWithLocalTime } from '../lib/utils';
+import { currencyBehaviors, formatCurrency as formatCurrencyRaw, getISODateWithLocalTime, formatMonth as formatMonthLabel } from '../lib/utils';
 
 const primaryButtonClass =
   'inline-flex items-center justify-center gap-2 rounded-full border border-[var(--border)] bg-[var(--bg-secondary)] px-5 py-2 text-sm font-medium text-[var(--text-primary)] transition duration-150 ease-out hover:bg-[var(--accent)] hover:text-white hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40 focus:ring-offset-2 focus:ring-offset-[var(--bg-primary)] disabled:cursor-not-allowed disabled:opacity-50';
@@ -449,6 +523,8 @@ const csvImportOldRef = ref(null);
 const budgetForm = ref(createBudgetForm());
 const budgetMessage = ref({ text: '', type: '' });
 const rawBudgetAmount = ref('');
+const budgetMonth = ref(formatBudgetMonthKey(new Date()));
+const budgetForms = reactive({});
 
 const recurringForm = ref(createRecurringForm());
 const recurringMessage = ref({ text: '', type: '' });
@@ -479,6 +555,22 @@ const budgetList = computed(() => {
 });
 
 const budgetCategoryOptions = computed(() => [...state.categories].sort((a, b) => a.localeCompare(b)));
+const budgetSummaryMap = computed(() => {
+  const map = {};
+  const summaries = Array.isArray(state.budgetSummaries) ? state.budgetSummaries : [];
+  summaries.forEach((summary) => {
+    map[summary.id] = summary;
+  });
+  return map;
+});
+const budgetMonthLabel = computed(() => {
+  try {
+    const date = parseBudgetMonthKey(budgetMonth.value);
+    return formatMonthLabel(date);
+  } catch (error) {
+    return budgetMonth.value;
+  }
+});
 
 const recurringCardRef = ref(null);
 const formattedRecurringAmount = computed(() => {
@@ -527,8 +619,30 @@ watch(
   { immediate: true }
 );
 
+watch(
+  () => state.budgets,
+  (budgets) => {
+    ensureBudgetFormEntries(Array.isArray(budgets) ? budgets : []);
+  },
+  { immediate: true }
+);
+
+watch(
+  () => state.budgetSummaries,
+  () => {
+    syncBudgetFormsFromSummaries();
+  }
+);
+
+watch(budgetMonth, (value, oldValue) => {
+  if (value !== oldValue) {
+    loadBudgetSummaries();
+  }
+});
+
 onMounted(async () => {
   await loadInitialData();
+  await loadBudgetSummaries();
 });
 
 function createBudgetForm() {
@@ -537,6 +651,87 @@ function createBudgetForm() {
     category: '',
     submitLabel: 'Add Budget',
   };
+}
+
+function formatBudgetMonthKey(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  return `${year}-${month}`;
+}
+
+function parseBudgetMonthKey(key) {
+  if (typeof key !== 'string' || key.length < 7) {
+    throw new Error('Invalid month value');
+  }
+  const [yearRaw, monthRaw] = key.split('-');
+  const year = Number(yearRaw);
+  const month = Number(monthRaw);
+  if (!Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) {
+    throw new Error('Invalid month value');
+  }
+  return new Date(year, month - 1, 1);
+}
+
+async function loadBudgetSummaries() {
+  try {
+    const target = parseBudgetMonthKey(budgetMonth.value);
+    await refreshBudgetSummaries(target);
+    syncBudgetFormsFromSummaries();
+  } catch (error) {
+    console.error('Failed to load budget summaries', error);
+    setBudgetMessage(error.message || 'Failed to load budget details.', 'error');
+  }
+}
+
+function ensureBudgetFormEntries(budgets) {
+  const ids = new Set();
+  budgets.forEach((budget) => {
+    ids.add(budget.id);
+    if (!budgetForms[budget.id]) {
+      budgetForms[budget.id] = { override: '', adjustment: '' };
+    }
+  });
+  Object.keys(budgetForms).forEach((id) => {
+    if (!ids.has(id)) {
+      delete budgetForms[id];
+    }
+  });
+}
+
+function syncBudgetFormsFromSummaries() {
+  const summaries = Array.isArray(state.budgetSummaries) ? state.budgetSummaries : [];
+  const ids = new Set();
+  summaries.forEach((summary) => {
+    ids.add(summary.id);
+    if (!budgetForms[summary.id]) {
+      budgetForms[summary.id] = { override: '', adjustment: '' };
+    }
+    budgetForms[summary.id].override = summary.overrideAmount != null ? formatEditableAmount(summary.overrideAmount) : '';
+    budgetForms[summary.id].adjustment = summary.adjustmentId ? formatEditableAmount(summary.adjustmentAmount) : '';
+  });
+  Object.keys(budgetForms).forEach((id) => {
+    if (!ids.has(id)) {
+      if (!budgetForms[id]) {
+        budgetForms[id] = { override: '', adjustment: '' };
+      }
+      budgetForms[id].override = budgetForms[id].override ?? '';
+      budgetForms[id].adjustment = budgetForms[id].adjustment ?? '';
+    }
+  });
+}
+
+function formatEditableAmount(value) {
+  if (typeof value !== 'number' || Number.isNaN(value)) {
+    return '';
+  }
+  const fixed = value.toFixed(2);
+  return fixed.replace(/\.00$/, '');
+}
+
+function handleBudgetMonthChange(event) {
+  if (event?.target?.value) {
+    budgetMonth.value = event.target.value;
+  }
 }
 
 function createRecurringForm() {
@@ -576,6 +771,13 @@ function setBudgetMessage(text, type) {
   dismissAfter(() => (budgetMessage.value = { text: '', type: '' }));
 }
 
+function getBudgetForm(budgetId) {
+  if (!budgetForms[budgetId]) {
+    budgetForms[budgetId] = { override: '', adjustment: '' };
+  }
+  return budgetForms[budgetId];
+}
+
 function resetBudgetForm() {
   budgetForm.value = createBudgetForm();
   rawBudgetAmount.value = '';
@@ -611,6 +813,7 @@ async function submitBudget() {
       throw new Error(error.error || 'Failed to save budget');
     }
     await refreshBudgets();
+    await loadBudgetSummaries();
     setBudgetMessage(isEdit ? 'Budget updated.' : 'Budget added.', 'success');
     resetBudgetForm();
   } catch (error) {
@@ -640,6 +843,7 @@ async function deleteBudget(budget) {
       throw new Error(error.error || 'Failed to delete budget');
     }
     await refreshBudgets();
+    await loadBudgetSummaries();
     setBudgetMessage('Budget removed.', 'success');
     if (budgetForm.value.id === budget.id) {
       resetBudgetForm();
@@ -647,6 +851,118 @@ async function deleteBudget(budget) {
   } catch (error) {
     console.error('Failed to delete budget', error);
     setBudgetMessage(error.message || 'Failed to delete budget', 'error');
+  }
+}
+
+function cleanAmountInput(value) {
+  if (value === null || value === undefined) return NaN;
+  const numeric = Number(String(value).replace(/[^0-9.-]/g, ''));
+  return Number.isNaN(numeric) ? NaN : numeric;
+}
+
+async function saveBudgetOverride(budget) {
+  const form = getBudgetForm(budget.id);
+  const raw = String(form.override ?? '').trim();
+  if (!raw) {
+    setBudgetMessage('Enter an override amount before saving.', 'error');
+    return;
+  }
+  const amount = cleanAmountInput(raw);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    setBudgetMessage('Override must be a positive number.', 'error');
+    return;
+  }
+  try {
+    const response = await apiFetch('/budget/override', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ budgetId: budget.id, month: budgetMonth.value, amount }),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || 'Failed to save override');
+    }
+    setBudgetMessage('Override saved.', 'success');
+    await loadBudgetSummaries();
+  } catch (error) {
+    console.error('Failed to save budget override', error);
+    setBudgetMessage(error.message || 'Failed to save override.', 'error');
+  }
+}
+
+async function clearBudgetOverride(budget) {
+  const summary = budgetSummaryMap.value[budget.id];
+  if (!summary?.overrideId) {
+    setBudgetMessage('No override to clear.', 'error');
+    return;
+  }
+  try {
+    const response = await apiFetch(`/budget/override?id=${encodeURIComponent(summary.overrideId)}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || 'Failed to clear override');
+    }
+    getBudgetForm(budget.id).override = '';
+    setBudgetMessage('Override removed.', 'success');
+    await loadBudgetSummaries();
+  } catch (error) {
+    console.error('Failed to clear budget override', error);
+    setBudgetMessage(error.message || 'Failed to clear override.', 'error');
+  }
+}
+
+async function saveBudgetAdjustment(budget) {
+  const form = getBudgetForm(budget.id);
+  const raw = String(form.adjustment ?? '').trim();
+  if (!raw) {
+    setBudgetMessage('Enter an adjustment amount before saving.', 'error');
+    return;
+  }
+  const amount = cleanAmountInput(raw);
+  if (!Number.isFinite(amount) || amount === 0) {
+    setBudgetMessage('Adjustment must be a non-zero number.', 'error');
+    return;
+  }
+  try {
+    const response = await apiFetch('/budget/adjustment', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ budgetId: budget.id, month: budgetMonth.value, amount }),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || 'Failed to save adjustment');
+    }
+    setBudgetMessage('Adjustment saved.', 'success');
+    await loadBudgetSummaries();
+  } catch (error) {
+    console.error('Failed to save budget adjustment', error);
+    setBudgetMessage(error.message || 'Failed to save adjustment.', 'error');
+  }
+}
+
+async function clearBudgetAdjustment(budget) {
+  const summary = budgetSummaryMap.value[budget.id];
+  if (!summary?.adjustmentId) {
+    setBudgetMessage('No adjustment to clear.', 'error');
+    return;
+  }
+  try {
+    const response = await apiFetch(`/budget/adjustment?id=${encodeURIComponent(summary.adjustmentId)}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || 'Failed to clear adjustment');
+    }
+    getBudgetForm(budget.id).adjustment = '';
+    setBudgetMessage('Adjustment removed.', 'success');
+    await loadBudgetSummaries();
+  } catch (error) {
+    console.error('Failed to clear budget adjustment', error);
+    setBudgetMessage(error.message || 'Failed to clear adjustment.', 'error');
   }
 }
 

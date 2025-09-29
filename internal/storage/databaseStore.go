@@ -73,6 +73,32 @@ CREATE TABLE IF NOT EXISTS budgets (
 );
 `
 
+	createBudgetOverridesTableSQL = `
+CREATE TABLE IF NOT EXISTS budget_overrides (
+    id UUID PRIMARY KEY,
+    budget_id UUID NOT NULL REFERENCES budgets(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    period_start DATE NOT NULL,
+    amount NUMERIC(12, 2) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (budget_id, period_start)
+);
+`
+
+	createBudgetAdjustmentsTableSQL = `
+CREATE TABLE IF NOT EXISTS budget_adjustments (
+    id UUID PRIMARY KEY,
+    budget_id UUID NOT NULL REFERENCES budgets(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    period_start DATE NOT NULL,
+    amount NUMERIC(12, 2) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (budget_id, period_start)
+);
+`
+
 	ensureExpensesBlobColumnSQL = `
 ALTER TABLE expenses
     ADD COLUMN IF NOT EXISTS blob TEXT;
@@ -156,6 +182,8 @@ func createTables(db *sql.DB) error {
 		createUserSettingsTableSQL,
 		createExpensesTableSQL,
 		createBudgetsTableSQL,
+		createBudgetOverridesTableSQL,
+		createBudgetAdjustmentsTableSQL,
 		ensureExpensesBlobColumnSQL,
 		createRecurringExpensesTableSQL,
 		ensureRecurringBlobColumnSQL,
@@ -530,6 +558,182 @@ func (s *databaseStore) RemoveBudget(userID, id string) error {
 	}
 	if count == 0 {
 		return fmt.Errorf("budget not found")
+	}
+	return nil
+}
+
+func (s *databaseStore) GetBudgetSummaries(userID string, month time.Time) ([]BudgetSummary, error) {
+	if userID == "" {
+		return nil, errors.New("userID is required")
+	}
+	periodStart := normalizeMonth(month)
+	rows, err := s.db.Query(`
+		SELECT
+			b.id,
+			b.user_id,
+			b.category,
+			b.amount::float8,
+			b.currency,
+			b.period,
+			b.created_at,
+			b.updated_at,
+			o.id,
+			o.amount::float8,
+			a.id,
+			a.amount::float8
+		FROM budgets b
+		LEFT JOIN budget_overrides o ON o.budget_id = b.id AND o.period_start = $2
+		LEFT JOIN budget_adjustments a ON a.budget_id = b.id AND a.period_start = $2
+		WHERE b.user_id = $1
+		ORDER BY b.category
+	`, userID, periodStart)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query budget summaries: %v", err)
+	}
+	defer rows.Close()
+
+	var summaries []BudgetSummary
+	for rows.Next() {
+		var (
+			budget           Budget
+			overrideID       sql.NullString
+			overrideAmount   sql.NullFloat64
+			adjustmentID     sql.NullString
+			adjustmentAmount sql.NullFloat64
+		)
+		if err := rows.Scan(
+			&budget.ID,
+			&budget.UserID,
+			&budget.Category,
+			&budget.Amount,
+			&budget.Currency,
+			&budget.Period,
+			&budget.CreatedAt,
+			&budget.UpdatedAt,
+			&overrideID,
+			&overrideAmount,
+			&adjustmentID,
+			&adjustmentAmount,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan budget summary: %v", err)
+		}
+		summary := BudgetSummary{
+			Budget:      budget,
+			PeriodStart: periodStart,
+		}
+		base := budget.Amount
+		if overrideID.Valid {
+			summary.OverrideID = overrideID.String
+			if overrideAmount.Valid {
+				value := overrideAmount.Float64
+				summary.OverrideAmount = &value
+				base = value
+			}
+		}
+		if adjustmentID.Valid {
+			summary.AdjustmentID = adjustmentID.String
+		}
+		if adjustmentAmount.Valid {
+			summary.AdjustmentAmount = adjustmentAmount.Float64
+		}
+		summary.EffectiveAmount = base + summary.AdjustmentAmount
+		summaries = append(summaries, summary)
+	}
+	return summaries, nil
+}
+
+func (s *databaseStore) UpsertBudgetOverride(userID, budgetID string, month time.Time, amount float64) (BudgetOverride, error) {
+	if amount <= 0 {
+		return BudgetOverride{}, fmt.Errorf("override amount must be greater than 0")
+	}
+	if err := s.ensureBudgetOwnership(userID, budgetID); err != nil {
+		return BudgetOverride{}, err
+	}
+	periodStart := normalizeMonth(month)
+	var override BudgetOverride
+	insertID := uuid.New().String()
+	if err := s.db.QueryRow(`
+		INSERT INTO budget_overrides (id, budget_id, user_id, period_start, amount)
+		VALUES ($1, $2, $3, $4, $5)
+		ON CONFLICT (budget_id, period_start)
+		DO UPDATE SET amount = EXCLUDED.amount, user_id = EXCLUDED.user_id, updated_at = NOW()
+		RETURNING id, budget_id, user_id, period_start, amount::float8, created_at, updated_at
+	`, insertID, budgetID, userID, periodStart, amount).Scan(
+		&override.ID,
+		&override.BudgetID,
+		&override.UserID,
+		&override.PeriodStart,
+		&override.Amount,
+		&override.CreatedAt,
+		&override.UpdatedAt,
+	); err != nil {
+		return BudgetOverride{}, fmt.Errorf("failed to upsert budget override: %v", err)
+	}
+	return override, nil
+}
+
+func (s *databaseStore) DeleteBudgetOverride(userID, overrideID string) error {
+	if overrideID == "" {
+		return fmt.Errorf("override ID is required")
+	}
+	res, err := s.db.Exec(`DELETE FROM budget_overrides WHERE id = $1 AND user_id = $2`, overrideID, userID)
+	if err != nil {
+		return fmt.Errorf("failed to delete budget override: %v", err)
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to read delete result: %v", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("override not found")
+	}
+	return nil
+}
+
+func (s *databaseStore) UpsertBudgetAdjustment(userID, budgetID string, month time.Time, amount float64) (BudgetAdjustment, error) {
+	if amount == 0 {
+		return BudgetAdjustment{}, fmt.Errorf("adjustment amount cannot be zero")
+	}
+	if err := s.ensureBudgetOwnership(userID, budgetID); err != nil {
+		return BudgetAdjustment{}, err
+	}
+	periodStart := normalizeMonth(month)
+	var adjustment BudgetAdjustment
+	insertID := uuid.New().String()
+	if err := s.db.QueryRow(`
+		INSERT INTO budget_adjustments (id, budget_id, user_id, period_start, amount)
+		VALUES ($1, $2, $3, $4, $5)
+		ON CONFLICT (budget_id, period_start)
+		DO UPDATE SET amount = EXCLUDED.amount, user_id = EXCLUDED.user_id, updated_at = NOW()
+		RETURNING id, budget_id, user_id, period_start, amount::float8, created_at, updated_at
+	`, insertID, budgetID, userID, periodStart, amount).Scan(
+		&adjustment.ID,
+		&adjustment.BudgetID,
+		&adjustment.UserID,
+		&adjustment.PeriodStart,
+		&adjustment.Amount,
+		&adjustment.CreatedAt,
+		&adjustment.UpdatedAt,
+	); err != nil {
+		return BudgetAdjustment{}, fmt.Errorf("failed to upsert budget adjustment: %v", err)
+	}
+	return adjustment, nil
+}
+
+func (s *databaseStore) DeleteBudgetAdjustment(userID, adjustmentID string) error {
+	if adjustmentID == "" {
+		return fmt.Errorf("adjustment ID is required")
+	}
+	res, err := s.db.Exec(`DELETE FROM budget_adjustments WHERE id = $1 AND user_id = $2`, adjustmentID, userID)
+	if err != nil {
+		return fmt.Errorf("failed to delete budget adjustment: %v", err)
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to read delete result: %v", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("adjustment not found")
 	}
 	return nil
 }
@@ -1001,6 +1205,31 @@ func generateExpensesFromRecurring(userID string, recExp RecurringExpense, fromT
 		}
 	}
 	return expenses
+}
+
+func (s *databaseStore) ensureBudgetOwnership(userID, budgetID string) error {
+	if userID == "" || budgetID == "" {
+		return fmt.Errorf("userID and budgetID are required")
+	}
+	var owner string
+	if err := s.db.QueryRow(`SELECT user_id FROM budgets WHERE id = $1`, budgetID).Scan(&owner); err != nil {
+		if err == sql.ErrNoRows {
+			return fmt.Errorf("budget not found")
+		}
+		return fmt.Errorf("failed to verify budget ownership: %v", err)
+	}
+	if owner != userID {
+		return fmt.Errorf("budget not found")
+	}
+	return nil
+}
+
+func normalizeMonth(t time.Time) time.Time {
+	if t.IsZero() {
+		t = time.Now()
+	}
+	year, month, _ := t.Date()
+	return time.Date(year, month, 1, 0, 0, 0, 0, time.UTC)
 }
 
 func nullString(val string) interface{} {

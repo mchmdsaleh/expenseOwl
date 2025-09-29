@@ -31,6 +31,11 @@ type Storage interface {
 	AddBudget(userID string, budget Budget) (Budget, error)
 	UpdateBudget(userID, id string, budget Budget) (Budget, error)
 	RemoveBudget(userID, id string) error
+	GetBudgetSummaries(userID string, month time.Time) ([]BudgetSummary, error)
+	UpsertBudgetOverride(userID, budgetID string, month time.Time, amount float64) (BudgetOverride, error)
+	DeleteBudgetOverride(userID, overrideID string) error
+	UpsertBudgetAdjustment(userID, budgetID string, month time.Time, amount float64) (BudgetAdjustment, error)
+	DeleteBudgetAdjustment(userID, adjustmentID string) error
 
 	// Recurring Expenses
 	GetRecurringExpenses(userID string) ([]RecurringExpense, error)
@@ -118,6 +123,36 @@ type Budget struct {
 }
 
 const BudgetPeriodMonthly = "monthly"
+
+type BudgetOverride struct {
+	ID          string    `json:"id"`
+	BudgetID    string    `json:"budgetId"`
+	UserID      string    `json:"userId"`
+	PeriodStart time.Time `json:"periodStart"`
+	Amount      float64   `json:"amount"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
+}
+
+type BudgetAdjustment struct {
+	ID          string    `json:"id"`
+	BudgetID    string    `json:"budgetId"`
+	UserID      string    `json:"userId"`
+	PeriodStart time.Time `json:"periodStart"`
+	Amount      float64   `json:"amount"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
+}
+
+type BudgetSummary struct {
+	Budget
+	PeriodStart      time.Time `json:"periodStart"`
+	OverrideID       string    `json:"overrideId,omitempty"`
+	OverrideAmount   *float64  `json:"overrideAmount,omitempty"`
+	AdjustmentID     string    `json:"adjustmentId,omitempty"`
+	AdjustmentAmount float64   `json:"adjustmentAmount"`
+	EffectiveAmount  float64   `json:"effectiveAmount"`
+}
 
 func (c *Config) SetBaseConfig() {
 	c.Categories = defaultCategories

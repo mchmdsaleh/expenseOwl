@@ -92,6 +92,26 @@ func runServer() {
 	mux.HandleFunc("/budget", handler.RequireAPIAuth(handler.AddBudget))
 	mux.HandleFunc("/budget/edit", handler.RequireAPIAuth(handler.UpdateBudget))
 	mux.HandleFunc("/budget/delete", handler.RequireAPIAuth(handler.DeleteBudget))
+	mux.HandleFunc("/budget/override", handler.RequireAPIAuth(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPut:
+			handler.UpsertBudgetOverride(w, r)
+		case http.MethodDelete:
+			handler.DeleteBudgetOverride(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}))
+	mux.HandleFunc("/budget/adjustment", handler.RequireAPIAuth(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPut:
+			handler.UpsertBudgetAdjustment(w, r)
+		case http.MethodDelete:
+			handler.DeleteBudgetAdjustment(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}))
 
 	// Expenses
 	mux.HandleFunc("/expense", handler.RequireAPIAuth(handler.AddExpense))

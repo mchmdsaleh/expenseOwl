@@ -3,6 +3,7 @@ package storage
 import (
 	"fmt"
 	"github.com/tanq16/expenseowl/internal/encryption"
+	"time"
 )
 
 // jsonStore is intentionally unimplemented in multi-user mode.
@@ -48,6 +49,21 @@ func (s *jsonStore) UpdateBudget(userID, id string, budget Budget) (Budget, erro
 	return Budget{}, fmt.Errorf("json backend not available")
 }
 func (s *jsonStore) RemoveBudget(userID, id string) error {
+	return fmt.Errorf("json backend not available")
+}
+func (s *jsonStore) GetBudgetSummaries(userID string, month time.Time) ([]BudgetSummary, error) {
+	return nil, fmt.Errorf("json backend not available")
+}
+func (s *jsonStore) UpsertBudgetOverride(userID, budgetID string, month time.Time, amount float64) (BudgetOverride, error) {
+	return BudgetOverride{}, fmt.Errorf("json backend not available")
+}
+func (s *jsonStore) DeleteBudgetOverride(userID, overrideID string) error {
+	return fmt.Errorf("json backend not available")
+}
+func (s *jsonStore) UpsertBudgetAdjustment(userID, budgetID string, month time.Time, amount float64) (BudgetAdjustment, error) {
+	return BudgetAdjustment{}, fmt.Errorf("json backend not available")
+}
+func (s *jsonStore) DeleteBudgetAdjustment(userID, adjustmentID string) error {
 	return fmt.Errorf("json backend not available")
 }
 func (s *jsonStore) GetRecurringExpenses(userID string) ([]RecurringExpense, error) {
