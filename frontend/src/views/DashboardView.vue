@@ -121,6 +121,64 @@
       </template>
     </div>
 
+    <div v-if="budgetSummaries.length" :class="cardClass">
+      <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <h3 class="text-lg font-semibold text-[var(--text-primary)]">Budget Progress</h3>
+        <div class="text-right text-sm text-[var(--text-secondary)]">
+          <div class="font-mono text-base text-[var(--text-primary)]">{{ formatCurrency(totalBudgetRemaining) }} remaining</div>
+          <div
+            v-if="overallBudgetStatus"
+            :class="['text-xs font-medium', overallBudgetStatus.className]"
+          >
+            {{ overallBudgetStatus.label }}
+          </div>
+        </div>
+      </div>
+      <div class="mt-5 space-y-4">
+        <div
+          v-for="item in budgetSummaries"
+          :key="item.id"
+          class="space-y-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-primary)]/60 p-4"
+        >
+          <div class="flex items-center justify-between gap-3">
+            <div class="text-sm font-semibold text-[var(--text-primary)]">{{ item.category }}</div>
+            <div class="text-right text-xs text-[var(--text-secondary)]">
+              <div class="font-mono text-sm text-[var(--text-primary)]">
+                {{ formatCurrency(item.actual) }} / {{ formatCurrency(item.amount) }}
+              </div>
+              <div
+                :class="[
+                  'text-[11px] font-semibold uppercase tracking-wide',
+                  item.status === 'over'
+                    ? 'text-rose-400'
+                    : item.status === 'warning'
+                      ? 'text-amber-300'
+                      : 'text-emerald-300'
+                ]"
+              >
+                {{ item.statusLabel }}
+              </div>
+            </div>
+          </div>
+          <div class="h-2 w-full rounded-full bg-[var(--border)]/70">
+            <div
+              class="h-2 rounded-full transition-all"
+              :class="item.status === 'over' ? 'bg-rose-500' : item.status === 'warning' ? 'bg-amber-400' : 'bg-emerald-500'"
+              :style="{ width: `${Math.min(item.percentage, 100).toFixed(1)}%` }"
+            ></div>
+          </div>
+          <div class="flex justify-between text-[11px] text-[var(--text-secondary)]">
+            <span>Spent: {{ formatCurrency(item.actual) }}</span>
+            <span>Remaining: {{ formatCurrency(item.remaining) }}</span>
+          </div>
+          <div class="flex flex-wrap gap-3 text-[11px] text-[var(--text-secondary)]">
+            <span v-if="item.overrideAmount != null">Override: {{ formatCurrency(item.overrideAmount || 0) }}</span>
+            <span v-if="item.adjustmentAmount">Adjustment: {{ formatCurrency(item.adjustmentAmount) }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div v-if="hasExpenseData" class="grid gap-4 md:grid-cols-3">
       <div :class="cashflowCardClass">
         <div class="text-sm font-medium text-[var(--text-secondary)]">Income</div>
@@ -146,7 +204,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import { Chart, registerables } from 'chart.js';
-import state, { loadInitialData, refreshExpenses } from '../stores/appState';
+import state, { loadInitialData, refreshExpenses, refreshBudgetSummaries } from '../stores/appState';
 import TagInput from '../components/TagInput.vue';
 import { formatMonth, getMonthExpenses, formatCurrency as formatCurrencyRaw, getISODateWithLocalTime, colorPalette } from '../lib/utils';
 import { apiFetch } from '../lib/api';
@@ -198,6 +256,28 @@ const cashflowCardClass =
   'flex flex-col items-center justify-center rounded-3xl border border-[var(--border)] bg-[var(--bg-secondary)]/80 px-6 py-6 text-center shadow-card backdrop-blur';
 
 const categories = computed(() => state.categories);
+const baseBudgets = computed(() => state.budgets || []);
+const monthlyBudgets = computed(() => {
+  const summaries = Array.isArray(state.budgetSummaries) ? state.budgetSummaries : [];
+  if (summaries.length > 0) {
+    return summaries.map((summary) => ({
+      id: summary.id,
+      category: summary.category,
+      baseAmount: summary.amount,
+      effectiveAmount: summary.effectiveAmount ?? summary.amount,
+      overrideAmount: summary.overrideAmount ?? null,
+      adjustmentAmount: summary.adjustmentAmount ?? 0,
+    }));
+  }
+  return baseBudgets.value.map((budget) => ({
+    id: budget.id,
+    category: budget.category,
+    baseAmount: budget.amount,
+    effectiveAmount: budget.amount,
+    overrideAmount: null,
+    adjustmentAmount: 0,
+  }));
+});
 const formattedAmount = computed(() => {
   if (!rawAmount.value) return '';
   const numeric = Number(rawAmount.value.replace(/[^0-9.-]/g, '')) || 0;
@@ -224,6 +304,71 @@ const totalActiveExpenses = computed(() => {
 });
 const totalActiveFormatted = computed(() => formatCurrency(totalActiveExpenses.value));
 
+const budgetSummaries = computed(() => {
+  if (!monthlyBudgets.value.length) return [];
+  const totals = monthExpenses.value.reduce((acc, exp) => {
+    if (exp.amount < 0) {
+      const key = exp.category || 'Uncategorized';
+      acc[key] = (acc[key] || 0) + Math.abs(exp.amount);
+    }
+    return acc;
+  }, {});
+  return monthlyBudgets.value
+    .map((budget) => {
+      const limit = budget.effectiveAmount ?? budget.baseAmount;
+      const actual = totals[budget.category] || 0;
+      const remaining = limit - actual;
+      const percentage = limit > 0 ? Math.min(100, (actual / limit) * 100) : 0;
+      let status = 'ok';
+      if (remaining < 0) {
+        status = 'over';
+      } else if (percentage >= 80) {
+        status = 'warning';
+      }
+      const statusLabel = status === 'over'
+        ? 'Over budget'
+        : status === 'warning'
+          ? 'Approaching limit'
+          : 'On track';
+      return {
+        id: budget.id,
+        category: budget.category,
+        amount: limit,
+        actual,
+        remaining,
+        percentage,
+        status,
+        statusLabel,
+        overrideAmount: budget.overrideAmount,
+        adjustmentAmount: budget.adjustmentAmount,
+      };
+    })
+    .sort((a, b) => a.category.localeCompare(b.category));
+});
+
+const totalBudgeted = computed(() => budgetSummaries.value.reduce((sum, item) => sum + item.amount, 0));
+const totalBudgetActual = computed(() => budgetSummaries.value.reduce((sum, item) => sum + item.actual, 0));
+const totalBudgetRemaining = computed(() => totalBudgeted.value - totalBudgetActual.value);
+const overallBudgetStatus = computed(() => {
+  if (!budgetSummaries.value.length || totalBudgeted.value === 0) return null;
+  if (totalBudgetRemaining.value < 0) {
+    return { label: 'Over budget', className: 'text-rose-400' };
+  }
+  const usageRatio = totalBudgetActual.value / totalBudgeted.value;
+  if (usageRatio >= 0.8) {
+    return { label: 'Approaching limit', className: 'text-amber-300' };
+  }
+  return { label: 'On track', className: 'text-emerald-300' };
+});
+
+async function loadBudgetsForCurrentMonth() {
+  try {
+    await refreshBudgetSummaries(currentDate.value);
+  } catch (error) {
+    console.error('Failed to load monthly budgets', error);
+  }
+}
+
 watch(
   () => state.expenses,
   () => {
@@ -241,6 +386,7 @@ watch(disabledCategories, updateChart, { deep: true });
 
 onMounted(async () => {
   await loadInitialData();
+  await loadBudgetsForCurrentMonth();
   assignCategoryColors();
   updateChart();
 });
@@ -307,20 +453,22 @@ function assignCategoryColors() {
   categoryColors.value = colors;
 }
 
-function gotoPrevMonth() {
+async function gotoPrevMonth() {
   const date = new Date(currentDate.value);
   date.setMonth(date.getMonth() - 1);
   currentDate.value = date;
+  await loadBudgetsForCurrentMonth();
   nextTick(() => {
     assignCategoryColors();
     updateChart();
   });
 }
 
-function gotoNextMonth() {
+async function gotoNextMonth() {
   const date = new Date(currentDate.value);
   date.setMonth(date.getMonth() + 1);
   currentDate.value = date;
+  await loadBudgetsForCurrentMonth();
   nextTick(() => {
     assignCategoryColors();
     updateChart();
