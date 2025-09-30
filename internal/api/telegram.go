@@ -135,30 +135,62 @@ func (h *Handler) TelegramCompleteLink(w http.ResponseWriter, r *http.Request) {
 
 // TelegramResolve identifies the ExpenseOwl user linked to a Telegram chat.
 func (h *Handler) TelegramResolve(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
-		return
-	}
-	if h.telegram == nil {
-		writeJSON(w, http.StatusServiceUnavailable, ErrorResponse{Error: "telegram integration not configured"})
-		return
-	}
+    if r.Method != http.MethodPost {
+        writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
+        return
+    }
+    if h.telegram == nil {
+        writeJSON(w, http.StatusServiceUnavailable, ErrorResponse{Error: "telegram integration not configured"})
+        return
+    }
 
-	var body struct {
-		ChatID int64 `json:"chatId"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Invalid request body"})
-		return
-	}
-	link, err := h.telegram.ResolveChat(r.Context(), body.ChatID)
-	if err != nil {
-		status := http.StatusInternalServerError
-		if errors.Is(err, telegram.ErrNotFound) {
-			status = http.StatusNotFound
-		}
-		writeJSON(w, status, ErrorResponse{Error: err.Error()})
-		return
-	}
-	writeJSON(w, http.StatusOK, telegram.SanitizeLink(*link, true))
+    // Allow resolving either by chatId (preferred) or by Bearer token (Authorization header only).
+    var body struct {
+        ChatID int64 `json:"chatId"`
+    }
+    _ = json.NewDecoder(r.Body).Decode(&body) // best-effort decode; body may be empty
+
+    var link *telegram.Link
+    var err error
+
+    // If chatId is provided, prefer resolving by chat and ignore Authorization headers entirely.
+    if body.ChatID != 0 {
+        link, err = h.telegram.ResolveChat(r.Context(), body.ChatID)
+    } else {
+        // Fallback: allow Authorization: Bearer <ingest-token> only (do not accept X-API-Key here)
+        authHeader := r.Header.Get("Authorization")
+        if authHeader != "" {
+            parts := strings.Split(authHeader, " ")
+            if len(parts) == 2 && strings.ToLower(parts[0]) == "bearer" {
+                token := parts[1]
+                link, err = h.telegram.ResolveToken(r.Context(), token)
+                if err != nil {
+                    if errors.Is(err, telegram.ErrTokenInvalid) || errors.Is(err, telegram.ErrNotFound) {
+                        writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: "invalid or missing token"})
+                        return
+                    }
+                }
+            } else {
+                writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: "invalid authorization header"})
+                return
+            }
+        } else {
+            writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "chatId or Authorization Bearer token required"})
+            return
+        }
+    }
+    if err != nil {
+        status := http.StatusInternalServerError
+        if errors.Is(err, telegram.ErrNotFound) {
+            status = http.StatusNotFound
+        }
+        writeJSON(w, status, ErrorResponse{Error: err.Error()})
+        return
+    }
+    payload := telegram.SanitizeLink(*link, true)
+    // Include a derived encryption cipher for this user if configured.
+    if cipher := deriveExternalCipher(link.UserID.String()); cipher != "" {
+        payload["encryptionCipher"] = cipher
+    }
+    writeJSON(w, http.StatusOK, payload)
 }

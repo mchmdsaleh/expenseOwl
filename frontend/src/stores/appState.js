@@ -12,6 +12,7 @@ const state = reactive({
   endOfMonth: false,
   tags: [],
   recurringExpenses: [],
+  budgets: [],
   budgetSummaries: [],
   budgetSummariesMonth: '',
   theme: typeof window !== 'undefined' ? (localStorage.getItem('theme') || 'system') : 'system',
@@ -49,6 +50,7 @@ export async function loadInitialData() {
 
     await refreshExpenses();
     await refreshRecurringExpenses();
+    await refreshBudgets();
 
     state.initialized = true;
   } finally {
@@ -82,6 +84,16 @@ export async function refreshRecurringExpenses() {
       : [];
 }
 
+export async function refreshBudgets() {
+  const response = await apiFetch('/budgets');
+  if (!response.ok) {
+    state.budgets = [];
+    return;
+  }
+  const data = await response.json();
+  state.budgets = Array.isArray(data) ? data : [];
+}
+
 export async function refreshBudgetSummaries(date = new Date()) {
   const target = new Date(date);
   const key = formatMonthKey(target);
@@ -107,6 +119,7 @@ export function resetState() {
   state.endOfMonth = false;
   state.tags = [];
   state.recurringExpenses = [];
+  state.budgets = [];
   state.budgetSummaries = [];
   state.budgetSummariesMonth = '';
 }

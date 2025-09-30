@@ -121,6 +121,64 @@
       </template>
     </div>
 
+    <div v-if="budgetSummaries.length" :class="cardClass">
+      <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <h3 class="text-lg font-semibold text-[var(--text-primary)]">Budget Progress</h3>
+        <div class="text-right text-sm text-[var(--text-secondary)]">
+          <div class="font-mono text-base text-[var(--text-primary)]">{{ formatCurrency(totalBudgetRemaining) }} remaining</div>
+          <div
+            v-if="overallBudgetStatus"
+            :class="['text-xs font-medium', overallBudgetStatus.className]"
+          >
+            {{ overallBudgetStatus.label }}
+          </div>
+        </div>
+      </div>
+      <div class="mt-5 space-y-4">
+        <div
+          v-for="item in budgetSummaries"
+          :key="item.id"
+          class="space-y-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-primary)]/60 p-4"
+        >
+          <div class="flex items-center justify-between gap-3">
+            <div class="text-sm font-semibold text-[var(--text-primary)]">{{ item.category }}</div>
+            <div class="text-right text-xs text-[var(--text-secondary)]">
+              <div class="font-mono text-sm text-[var(--text-primary)]">
+                {{ formatCurrency(item.actual) }} / {{ formatCurrency(item.amount) }}
+              </div>
+              <div
+                :class="[
+                  'text-[11px] font-semibold uppercase tracking-wide',
+                  item.status === 'over'
+                    ? 'text-rose-400'
+                    : item.status === 'warning'
+                      ? 'text-amber-300'
+                      : 'text-emerald-300'
+                ]"
+              >
+                {{ item.statusLabel }}
+              </div>
+            </div>
+          </div>
+          <div class="h-2 w-full rounded-full bg-[var(--border)]/70">
+            <div
+              class="h-2 rounded-full transition-all"
+              :class="item.status === 'over' ? 'bg-rose-500' : item.status === 'warning' ? 'bg-amber-400' : 'bg-emerald-500'"
+              :style="{ width: `${Math.min(item.percentage, 100).toFixed(1)}%` }"
+            ></div>
+          </div>
+          <div class="flex justify-between text-[11px] text-[var(--text-secondary)]">
+            <span>Spent: {{ formatCurrency(item.actual) }}</span>
+            <span>Remaining: {{ formatCurrency(item.remaining) }}</span>
+          </div>
+          <div class="flex flex-wrap gap-3 text-[11px] text-[var(--text-secondary)]">
+            <span v-if="item.overrideAmount != null">Override: {{ formatCurrency(item.overrideAmount || 0) }}</span>
+            <span v-if="item.adjustmentAmount">Adjustment: {{ formatCurrency(item.adjustmentAmount) }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div v-if="hasExpenseData" class="grid gap-4 md:grid-cols-3">
       <div :class="cashflowCardClass">
         <div class="text-sm font-medium text-[var(--text-secondary)]">Income</div>
