@@ -133,6 +133,37 @@ export function getMonthBounds(date, startDate = 1, endOfMonth = false) {
   return { start: new Date(startLocal.toISOString()), end: new Date(endLocal.toISOString()) };
 }
 
+export function getCycleAnchor(date, startDate = 1, endOfMonth = false) {
+  const localDate = new Date(date);
+  if (Number.isNaN(localDate.getTime())) {
+    return new Date(NaN);
+  }
+
+  if (endOfMonth) {
+    const aligned = new Date(localDate.getFullYear(), localDate.getMonth(), 1);
+    aligned.setHours(0, 0, 0, 0);
+    return aligned;
+  }
+
+  const aligned = new Date(localDate);
+  aligned.setHours(0, 0, 0, 0);
+
+  if (startDate <= 1) {
+    aligned.setDate(1);
+    return aligned;
+  }
+
+  const daysInMonth = new Date(aligned.getFullYear(), aligned.getMonth() + 1, 0).getDate();
+  const effectiveStart = Math.min(startDate, daysInMonth);
+
+  if (aligned.getDate() >= effectiveStart) {
+    aligned.setMonth(aligned.getMonth() + 1);
+  }
+
+  aligned.setDate(1);
+  return aligned;
+}
+
 export function getMonthExpenses(expenses, currentDate, startDate, endOfMonth = false) {
   const { start, end } = getMonthBounds(currentDate, startDate, endOfMonth);
   return expenses
