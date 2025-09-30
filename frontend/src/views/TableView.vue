@@ -1,9 +1,34 @@
 <template>
   <section class="space-y-6">
-    <div class="flex items-center justify-center gap-4" v-show="!showAll">
-      <button :class="iconButtonClass" @click="gotoPrevMonth"><i class="fa-solid fa-arrow-left"></i></button>
-      <div class="min-w-[200px] text-center text-2xl font-bold">{{ monthLabel }}</div>
-      <button :class="iconButtonClass" @click="gotoNextMonth"><i class="fa-solid fa-arrow-right"></i></button>
+    <div class="flex flex-col items-center gap-3 md:flex-row md:items-center md:justify-between">
+      <div v-if="showAll" class="min-w-[200px] text-center text-2xl font-bold">{{ periodLabel }}</div>
+      <div v-else-if="dateFilter === 'month'" class="flex items-center justify-center gap-4">
+        <button :class="iconButtonClass" @click="gotoPrevMonth">
+          <i class="fa-solid fa-arrow-left"></i>
+        </button>
+        <div class="min-w-[200px] text-center text-2xl font-bold">{{ periodLabel }}</div>
+        <button :class="iconButtonClass" @click="gotoNextMonth">
+          <i class="fa-solid fa-arrow-right"></i>
+        </button>
+      </div>
+      <div v-else class="min-w-[200px] text-center text-2xl font-bold">{{ periodLabel }}</div>
+      <div class="flex flex-col items-stretch gap-2 md:flex-row md:items-center md:gap-3">
+        <select
+          v-model="dateFilter"
+          :class="selectClass"
+          :disabled="showAll"
+          aria-label="Filter transactions by period"
+        >
+          <option value="month">This Month</option>
+          <option value="week">This Week</option>
+          <option value="today">Today</option>
+        </select>
+        <select v-model="sortOption" :class="selectClass" aria-label="Sort transactions">
+          <option v-for="option in sortChoices" :key="option.value" :value="option.value">
+            {{ option.label }}
+          </option>
+        </select>
+      </div>
     </div>
 
     <div class="flex flex-col gap-2 text-sm text-[var(--text-secondary)] md:flex-row md:items-center md:justify-between">
@@ -90,7 +115,7 @@
         v-if="tableExpenses.length === 0"
         class="w-full rounded-3xl border border-dashed border-[var(--border)] bg-[var(--bg-secondary)]/60 py-12 text-center text-base italic text-[var(--text-secondary)]"
       >
-        {{ showAll ? 'No transactions found' : 'No expenses recorded for this month' }}
+        {{ emptyTableMessage }}
       </div>
       <div
         v-else
@@ -161,9 +186,21 @@ import TagInput from '../components/TagInput.vue';
 import state, { loadInitialData, refreshExpenses } from '../stores/appState';
 import { apiFetch } from '../lib/api';
 import { encryptPayload } from '../lib/encryption';
-import { formatMonth, getMonthExpenses, getISODateWithLocalTime, formatDateFromUTC, formatCurrency as formatCurrencyRaw } from '../lib/utils';
+import {
+  formatMonth,
+  getMonthExpenses,
+  filterExpensesByRange,
+  getISODateWithLocalTime,
+  formatDateFromUTC,
+  formatCurrency as formatCurrencyRaw,
+  formatWeekRange,
+  formatDayLabel,
+} from '../lib/utils';
 
 const currentDate = ref(new Date());
+const monthCursor = ref(new Date());
+const dateFilter = ref('month');
+const sortOption = ref('dateDesc');
 const showAll = ref(false);
 const form = ref(createDefaultForm());
 const editId = ref(null);
@@ -179,16 +216,45 @@ const userDisplayName = computed(() => {
   return full || state.user?.email || '';
 });
 
-const monthLabel = computed(() => formatMonth(currentDate.value));
-
-const tableExpenses = computed(() => {
-  const base = showAll.value
-    ? [...state.expenses].sort((a, b) => new Date(b.date) - new Date(a.date))
-    : getMonthExpenses(state.expenses, currentDate.value, state.startDate);
-  return base;
+const periodLabel = computed(() => {
+  if (showAll.value) {
+    return 'All Transactions';
+  }
+  if (dateFilter.value === 'today') {
+    return formatDayLabel(currentDate.value);
+  }
+  if (dateFilter.value === 'week') {
+    return formatWeekRange(currentDate.value);
+  }
+  return formatMonth(currentDate.value);
 });
 
+const filteredExpenses = computed(() => {
+  if (showAll.value) {
+    return [...state.expenses];
+  }
+  if (dateFilter.value === 'month') {
+    return getMonthExpenses(state.expenses, currentDate.value, state.startDate);
+  }
+  return filterExpensesByRange(state.expenses, dateFilter.value, currentDate.value, state.startDate);
+});
+
+const tableExpenses = computed(() => sortExpenses(filteredExpenses.value));
+
 const hasTags = computed(() => tableExpenses.value.some((expense) => Array.isArray(expense.tags) && expense.tags.length > 0));
+
+const emptyTableMessage = computed(() => {
+  if (showAll.value) {
+    return 'No transactions found';
+  }
+  if (dateFilter.value === 'today') {
+    return 'No transactions recorded today';
+  }
+  if (dateFilter.value === 'week') {
+    return 'No expenses recorded this week';
+  }
+  return 'No expenses recorded for this month';
+});
 
 const formattedAmount = computed(() => {
   if (!rawAmount.value) return '';
@@ -208,8 +274,24 @@ watch(
   }
 );
 
+watch(dateFilter, (next) => {
+  if (showAll.value) return;
+  if (next === 'month') {
+    currentDate.value = new Date(monthCursor.value);
+  } else {
+    currentDate.value = new Date();
+  }
+});
+
+watch(showAll, (value) => {
+  if (!value) {
+    currentDate.value = dateFilter.value === 'month' ? new Date(monthCursor.value) : new Date();
+  }
+});
+
 onMounted(async () => {
   await loadInitialData();
+  monthCursor.value = new Date(currentDate.value);
 });
 
 const iconButtonClass =
@@ -233,8 +315,44 @@ const iconGhostButton =
 const iconDangerButton =
   'inline-flex h-9 w-9 items-center justify-center rounded-full border border-transparent text-[var(--text-secondary)] transition duration-150 hover:border-rose-500/40 hover:bg-rose-500/10 hover:text-rose-400';
 
+const selectClass =
+  'w-full rounded-full border border-[var(--border)] bg-[var(--bg-secondary)] px-4 py-2 text-sm text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40 disabled:cursor-not-allowed disabled:opacity-60 md:w-auto';
+
+const sortChoices = [
+  { value: 'dateDesc', label: 'Date (Newest)' },
+  { value: 'dateAsc', label: 'Date (Oldest)' },
+  { value: 'amountDesc', label: 'Amount (High-Low)' },
+  { value: 'amountAsc', label: 'Amount (Low-High)' },
+  { value: 'nameAsc', label: 'Name (A-Z)' },
+  { value: 'nameDesc', label: 'Name (Z-A)' },
+];
+
 function ensureCurrentMonthAvailable() {
   // noop placeholder for future adjustments
+}
+
+function sortExpenses(expenses) {
+  const sorted = [...expenses];
+  switch (sortOption.value) {
+    case 'dateAsc':
+      sorted.sort((a, b) => new Date(a.date) - new Date(b.date));
+      break;
+    case 'amountDesc':
+      sorted.sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
+      break;
+    case 'amountAsc':
+      sorted.sort((a, b) => Math.abs(a.amount) - Math.abs(b.amount));
+      break;
+    case 'nameAsc':
+      sorted.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+      break;
+    case 'nameDesc':
+      sorted.sort((a, b) => (b.name || '').localeCompare(a.name || ''));
+      break;
+    default:
+      sorted.sort((a, b) => new Date(b.date) - new Date(a.date));
+  }
+  return sorted;
 }
 
 function createDefaultForm() {
@@ -260,14 +378,18 @@ function resetForm() {
 }
 
 function gotoPrevMonth() {
-  const date = new Date(currentDate.value);
+  if (showAll.value || dateFilter.value !== 'month') return;
+  const date = new Date(monthCursor.value);
   date.setMonth(date.getMonth() - 1);
+  monthCursor.value = date;
   currentDate.value = date;
 }
 
 function gotoNextMonth() {
-  const date = new Date(currentDate.value);
+  if (showAll.value || dateFilter.value !== 'month') return;
+  const date = new Date(monthCursor.value);
   date.setMonth(date.getMonth() + 1);
+  monthCursor.value = date;
   currentDate.value = date;
 }
 
