@@ -248,6 +248,48 @@ func (h *Handler) UpdateStartDate(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "success"})
 }
 
+func (h *Handler) GetEndOfMonth(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
+		return
+	}
+	userCtx, err := h.userFromRequest(r)
+	if err != nil {
+		unauthorized(w)
+		return
+	}
+	value, err := h.storage.GetEndOfMonth(userCtx.ID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		log.Printf("API ERROR: Failed to read end-of-month preference: %v\n", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, value)
+}
+
+func (h *Handler) UpdateEndOfMonth(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPut {
+		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
+		return
+	}
+	userCtx, err := h.userFromRequest(r)
+	if err != nil {
+		unauthorized(w)
+		return
+	}
+	var payload bool
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Invalid request body"})
+		return
+	}
+	if err := h.storage.UpdateEndOfMonth(userCtx.ID, payload); err != nil {
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to update preference"})
+		log.Printf("API ERROR: Failed to update end-of-month preference: %v\n", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"status": "success", "endOfMonth": payload})
+}
+
 // ------------------------------------------------------------
 // Budget Handlers
 // ------------------------------------------------------------

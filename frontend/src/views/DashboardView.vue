@@ -287,7 +287,7 @@ const formattedAmount = computed(() => {
   }).format(numeric);
 });
 
-const monthExpenses = computed(() => getMonthExpenses(state.expenses, currentDate.value, state.startDate));
+const monthExpenses = computed(() => getMonthExpenses(state.expenses, currentDate.value, state.startDate, state.endOfMonth));
 const hasExpenseData = computed(() => monthExpenses.value.some((expense) => expense.amount < 0));
 
 const income = computed(() => monthExpenses.value.filter((exp) => exp.amount > 0).reduce((sum, exp) => sum + exp.amount, 0));
@@ -381,6 +381,15 @@ watch(monthExpenses, () => {
   assignCategoryColors();
   updateChart();
 });
+
+watch(
+  () => state.endOfMonth,
+  async () => {
+    await loadBudgetsForCurrentMonth();
+    assignCategoryColors();
+    updateChart();
+  }
+);
 
 watch(disabledCategories, updateChart, { deep: true });
 

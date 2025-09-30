@@ -6,6 +6,8 @@ const apiPrefixes = [
   '/categories',
   '/currency',
   '/startdate',
+  '/end-of-month',
+  '/end-of-month/edit',
   '/expense',
   '/expenses',
   '/recurring-expense',

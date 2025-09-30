@@ -9,6 +9,7 @@ const state = reactive({
   categories: [],
   currency: 'usd',
   startDate: 1,
+  endOfMonth: false,
   tags: [],
   recurringExpenses: [],
   budgets: [],
@@ -45,6 +46,7 @@ export async function loadInitialData() {
     state.categories = config.categories || [];
     state.currency = config.currency || 'usd';
     state.startDate = config.startDate || 1;
+    state.endOfMonth = !!config.endOfMonth;
 
     await refreshExpenses();
     await refreshRecurringExpenses();
@@ -114,6 +116,7 @@ export function resetState() {
   state.categories = [];
   state.currency = 'usd';
   state.startDate = 1;
+  state.endOfMonth = false;
   state.tags = [];
   state.recurringExpenses = [];
   state.budgets = [];
