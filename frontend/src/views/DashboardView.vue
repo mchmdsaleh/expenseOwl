@@ -206,7 +206,7 @@ import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { Chart, registerables } from 'chart.js';
 import state, { loadInitialData, refreshExpenses, refreshBudgetSummaries } from '../stores/appState';
 import TagInput from '../components/TagInput.vue';
-import { formatMonth, getMonthExpenses, formatCurrency as formatCurrencyRaw, getISODateWithLocalTime, colorPalette } from '../lib/utils';
+import { formatMonth, getMonthExpenses, formatCurrency as formatCurrencyRaw, getISODateWithLocalTime, colorPalette, getCycleAnchor } from '../lib/utils';
 import { apiFetch } from '../lib/api';
 import { encryptPayload } from '../lib/encryption';
 
@@ -369,6 +369,10 @@ async function loadBudgetsForCurrentMonth() {
   }
 }
 
+function alignCurrentCycle(baseDate = currentDate.value) {
+  currentDate.value = getCycleAnchor(baseDate, state.startDate, state.endOfMonth);
+}
+
 watch(
   () => state.expenses,
   () => {
@@ -383,8 +387,9 @@ watch(monthExpenses, () => {
 });
 
 watch(
-  () => state.endOfMonth,
+  () => [state.startDate, state.endOfMonth],
   async () => {
+    alignCurrentCycle();
     await loadBudgetsForCurrentMonth();
     assignCategoryColors();
     updateChart();
@@ -395,6 +400,7 @@ watch(disabledCategories, updateChart, { deep: true });
 
 onMounted(async () => {
   await loadInitialData();
+  alignCurrentCycle();
   await loadBudgetsForCurrentMonth();
   assignCategoryColors();
   updateChart();
@@ -465,7 +471,7 @@ function assignCategoryColors() {
 async function gotoPrevMonth() {
   const date = new Date(currentDate.value);
   date.setMonth(date.getMonth() - 1);
-  currentDate.value = date;
+  alignCurrentCycle(date);
   await loadBudgetsForCurrentMonth();
   nextTick(() => {
     assignCategoryColors();
@@ -476,7 +482,7 @@ async function gotoPrevMonth() {
 async function gotoNextMonth() {
   const date = new Date(currentDate.value);
   date.setMonth(date.getMonth() + 1);
-  currentDate.value = date;
+  alignCurrentCycle(date);
   await loadBudgetsForCurrentMonth();
   nextTick(() => {
     assignCategoryColors();

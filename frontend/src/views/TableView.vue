@@ -161,7 +161,7 @@ import TagInput from '../components/TagInput.vue';
 import state, { loadInitialData, refreshExpenses } from '../stores/appState';
 import { apiFetch } from '../lib/api';
 import { encryptPayload } from '../lib/encryption';
-import { formatMonth, getMonthExpenses, getISODateWithLocalTime, formatDateFromUTC, formatCurrency as formatCurrencyRaw } from '../lib/utils';
+import { formatMonth, getMonthExpenses, getISODateWithLocalTime, formatDateFromUTC, formatCurrency as formatCurrencyRaw, getCycleAnchor } from '../lib/utils';
 
 const currentDate = ref(new Date());
 const showAll = ref(false);
@@ -208,8 +208,16 @@ watch(
   }
 );
 
+watch(
+  () => [state.startDate, state.endOfMonth],
+  () => {
+    alignCurrentCycle();
+  }
+);
+
 onMounted(async () => {
   await loadInitialData();
+  alignCurrentCycle();
 });
 
 const iconButtonClass =
@@ -237,6 +245,10 @@ function ensureCurrentMonthAvailable() {
   // noop placeholder for future adjustments
 }
 
+function alignCurrentCycle(baseDate = currentDate.value) {
+  currentDate.value = getCycleAnchor(baseDate, state.startDate, state.endOfMonth);
+}
+
 function createDefaultForm() {
   const today = new Date();
   const year = today.getFullYear();
@@ -262,13 +274,13 @@ function resetForm() {
 function gotoPrevMonth() {
   const date = new Date(currentDate.value);
   date.setMonth(date.getMonth() - 1);
-  currentDate.value = date;
+  alignCurrentCycle(date);
 }
 
 function gotoNextMonth() {
   const date = new Date(currentDate.value);
   date.setMonth(date.getMonth() + 1);
-  currentDate.value = date;
+  alignCurrentCycle(date);
 }
 
 function setFormMessage(text, type) {
