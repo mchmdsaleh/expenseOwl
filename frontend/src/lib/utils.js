@@ -89,8 +89,23 @@ export function formatDateFromUTC(utcDateString) {
   });
 }
 
-export function getMonthBounds(date, startDate = 1) {
+export function getMonthBounds(date, startDate = 1, endOfMonth = false) {
   const localDate = new Date(date);
+  if (Number.isNaN(localDate.getTime())) {
+    return { start: new Date(NaN), end: new Date(NaN) };
+  }
+
+  if (endOfMonth) {
+    const startLocal = new Date(localDate.getFullYear(), localDate.getMonth(), 0);
+    startLocal.setHours(0, 0, 0, 0);
+
+    const endLocal = new Date(localDate.getFullYear(), localDate.getMonth() + 1, 0);
+    endLocal.setDate(endLocal.getDate() - 1);
+    endLocal.setHours(23, 59, 59, 999);
+
+    return { start: new Date(startLocal.toISOString()), end: new Date(endLocal.toISOString()) };
+  }
+
   if (startDate === 1) {
     const startLocal = new Date(localDate.getFullYear(), localDate.getMonth(), 1);
     const endLocal = new Date(localDate.getFullYear(), localDate.getMonth() + 1, 0, 23, 59, 59, 999);
@@ -118,8 +133,8 @@ export function getMonthBounds(date, startDate = 1) {
   return { start: new Date(startLocal.toISOString()), end: new Date(endLocal.toISOString()) };
 }
 
-export function getMonthExpenses(expenses, currentDate, startDate) {
-  const { start, end } = getMonthBounds(currentDate, startDate);
+export function getMonthExpenses(expenses, currentDate, startDate, endOfMonth = false) {
+  const { start, end } = getMonthBounds(currentDate, startDate, endOfMonth);
   return expenses
     .filter((exp) => {
       const expDate = new Date(exp.date);

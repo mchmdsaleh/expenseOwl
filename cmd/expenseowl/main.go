@@ -88,6 +88,8 @@ func runServer() {
 	mux.HandleFunc("/currency/edit", handler.RequireAPIAuth(handler.UpdateCurrency))
 	mux.HandleFunc("/startdate", handler.RequireAPIAuth(handler.GetStartDate))
 	mux.HandleFunc("/startdate/edit", handler.RequireAPIAuth(handler.UpdateStartDate))
+	mux.HandleFunc("/end-of-month", handler.RequireAPIAuth(handler.GetEndOfMonth))
+	mux.HandleFunc("/end-of-month/edit", handler.RequireAPIAuth(handler.UpdateEndOfMonth))
 	mux.HandleFunc("/budgets", handler.RequireAPIAuth(handler.GetBudgets))
 	mux.HandleFunc("/budget", handler.RequireAPIAuth(handler.AddBudget))
 	mux.HandleFunc("/budget/edit", handler.RequireAPIAuth(handler.UpdateBudget))

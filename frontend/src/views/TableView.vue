@@ -184,7 +184,7 @@ const monthLabel = computed(() => formatMonth(currentDate.value));
 const tableExpenses = computed(() => {
   const base = showAll.value
     ? [...state.expenses].sort((a, b) => new Date(b.date) - new Date(a.date))
-    : getMonthExpenses(state.expenses, currentDate.value, state.startDate);
+    : getMonthExpenses(state.expenses, currentDate.value, state.startDate, state.endOfMonth);
   return base;
 });
 

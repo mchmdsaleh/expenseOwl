@@ -46,8 +46,14 @@ CREATE TABLE IF NOT EXISTS user_settings (
     user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     categories TEXT NOT NULL,
     currency VARCHAR(255) NOT NULL,
-    start_date INTEGER NOT NULL
+    start_date INTEGER NOT NULL,
+    end_of_month BOOLEAN NOT NULL DEFAULT FALSE
 );
+`
+
+	ensureUserSettingsEndOfMonthColumnSQL = `
+ALTER TABLE user_settings
+    ADD COLUMN IF NOT EXISTS end_of_month BOOLEAN NOT NULL DEFAULT FALSE;
 `
 
 	createExpensesTableSQL = `
@@ -180,6 +186,7 @@ func createTables(db *sql.DB) error {
 		createUsersTableSQL,
 		ensureUserRoleColumnSQL,
 		createUserSettingsTableSQL,
+		ensureUserSettingsEndOfMonthColumnSQL,
 		createExpensesTableSQL,
 		createBudgetsTableSQL,
 		createBudgetOverridesTableSQL,
@@ -299,10 +306,10 @@ func (s *databaseStore) EnsureUserDefaults(userID string) error {
 		return fmt.Errorf("failed to marshal default categories: %v", err)
 	}
 	_, err = s.db.Exec(`
-        INSERT INTO user_settings (user_id, categories, currency, start_date)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO user_settings (user_id, categories, currency, start_date, end_of_month)
+        VALUES ($1, $2, $3, $4, $5)
         ON CONFLICT (user_id) DO NOTHING
-    `, userID, string(categoriesJSON), defaults.Currency, defaults.StartDate)
+    `, userID, string(categoriesJSON), defaults.Currency, defaults.StartDate, defaults.EndOfMonth)
 	return err
 }
 
@@ -312,17 +319,19 @@ func (s *databaseStore) GetConfig(userID string) (*Config, error) {
 	}
 	var categoriesStr, currency string
 	var startDate int
+	var endOfMonth bool
 	err := s.db.QueryRow(`
-        SELECT categories, currency, start_date
+        SELECT categories, currency, start_date, end_of_month
         FROM user_settings
         WHERE user_id = $1
-    `, userID).Scan(&categoriesStr, &currency, &startDate)
+    `, userID).Scan(&categoriesStr, &currency, &startDate, &endOfMonth)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load user config: %v", err)
 	}
 	var config Config
 	config.Currency = currency
 	config.StartDate = startDate
+	config.EndOfMonth = endOfMonth
 	if err := json.Unmarshal([]byte(categoriesStr), &config.Categories); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal categories: %v", err)
 	}
@@ -399,6 +408,26 @@ func (s *databaseStore) UpdateStartDate(userID string, startDate int) error {
 		return err
 	}
 	_, err := s.db.Exec(`UPDATE user_settings SET start_date = $1 WHERE user_id = $2`, startDate, userID)
+	return err
+}
+
+func (s *databaseStore) GetEndOfMonth(userID string) (bool, error) {
+	if err := s.EnsureUserDefaults(userID); err != nil {
+		return false, err
+	}
+	var endOfMonth bool
+	err := s.db.QueryRow(`SELECT end_of_month FROM user_settings WHERE user_id = $1`, userID).Scan(&endOfMonth)
+	if err != nil {
+		return false, fmt.Errorf("failed to load end-of-month preference: %v", err)
+	}
+	return endOfMonth, nil
+}
+
+func (s *databaseStore) UpdateEndOfMonth(userID string, endOfMonth bool) error {
+	if err := s.EnsureUserDefaults(userID); err != nil {
+		return err
+	}
+	_, err := s.db.Exec(`UPDATE user_settings SET end_of_month = $1 WHERE user_id = $2`, endOfMonth, userID)
 	return err
 }
 
