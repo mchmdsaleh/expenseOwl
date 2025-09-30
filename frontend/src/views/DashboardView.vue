@@ -146,7 +146,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import { Chart, registerables } from 'chart.js';
-import state, { loadInitialData, refreshExpenses } from '../stores/appState';
+import state, { loadInitialData, refreshExpenses, refreshBudgetSummaries } from '../stores/appState';
 import TagInput from '../components/TagInput.vue';
 import { formatMonth, getMonthExpenses, formatCurrency as formatCurrencyRaw, getISODateWithLocalTime, colorPalette } from '../lib/utils';
 import { apiFetch } from '../lib/api';
@@ -198,6 +198,28 @@ const cashflowCardClass =
   'flex flex-col items-center justify-center rounded-3xl border border-[var(--border)] bg-[var(--bg-secondary)]/80 px-6 py-6 text-center shadow-card backdrop-blur';
 
 const categories = computed(() => state.categories);
+const baseBudgets = computed(() => state.budgets || []);
+const monthlyBudgets = computed(() => {
+  const summaries = Array.isArray(state.budgetSummaries) ? state.budgetSummaries : [];
+  if (summaries.length > 0) {
+    return summaries.map((summary) => ({
+      id: summary.id,
+      category: summary.category,
+      baseAmount: summary.amount,
+      effectiveAmount: summary.effectiveAmount ?? summary.amount,
+      overrideAmount: summary.overrideAmount ?? null,
+      adjustmentAmount: summary.adjustmentAmount ?? 0,
+    }));
+  }
+  return baseBudgets.value.map((budget) => ({
+    id: budget.id,
+    category: budget.category,
+    baseAmount: budget.amount,
+    effectiveAmount: budget.amount,
+    overrideAmount: null,
+    adjustmentAmount: 0,
+  }));
+});
 const formattedAmount = computed(() => {
   if (!rawAmount.value) return '';
   const numeric = Number(rawAmount.value.replace(/[^0-9.-]/g, '')) || 0;
@@ -207,7 +229,7 @@ const formattedAmount = computed(() => {
   }).format(numeric);
 });
 
-const monthExpenses = computed(() => getMonthExpenses(state.expenses, currentDate.value, state.startDate));
+const monthExpenses = computed(() => getMonthExpenses(state.expenses, currentDate.value, state.startDate, state.endOfMonth));
 const hasExpenseData = computed(() => monthExpenses.value.some((expense) => expense.amount < 0));
 
 const income = computed(() => monthExpenses.value.filter((exp) => exp.amount > 0).reduce((sum, exp) => sum + exp.amount, 0));
@@ -224,6 +246,71 @@ const totalActiveExpenses = computed(() => {
 });
 const totalActiveFormatted = computed(() => formatCurrency(totalActiveExpenses.value));
 
+const budgetSummaries = computed(() => {
+  if (!monthlyBudgets.value.length) return [];
+  const totals = monthExpenses.value.reduce((acc, exp) => {
+    if (exp.amount < 0) {
+      const key = exp.category || 'Uncategorized';
+      acc[key] = (acc[key] || 0) + Math.abs(exp.amount);
+    }
+    return acc;
+  }, {});
+  return monthlyBudgets.value
+    .map((budget) => {
+      const limit = budget.effectiveAmount ?? budget.baseAmount;
+      const actual = totals[budget.category] || 0;
+      const remaining = limit - actual;
+      const percentage = limit > 0 ? Math.min(100, (actual / limit) * 100) : 0;
+      let status = 'ok';
+      if (remaining < 0) {
+        status = 'over';
+      } else if (percentage >= 80) {
+        status = 'warning';
+      }
+      const statusLabel = status === 'over'
+        ? 'Over budget'
+        : status === 'warning'
+          ? 'Approaching limit'
+          : 'On track';
+      return {
+        id: budget.id,
+        category: budget.category,
+        amount: limit,
+        actual,
+        remaining,
+        percentage,
+        status,
+        statusLabel,
+        overrideAmount: budget.overrideAmount,
+        adjustmentAmount: budget.adjustmentAmount,
+      };
+    })
+    .sort((a, b) => a.category.localeCompare(b.category));
+});
+
+const totalBudgeted = computed(() => budgetSummaries.value.reduce((sum, item) => sum + item.amount, 0));
+const totalBudgetActual = computed(() => budgetSummaries.value.reduce((sum, item) => sum + item.actual, 0));
+const totalBudgetRemaining = computed(() => totalBudgeted.value - totalBudgetActual.value);
+const overallBudgetStatus = computed(() => {
+  if (!budgetSummaries.value.length || totalBudgeted.value === 0) return null;
+  if (totalBudgetRemaining.value < 0) {
+    return { label: 'Over budget', className: 'text-rose-400' };
+  }
+  const usageRatio = totalBudgetActual.value / totalBudgeted.value;
+  if (usageRatio >= 0.8) {
+    return { label: 'Approaching limit', className: 'text-amber-300' };
+  }
+  return { label: 'On track', className: 'text-emerald-300' };
+});
+
+async function loadBudgetsForCurrentMonth() {
+  try {
+    await refreshBudgetSummaries(currentDate.value);
+  } catch (error) {
+    console.error('Failed to load monthly budgets', error);
+  }
+}
+
 watch(
   () => state.expenses,
   () => {
@@ -237,10 +324,20 @@ watch(monthExpenses, () => {
   updateChart();
 });
 
+watch(
+  () => state.endOfMonth,
+  async () => {
+    await loadBudgetsForCurrentMonth();
+    assignCategoryColors();
+    updateChart();
+  }
+);
+
 watch(disabledCategories, updateChart, { deep: true });
 
 onMounted(async () => {
   await loadInitialData();
+  await loadBudgetsForCurrentMonth();
   assignCategoryColors();
   updateChart();
 });
@@ -307,20 +404,22 @@ function assignCategoryColors() {
   categoryColors.value = colors;
 }
 
-function gotoPrevMonth() {
+async function gotoPrevMonth() {
   const date = new Date(currentDate.value);
   date.setMonth(date.getMonth() - 1);
   currentDate.value = date;
+  await loadBudgetsForCurrentMonth();
   nextTick(() => {
     assignCategoryColors();
     updateChart();
   });
 }
 
-function gotoNextMonth() {
+async function gotoNextMonth() {
   const date = new Date(currentDate.value);
   date.setMonth(date.getMonth() + 1);
   currentDate.value = date;
+  await loadBudgetsForCurrentMonth();
   nextTick(() => {
     assignCategoryColors();
     updateChart();

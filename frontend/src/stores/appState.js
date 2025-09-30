@@ -9,8 +9,11 @@ const state = reactive({
   categories: [],
   currency: 'usd',
   startDate: 1,
+  endOfMonth: false,
   tags: [],
   recurringExpenses: [],
+  budgetSummaries: [],
+  budgetSummariesMonth: '',
   theme: typeof window !== 'undefined' ? (localStorage.getItem('theme') || 'system') : 'system',
 });
 
@@ -42,6 +45,7 @@ export async function loadInitialData() {
     state.categories = config.categories || [];
     state.currency = config.currency || 'usd';
     state.startDate = config.startDate || 1;
+    state.endOfMonth = !!config.endOfMonth;
 
     await refreshExpenses();
     await refreshRecurringExpenses();
@@ -78,6 +82,20 @@ export async function refreshRecurringExpenses() {
       : [];
 }
 
+export async function refreshBudgetSummaries(date = new Date()) {
+  const target = new Date(date);
+  const key = formatMonthKey(target);
+  const response = await apiFetch(`/budgets?month=${encodeURIComponent(key)}`);
+  if (!response.ok) {
+    state.budgetSummaries = [];
+    state.budgetSummariesMonth = key;
+    return;
+  }
+  const data = await response.json();
+  state.budgetSummaries = Array.isArray(data) ? data : [];
+  state.budgetSummariesMonth = key;
+}
+
 export function resetState() {
   state.initialized = false;
   state.loading = false;
@@ -86,8 +104,11 @@ export function resetState() {
   state.categories = [];
   state.currency = 'usd';
   state.startDate = 1;
+  state.endOfMonth = false;
   state.tags = [];
   state.recurringExpenses = [];
+  state.budgetSummaries = [];
+  state.budgetSummariesMonth = '';
 }
 
 export function isAdmin() {
@@ -102,6 +123,12 @@ export function addCategoryLocally(category) {
 
 export function setUser(user) {
   state.user = user;
+}
+
+function formatMonthKey(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  return `${year}-${month}`;
 }
 
 export default state;
