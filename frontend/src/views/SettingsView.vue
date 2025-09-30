@@ -241,8 +241,10 @@
       <div :class="cardClass">
         <h2 align="center" class="text-xl font-semibold text-[var(--text-primary)]">Start Date Settings</h2>
         <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-          <input v-model.number="startDate" type="number" min="1" max="31" :class="inputClass" />
-          <button type="button" :class="primaryButtonClass" @click="saveStartDate">Save</button>
+          <input v-model.number="startDate" type="number" min="1" max="31" :class="inputClass" :disabled="endOfMonth" />
+          <button type="button" :class="primaryButtonClass" @click="saveStartDate" :disabled="endOfMonth">
+            Save
+          </button>
         </div>
         <div
           v-if="startDateMessage.text"
@@ -254,6 +256,44 @@
           ]"
         >
           {{ startDateMessage.text }}
+        </div>
+        <div class="mt-6 space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--bg-primary)]/60 p-4">
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div class="sm:max-w-[70%]">
+              <div class="text-sm font-medium text-[var(--text-primary)]">Align cycle to month end</div>
+              <p class="text-xs text-[var(--text-secondary)]">When enabled, each budgeting period runs from the last day of the previous month through the last day of the current month.</p>
+            </div>
+            <label class="relative inline-flex h-6 w-12 cursor-pointer items-center">
+              <input
+                type="checkbox"
+                class="peer sr-only"
+                v-model="endOfMonth"
+              />
+              <span class="absolute inset-0 rounded-full bg-[var(--border)] transition-colors duration-200 peer-checked:bg-[var(--accent)]"></span>
+              <span class="absolute left-1 h-4 w-4 rounded-full bg-white transition-transform duration-200 peer-checked:translate-x-6"></span>
+            </label>
+          </div>
+          <div class="flex justify-end">
+            <button
+              type="button"
+              :class="primaryButtonClass"
+              @click="saveEndOfMonth"
+              :disabled="endOfMonth === state.endOfMonth"
+            >
+              Update
+            </button>
+          </div>
+          <div
+            v-if="endOfMonthMessage.text"
+            :class="[
+              'rounded-full px-4 py-2 text-center text-sm font-medium',
+              endOfMonthMessage.type === 'success'
+                ? 'bg-emerald-500/20 text-emerald-200'
+                : 'bg-rose-500/20 text-rose-200'
+            ]"
+          >
+            {{ endOfMonthMessage.text }}
+          </div>
         </div>
       </div>
     </div>
@@ -528,6 +568,8 @@ const currencyMessage = ref({ text: '', type: '' });
 
 const startDate = ref(state.startDate);
 const startDateMessage = ref({ text: '', type: '' });
+const endOfMonth = ref(state.endOfMonth || false);
+const endOfMonthMessage = ref({ text: '', type: '' });
 
 const theme = ref(localStorage.getItem('theme') || 'system');
 const themeMessage = ref({ text: '', type: '' });
@@ -641,6 +683,17 @@ watch(
 );
 
 watch(
+  () => state.endOfMonth,
+  (value, oldValue) => {
+    endOfMonth.value = value;
+    if (oldValue !== undefined && value !== oldValue) {
+      loadBudgetSummaries();
+    }
+  },
+  { immediate: true }
+);
+
+watch(
   () => state.budgets,
   (budgets) => {
     ensureBudgetFormEntries(Array.isArray(budgets) ? budgets : []);
@@ -660,7 +713,6 @@ watch(budgetMonth, (value, oldValue) => {
     loadBudgetSummaries();
   }
 });
-
 onMounted(async () => {
   await loadInitialData();
   await loadBudgetSummaries();
@@ -1148,6 +1200,10 @@ function setStartDateMessage(text, type) {
 }
 
 async function saveStartDate() {
+  if (endOfMonth.value) {
+    setStartDateMessage('Disable end-of-month alignment to edit the start date.', 'error');
+    return;
+  }
   if (!Number.isInteger(startDate.value) || startDate.value < 1 || startDate.value > 31) {
     setStartDateMessage('Start date must be between 1 and 31.', 'error');
     return;
@@ -1164,9 +1220,36 @@ async function saveStartDate() {
     }
     state.startDate = startDate.value;
     setStartDateMessage('Start date saved successfully.', 'success');
+    await loadBudgetSummaries();
   } catch (error) {
     console.error('Failed to save start date', error);
     setStartDateMessage(error.message || 'Failed to save start date', 'error');
+  }
+}
+
+function setEndOfMonthMessage(text, type) {
+  endOfMonthMessage.value = { text, type };
+  dismissAfter(() => (endOfMonthMessage.value = { text: '', type: '' }));
+}
+
+async function saveEndOfMonth() {
+  try {
+    const response = await apiFetch('/end-of-month/edit', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(endOfMonth.value),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || 'Failed to update preference');
+    }
+    state.endOfMonth = endOfMonth.value;
+    setEndOfMonthMessage('Monthly alignment updated.', 'success');
+    await loadBudgetSummaries();
+  } catch (error) {
+    console.error('Failed to update end-of-month preference', error);
+    endOfMonth.value = state.endOfMonth;
+    setEndOfMonthMessage(error.message || 'Failed to update preference', 'error');
   }
 }
 

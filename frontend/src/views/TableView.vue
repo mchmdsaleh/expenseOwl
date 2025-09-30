@@ -195,6 +195,7 @@ import {
   formatCurrency as formatCurrencyRaw,
   formatWeekRange,
   formatDayLabel,
+  getCycleAnchor,
 } from '../lib/utils';
 
 const currentDate = ref(new Date());
@@ -234,9 +235,9 @@ const filteredExpenses = computed(() => {
     return [...state.expenses];
   }
   if (dateFilter.value === 'month') {
-    return getMonthExpenses(state.expenses, currentDate.value, state.startDate);
+    return getMonthExpenses(state.expenses, currentDate.value, state.startDate, state.endOfMonth);
   }
-  return filterExpensesByRange(state.expenses, dateFilter.value, currentDate.value, state.startDate);
+  return filterExpensesByRange(state.expenses, dateFilter.value, currentDate.value, state.startDate, state.endOfMonth);
 });
 
 const tableExpenses = computed(() => sortExpenses(filteredExpenses.value));
@@ -274,10 +275,25 @@ watch(
   }
 );
 
+watch(
+  () => [state.startDate, state.endOfMonth],
+  () => {
+    if (showAll.value) {
+      alignCurrentCycle(monthCursor.value, { updateCurrent: false, updateCursor: true });
+      return;
+    }
+    if (dateFilter.value === 'month') {
+      alignCurrentCycle(monthCursor.value);
+    } else {
+      alignCurrentCycle(monthCursor.value, { updateCurrent: false, updateCursor: true });
+    }
+  }
+);
+
 watch(dateFilter, (next) => {
   if (showAll.value) return;
   if (next === 'month') {
-    currentDate.value = new Date(monthCursor.value);
+    alignCurrentCycle(monthCursor.value);
   } else {
     currentDate.value = new Date();
   }
@@ -285,13 +301,17 @@ watch(dateFilter, (next) => {
 
 watch(showAll, (value) => {
   if (!value) {
-    currentDate.value = dateFilter.value === 'month' ? new Date(monthCursor.value) : new Date();
+    if (dateFilter.value === 'month') {
+      alignCurrentCycle(monthCursor.value);
+    } else {
+      currentDate.value = new Date();
+    }
   }
 });
 
 onMounted(async () => {
   await loadInitialData();
-  monthCursor.value = new Date(currentDate.value);
+  alignCurrentCycle(currentDate.value);
 });
 
 const iconButtonClass =
@@ -355,6 +375,17 @@ function sortExpenses(expenses) {
   return sorted;
 }
 
+function alignCurrentCycle(baseDate = currentDate.value, { updateCurrent = true, updateCursor = true } = {}) {
+  const aligned = getCycleAnchor(baseDate, state.startDate, state.endOfMonth);
+  if (updateCursor) {
+    monthCursor.value = new Date(aligned);
+  }
+  if (updateCurrent) {
+    currentDate.value = new Date(aligned);
+  }
+  return new Date(aligned);
+}
+
 function createDefaultForm() {
   const today = new Date();
   const year = today.getFullYear();
@@ -381,16 +412,14 @@ function gotoPrevMonth() {
   if (showAll.value || dateFilter.value !== 'month') return;
   const date = new Date(monthCursor.value);
   date.setMonth(date.getMonth() - 1);
-  monthCursor.value = date;
-  currentDate.value = date;
+  alignCurrentCycle(date);
 }
 
 function gotoNextMonth() {
   if (showAll.value || dateFilter.value !== 'month') return;
   const date = new Date(monthCursor.value);
   date.setMonth(date.getMonth() + 1);
-  monthCursor.value = date;
-  currentDate.value = date;
+  alignCurrentCycle(date);
 }
 
 function setFormMessage(text, type) {

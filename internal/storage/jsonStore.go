@@ -2,8 +2,9 @@ package storage
 
 import (
 	"fmt"
-	"github.com/tanq16/expenseowl/internal/encryption"
 	"time"
+
+	"github.com/tanq16/expenseowl/internal/encryption"
 )
 
 // jsonStore is intentionally unimplemented in multi-user mode.
@@ -37,6 +38,12 @@ func (s *jsonStore) GetStartDate(userID string) (int, error) {
 	return 0, fmt.Errorf("json backend not available")
 }
 func (s *jsonStore) UpdateStartDate(userID string, startDate int) error {
+	return fmt.Errorf("json backend not available")
+}
+func (s *jsonStore) GetEndOfMonth(userID string) (bool, error) {
+	return false, fmt.Errorf("json backend not available")
+}
+func (s *jsonStore) UpdateEndOfMonth(userID string, endOfMonth bool) error {
 	return fmt.Errorf("json backend not available")
 }
 func (s *jsonStore) GetBudgets(userID string) ([]Budget, error) {

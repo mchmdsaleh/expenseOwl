@@ -25,6 +25,8 @@ type Storage interface {
 	UpdateCurrency(userID string, currency string) error
 	GetStartDate(userID string) (int, error)
 	UpdateStartDate(userID string, startDate int) error
+	GetEndOfMonth(userID string) (bool, error)
+	UpdateEndOfMonth(userID string, endOfMonth bool) error
 
 	// Budgets
 	GetBudgets(userID string) ([]Budget, error)
@@ -63,6 +65,7 @@ type Config struct {
 	Categories        []string           `json:"categories"`
 	Currency          string             `json:"currency"`
 	StartDate         int                `json:"startDate"`
+	EndOfMonth        bool               `json:"endOfMonth"`
 	RecurringExpenses []RecurringExpense `json:"recurringExpenses"`
 	// Tags              []string           `json:"tags"`
 }
@@ -158,6 +161,7 @@ func (c *Config) SetBaseConfig() {
 	c.Categories = defaultCategories
 	c.Currency = "usd"
 	c.StartDate = 1
+	c.EndOfMonth = false
 	// c.Tags = []string{}
 	c.RecurringExpenses = []RecurringExpense{}
 }

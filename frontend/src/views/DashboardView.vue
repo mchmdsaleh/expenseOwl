@@ -237,6 +237,7 @@ import {
   colorPalette,
   formatWeekRange,
   formatDayLabel,
+  getCycleAnchor,
 } from '../lib/utils';
 import { apiFetch } from '../lib/api';
 import { encryptPayload } from '../lib/encryption';
@@ -323,12 +324,12 @@ const formattedAmount = computed(() => {
   }).format(numeric);
 });
 
-const monthExpenses = computed(() => getMonthExpenses(state.expenses, currentDate.value, state.startDate));
+const monthExpenses = computed(() => getMonthExpenses(state.expenses, monthCursor.value, state.startDate, state.endOfMonth));
 const displayedExpenses = computed(() => {
   if (dateFilter.value === 'month') {
     return monthExpenses.value;
   }
-  return filterExpensesByRange(state.expenses, dateFilter.value, currentDate.value, state.startDate);
+  return filterExpensesByRange(state.expenses, dateFilter.value, currentDate.value, state.startDate, state.endOfMonth);
 });
 const hasExpenseData = computed(() => displayedExpenses.value.some((expense) => expense.amount < 0));
 
@@ -423,10 +424,21 @@ const overallBudgetStatus = computed(() => {
 
 async function loadBudgetsForCurrentMonth() {
   try {
-    await refreshBudgetSummaries(currentDate.value);
+    await refreshBudgetSummaries(monthCursor.value);
   } catch (error) {
     console.error('Failed to load monthly budgets', error);
   }
+}
+
+function alignCurrentCycle(baseDate = currentDate.value, { updateCurrent = true, updateCursor = true } = {}) {
+  const aligned = getCycleAnchor(baseDate, state.startDate, state.endOfMonth);
+  if (updateCursor) {
+    monthCursor.value = new Date(aligned);
+  }
+  if (updateCurrent) {
+    currentDate.value = new Date(aligned);
+  }
+  return new Date(aligned);
 }
 
 watch(
@@ -442,13 +454,27 @@ watch(displayedExpenses, () => {
   updateChart();
 });
 
+watch(
+  () => [state.startDate, state.endOfMonth],
+  async () => {
+    if (dateFilter.value === 'month') {
+      alignCurrentCycle(monthCursor.value);
+      await loadBudgetsForCurrentMonth();
+      assignCategoryColors();
+      updateChart();
+    } else {
+      alignCurrentCycle(monthCursor.value, { updateCurrent: false, updateCursor: true });
+    }
+  }
+);
+
 watch(disabledCategories, updateChart, { deep: true });
 
 watch(
   dateFilter,
   async (next) => {
     if (next === 'month') {
-      currentDate.value = new Date(monthCursor.value);
+      alignCurrentCycle(monthCursor.value);
       await loadBudgetsForCurrentMonth();
     } else {
       currentDate.value = new Date();
@@ -462,6 +488,7 @@ watch(
 
 onMounted(async () => {
   await loadInitialData();
+  alignCurrentCycle();
   await loadBudgetsForCurrentMonth();
   monthCursor.value = new Date(currentDate.value);
   assignCategoryColors();
@@ -534,8 +561,7 @@ async function gotoPrevMonth() {
   if (dateFilter.value !== 'month') return;
   const date = new Date(monthCursor.value);
   date.setMonth(date.getMonth() - 1);
-  monthCursor.value = date;
-  currentDate.value = date;
+  alignCurrentCycle(date);
   await loadBudgetsForCurrentMonth();
   await nextTick();
   assignCategoryColors();
@@ -546,8 +572,7 @@ async function gotoNextMonth() {
   if (dateFilter.value !== 'month') return;
   const date = new Date(monthCursor.value);
   date.setMonth(date.getMonth() + 1);
-  monthCursor.value = date;
-  currentDate.value = date;
+  alignCurrentCycle(date);
   await loadBudgetsForCurrentMonth();
   await nextTick();
   assignCategoryColors();

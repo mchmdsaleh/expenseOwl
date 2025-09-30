@@ -108,8 +108,23 @@ export function getWeekBounds(date = new Date()) {
   return { start: new Date(startLocal.toISOString()), end: new Date(endLocal.toISOString()) };
 }
 
-export function getMonthBounds(date, startDate = 1) {
+export function getMonthBounds(date, startDate = 1, endOfMonth = false) {
   const localDate = new Date(date);
+  if (Number.isNaN(localDate.getTime())) {
+    return { start: new Date(NaN), end: new Date(NaN) };
+  }
+
+  if (endOfMonth) {
+    const startLocal = new Date(localDate.getFullYear(), localDate.getMonth(), 0);
+    startLocal.setHours(0, 0, 0, 0);
+
+    const endLocal = new Date(localDate.getFullYear(), localDate.getMonth() + 1, 0);
+    endLocal.setDate(endLocal.getDate() - 1);
+    endLocal.setHours(23, 59, 59, 999);
+
+    return { start: new Date(startLocal.toISOString()), end: new Date(endLocal.toISOString()) };
+  }
+
   if (startDate === 1) {
     const startLocal = new Date(localDate.getFullYear(), localDate.getMonth(), 1);
     const endLocal = new Date(localDate.getFullYear(), localDate.getMonth() + 1, 0, 23, 59, 59, 999);
@@ -137,8 +152,39 @@ export function getMonthBounds(date, startDate = 1) {
   return { start: new Date(startLocal.toISOString()), end: new Date(endLocal.toISOString()) };
 }
 
-export function getMonthExpenses(expenses, currentDate, startDate) {
-  const { start, end } = getMonthBounds(currentDate, startDate);
+export function getCycleAnchor(date, startDate = 1, endOfMonth = false) {
+  const localDate = new Date(date);
+  if (Number.isNaN(localDate.getTime())) {
+    return new Date(NaN);
+  }
+
+  if (endOfMonth) {
+    const aligned = new Date(localDate.getFullYear(), localDate.getMonth(), 1);
+    aligned.setHours(0, 0, 0, 0);
+    return aligned;
+  }
+
+  const aligned = new Date(localDate);
+  aligned.setHours(0, 0, 0, 0);
+
+  if (startDate <= 1) {
+    aligned.setDate(1);
+    return aligned;
+  }
+
+  const daysInMonth = new Date(aligned.getFullYear(), aligned.getMonth() + 1, 0).getDate();
+  const effectiveStart = Math.min(startDate, daysInMonth);
+
+  if (aligned.getDate() >= effectiveStart) {
+    aligned.setMonth(aligned.getMonth() + 1);
+  }
+
+  aligned.setDate(1);
+  return aligned;
+}
+
+export function getMonthExpenses(expenses, currentDate, startDate, endOfMonth = false) {
+  const { start, end } = getMonthBounds(currentDate, startDate, endOfMonth);
   return expenses
     .filter((exp) => {
       const expDate = new Date(exp.date);
@@ -147,14 +193,14 @@ export function getMonthExpenses(expenses, currentDate, startDate) {
     .sort((a, b) => new Date(b.date) - new Date(a.date));
 }
 
-export function filterExpensesByRange(expenses, range, referenceDate, startDate) {
+export function filterExpensesByRange(expenses, range, referenceDate, startDate, endOfMonth = false) {
   let bounds;
   if (range === 'today') {
     bounds = getTodayBounds(referenceDate);
   } else if (range === 'week') {
     bounds = getWeekBounds(referenceDate);
   } else {
-    bounds = getMonthBounds(referenceDate, startDate);
+    bounds = getMonthBounds(referenceDate, startDate, endOfMonth);
   }
   const { start, end } = bounds;
   return expenses
