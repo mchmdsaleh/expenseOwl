@@ -19,22 +19,23 @@
         </button>
       </div>
       <div v-else class="min-w-[200px] text-center text-2xl font-bold">{{ periodLabel }}</div>
-      <div class="flex justify-center md:justify-end">
-        <select v-model="dateFilter" :class="filterSelectClass">
-          <option value="month">This Month</option>
-          <option value="week">This Week</option>
-          <option value="today">Today</option>
-        </select>
-      </div>
-    </div>
-
-    <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
       <div
         v-if="userDisplayName"
         class="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-secondary)]/70 px-4 py-2 text-sm font-medium text-[var(--text-primary)] md:w-auto md:justify-start"
       >
         <i class="fa-solid fa-circle-user text-[var(--accent)]"></i>
         <span>{{ userDisplayName }}</span>
+      </div>
+    </div>
+
+    <div class="flex flex-row gap-2 md:items-center justify-between">
+      <div class="relative">
+        <select v-model="dateFilter" :class="filterSelectClass">
+          <option value="month">This Month</option>
+          <option value="week">This Week</option>
+          <option value="today">Today</option>
+        </select>
+        <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] pointer-events-none text-xs"></i>
       </div>
       <div class="flex justify-end">
         <button :class="primaryButtonClass" @click="toggleExpenseForm">
@@ -281,7 +282,9 @@ const checkboxClass =
   'h-4 w-4 rounded border-[var(--border)] bg-[var(--bg-primary)] text-[var(--accent)] focus:ring-[var(--accent)]/60 focus:ring-offset-0';
 
 const filterSelectClass =
-  'w-full rounded-full border border-[var(--border)] bg-[var(--bg-secondary)] px-4 py-2 text-sm text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40 md:w-auto';
+  'min-w-[180px] w-auto rounded-full border border-[var(--border)] bg-[var(--bg-secondary)] ' +
+  'h-11 pl-4 pr-12 appearance-none text-sm text-[var(--text-primary)] ' +
+  'focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40';
 
 const cardClass =
   'rounded-3xl border border-[var(--border)] bg-[var(--bg-secondary)]/80 p-6 shadow-card backdrop-blur';

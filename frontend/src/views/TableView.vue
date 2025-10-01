@@ -12,23 +12,6 @@
         </button>
       </div>
       <div v-else class="min-w-[200px] text-center text-2xl font-bold">{{ periodLabel }}</div>
-      <div class="flex flex-col items-stretch gap-2 md:flex-row md:items-center md:gap-3">
-        <select
-          v-model="dateFilter"
-          :class="selectClass"
-          :disabled="showAll"
-          aria-label="Filter transactions by period"
-        >
-          <option value="month">This Month</option>
-          <option value="week">This Week</option>
-          <option value="today">Today</option>
-        </select>
-        <select v-model="sortOption" :class="selectClass" aria-label="Sort transactions">
-          <option v-for="option in sortChoices" :key="option.value" :value="option.value">
-            {{ option.label }}
-          </option>
-        </select>
-      </div>
     </div>
 
     <div class="flex flex-col gap-2 text-sm text-[var(--text-secondary)] md:flex-row md:items-center md:justify-between">
@@ -111,6 +94,40 @@
     </div>
 
     <div>
+      <div class="grid grid-cols-2 gap-2 md:flex md:items-center md:gap-3 mb-5">
+        <!-- Date filter -->
+        <div class="relative min-w-0">
+          <select
+            v-model="dateFilter"
+            :class="selectClass"
+            :disabled="showAll"
+            aria-label="Filter transactions by period"
+          >
+            <option value="month">This Month</option>
+            <option value="week">This Week</option>
+            <option value="today">Today</option>
+          </select>
+          <i
+            class="fa-solid fa-chevron-down pointer-events-none absolute right-3 top-1/2 -translate-y-1/2
+                  text-[var(--text-secondary)] text-[10px]"
+            aria-hidden="true"
+          ></i>
+        </div>
+
+        <!-- Sort option -->
+        <div class="relative min-w-0">
+          <select v-model="sortOption" :class="selectClass" aria-label="Sort transactions">
+            <option v-for="option in sortChoices" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </option>
+          </select>
+          <i
+            class="fa-solid fa-chevron-down pointer-events-none absolute right-3 top-1/2 -translate-y-1/2
+                  text-[var(--text-secondary)] text-[10px]"
+            aria-hidden="true"
+          ></i>
+        </div>
+      </div>
       <div
         v-if="tableExpenses.length === 0"
         class="w-full rounded-3xl border border-dashed border-[var(--border)] bg-[var(--bg-secondary)]/60 py-12 text-center text-base italic text-[var(--text-secondary)]"
@@ -201,7 +218,7 @@ import {
 const currentDate = ref(new Date());
 const monthCursor = ref(new Date());
 const dateFilter = ref('month');
-const sortOption = ref('dateDesc');
+const sortOption = ref('dateAsc');
 const showAll = ref(false);
 const form = ref(createDefaultForm());
 const editId = ref(null);
@@ -336,11 +353,14 @@ const iconDangerButton =
   'inline-flex h-9 w-9 items-center justify-center rounded-full border border-transparent text-[var(--text-secondary)] transition duration-150 hover:border-rose-500/40 hover:bg-rose-500/10 hover:text-rose-400';
 
 const selectClass =
-  'w-full rounded-full border border-[var(--border)] bg-[var(--bg-secondary)] px-4 py-2 text-sm text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40 disabled:cursor-not-allowed disabled:opacity-60 md:w-auto';
+  'w-full md:w-auto rounded-full border border-[var(--border)] bg-[var(--bg-secondary)] ' +
+  'h-11 pl-4 pr-10 appearance-none text-sm text-[var(--text-primary)] ' +
+  'focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40 ' +
+  'disabled:cursor-not-allowed disabled:opacity-60';
 
 const sortChoices = [
-  { value: 'dateDesc', label: 'Date (Newest)' },
-  { value: 'dateAsc', label: 'Date (Oldest)' },
+  { value: 'dateAsc', label: 'Date (Newest)' },
+  { value: 'dateDesc', label: 'Date (Oldest)' },
   { value: 'amountDesc', label: 'Amount (High-Low)' },
   { value: 'amountAsc', label: 'Amount (Low-High)' },
   { value: 'nameAsc', label: 'Name (A-Z)' },
