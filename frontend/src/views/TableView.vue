@@ -218,7 +218,7 @@ import {
 const currentDate = ref(new Date());
 const monthCursor = ref(new Date());
 const dateFilter = ref('month');
-const sortOption = ref('dateAsc');
+const sortOption = ref('dateDesc');
 const showAll = ref(false);
 const form = ref(createDefaultForm());
 const editId = ref(null);
@@ -359,8 +359,8 @@ const selectClass =
   'disabled:cursor-not-allowed disabled:opacity-60';
 
 const sortChoices = [
-  { value: 'dateAsc', label: 'Date (Newest)' },
-  { value: 'dateDesc', label: 'Date (Oldest)' },
+  { value: 'dateDesc', label: 'Date (Newest)' },
+  { value: 'dateAsc', label: 'Date (Oldest)' },
   { value: 'amountDesc', label: 'Amount (High-Low)' },
   { value: 'amountAsc', label: 'Amount (Low-High)' },
   { value: 'nameAsc', label: 'Name (A-Z)' },

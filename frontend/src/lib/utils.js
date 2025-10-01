@@ -85,7 +85,7 @@ export function formatDateFromUTC(utcDateString) {
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-    timeZoneName: 'short'
+    hour12: false,
   });
 }
 
