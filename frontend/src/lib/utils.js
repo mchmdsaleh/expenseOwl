@@ -89,6 +89,25 @@ export function formatDateFromUTC(utcDateString) {
   });
 }
 
+export function getTodayBounds(date = new Date()) {
+  const local = new Date(date);
+  const startLocal = new Date(local.getFullYear(), local.getMonth(), local.getDate(), 0, 0, 0, 0);
+  const endLocal = new Date(local.getFullYear(), local.getMonth(), local.getDate(), 23, 59, 59, 999);
+  return { start: new Date(startLocal.toISOString()), end: new Date(endLocal.toISOString()) };
+}
+
+export function getWeekBounds(date = new Date()) {
+  const local = new Date(date);
+  const day = local.getDay();
+  const mondayIndex = (day + 6) % 7; // shift so Monday becomes start of week
+  const startLocal = new Date(local.getFullYear(), local.getMonth(), local.getDate(), 0, 0, 0, 0);
+  startLocal.setDate(startLocal.getDate() - mondayIndex);
+  const endLocal = new Date(startLocal);
+  endLocal.setDate(startLocal.getDate() + 6);
+  endLocal.setHours(23, 59, 59, 999);
+  return { start: new Date(startLocal.toISOString()), end: new Date(endLocal.toISOString()) };
+}
+
 export function getMonthBounds(date, startDate = 1, endOfMonth = false) {
   const localDate = new Date(date);
   if (Number.isNaN(localDate.getTime())) {
@@ -172,6 +191,50 @@ export function getMonthExpenses(expenses, currentDate, startDate, endOfMonth = 
       return expDate >= start && expDate <= end;
     })
     .sort((a, b) => new Date(b.date) - new Date(a.date));
+}
+
+export function filterExpensesByRange(expenses, range, referenceDate, startDate, endOfMonth = false) {
+  let bounds;
+  if (range === 'today') {
+    bounds = getTodayBounds(referenceDate);
+  } else if (range === 'week') {
+    bounds = getWeekBounds(referenceDate);
+  } else {
+    bounds = getMonthBounds(referenceDate, startDate, endOfMonth);
+  }
+  const { start, end } = bounds;
+  return expenses
+    .filter((exp) => {
+      const expDate = new Date(exp.date);
+      return expDate >= start && expDate <= end;
+    })
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+}
+
+export function formatWeekRange(date = new Date()) {
+  const { start, end } = getWeekBounds(date);
+  const sameYear = start.getFullYear() === end.getFullYear();
+  const baseOptions = { month: 'short', day: 'numeric' };
+  const startLabel = start.toLocaleDateString('en-US', sameYear ? baseOptions : { ...baseOptions, year: 'numeric' });
+  const endLabel = end.toLocaleDateString('en-US', { ...baseOptions, year: 'numeric' });
+  return `${startLabel} - ${endLabel}`;
+}
+
+export function formatDayLabel(date = new Date()) {
+  const today = new Date();
+  const sameDay =
+    today.getFullYear() === date.getFullYear() &&
+    today.getMonth() === date.getMonth() &&
+    today.getDate() === date.getDate();
+  if (sameDay) {
+    return 'Today';
+  }
+  return date.toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
 }
 
 export function escapeHTML(str) {

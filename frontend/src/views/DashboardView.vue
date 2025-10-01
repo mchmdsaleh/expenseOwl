@@ -1,18 +1,41 @@
 <template>
   <section class="space-y-6">
-    <div class="flex items-center justify-center gap-4">
-      <button :class="iconButtonClass" @click="gotoPrevMonth"><i class="fa-solid fa-arrow-left"></i></button>
-      <div class="min-w-[200px] text-center text-2xl font-bold">{{ monthLabel }}</div>
-      <button :class="iconButtonClass" @click="gotoNextMonth"><i class="fa-solid fa-arrow-right"></i></button>
-    </div>
-
-    <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+    <div class="flex flex-col items-center gap-3 md:flex-row md:items-center md:justify-between">
+      <div v-if="dateFilter === 'month'" class="flex items-center justify-center gap-4">
+        <button
+          :class="[iconButtonClass, dateFilter !== 'month' && 'pointer-events-none opacity-50']"
+          :disabled="dateFilter !== 'month'"
+          @click="gotoPrevMonth"
+        >
+          <i class="fa-solid fa-arrow-left"></i>
+        </button>
+        <div class="min-w-[200px] text-center text-2xl font-bold">{{ periodLabel }}</div>
+        <button
+          :class="[iconButtonClass, dateFilter !== 'month' && 'pointer-events-none opacity-50']"
+          :disabled="dateFilter !== 'month'"
+          @click="gotoNextMonth"
+        >
+          <i class="fa-solid fa-arrow-right"></i>
+        </button>
+      </div>
+      <div v-else class="min-w-[200px] text-center text-2xl font-bold">{{ periodLabel }}</div>
       <div
         v-if="userDisplayName"
         class="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-secondary)]/70 px-4 py-2 text-sm font-medium text-[var(--text-primary)] md:w-auto md:justify-start"
       >
         <i class="fa-solid fa-circle-user text-[var(--accent)]"></i>
         <span>{{ userDisplayName }}</span>
+      </div>
+    </div>
+
+    <div class="flex flex-row gap-2 md:items-center justify-between">
+      <div class="relative">
+        <select v-model="dateFilter" :class="filterSelectClass">
+          <option value="month">This Month</option>
+          <option value="week">This Week</option>
+          <option value="today">Today</option>
+        </select>
+        <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] pointer-events-none text-xs"></i>
       </div>
       <div class="flex justify-end">
         <button :class="primaryButtonClass" @click="toggleExpenseForm">
@@ -91,7 +114,7 @@
 
     <div class="flex flex-col gap-6 rounded-3xl border border-[var(--border)] bg-[var(--bg-secondary)]/80 p-6 shadow-card backdrop-blur lg:flex-row">
       <div v-if="!hasExpenseData" class="w-full rounded-3xl border border-dashed border-[var(--border)] bg-[var(--bg-secondary)]/60 py-12 text-center text-base italic text-[var(--text-secondary)]">
-        No expenses recorded this month.
+        {{ emptyDashboardMessage }}
       </div>
       <template v-else>
         <div class="flex h-80 flex-1 items-center justify-center">
@@ -206,7 +229,17 @@ import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { Chart, registerables } from 'chart.js';
 import state, { loadInitialData, refreshExpenses, refreshBudgetSummaries } from '../stores/appState';
 import TagInput from '../components/TagInput.vue';
-import { formatMonth, getMonthExpenses, formatCurrency as formatCurrencyRaw, getISODateWithLocalTime, colorPalette, getCycleAnchor } from '../lib/utils';
+import {
+  formatMonth,
+  getMonthExpenses,
+  filterExpensesByRange,
+  formatCurrency as formatCurrencyRaw,
+  getISODateWithLocalTime,
+  colorPalette,
+  formatWeekRange,
+  formatDayLabel,
+  getCycleAnchor,
+} from '../lib/utils';
 import { apiFetch } from '../lib/api';
 import { encryptPayload } from '../lib/encryption';
 
@@ -219,6 +252,8 @@ const chartCanvas = ref(null);
 let chartInstance = null;
 
 const currentDate = ref(new Date());
+const monthCursor = ref(new Date());
+const dateFilter = ref('month');
 const showExpenseForm = ref(false);
 const disabledCategories = ref(new Set());
 const categoryColors = ref({});
@@ -245,6 +280,11 @@ const inputClass =
 
 const checkboxClass =
   'h-4 w-4 rounded border-[var(--border)] bg-[var(--bg-primary)] text-[var(--accent)] focus:ring-[var(--accent)]/60 focus:ring-offset-0';
+
+const filterSelectClass =
+  'min-w-[180px] w-auto rounded-full border border-[var(--border)] bg-[var(--bg-secondary)] ' +
+  'h-11 pl-4 pr-12 appearance-none text-sm text-[var(--text-primary)] ' +
+  'focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40';
 
 const cardClass =
   'rounded-3xl border border-[var(--border)] bg-[var(--bg-secondary)]/80 p-6 shadow-card backdrop-blur';
@@ -287,18 +327,42 @@ const formattedAmount = computed(() => {
   }).format(numeric);
 });
 
-const monthExpenses = computed(() => getMonthExpenses(state.expenses, currentDate.value, state.startDate, state.endOfMonth));
-const hasExpenseData = computed(() => monthExpenses.value.some((expense) => expense.amount < 0));
+const monthExpenses = computed(() => getMonthExpenses(state.expenses, monthCursor.value, state.startDate, state.endOfMonth));
+const displayedExpenses = computed(() => {
+  if (dateFilter.value === 'month') {
+    return monthExpenses.value;
+  }
+  return filterExpensesByRange(state.expenses, dateFilter.value, currentDate.value, state.startDate, state.endOfMonth);
+});
+const hasExpenseData = computed(() => displayedExpenses.value.some((expense) => expense.amount < 0));
 
-const income = computed(() => monthExpenses.value.filter((exp) => exp.amount > 0).reduce((sum, exp) => sum + exp.amount, 0));
-const totalExpenses = computed(() => monthExpenses.value.filter((exp) => exp.amount < 0).reduce((sum, exp) => sum + Math.abs(exp.amount), 0));
+const income = computed(() => displayedExpenses.value.filter((exp) => exp.amount > 0).reduce((sum, exp) => sum + exp.amount, 0));
+const totalExpenses = computed(() => displayedExpenses.value.filter((exp) => exp.amount < 0).reduce((sum, exp) => sum + Math.abs(exp.amount), 0));
 const balance = computed(() => income.value - totalExpenses.value);
 
-const monthLabel = computed(() => formatMonth(currentDate.value));
+const periodLabel = computed(() => {
+  if (dateFilter.value === 'today') {
+    return formatDayLabel(currentDate.value);
+  }
+  if (dateFilter.value === 'week') {
+    return formatWeekRange(currentDate.value);
+  }
+  return formatMonth(currentDate.value);
+});
+
+const emptyDashboardMessage = computed(() => {
+  if (dateFilter.value === 'today') {
+    return 'No expenses recorded today.';
+  }
+  if (dateFilter.value === 'week') {
+    return 'No expenses recorded this week.';
+  }
+  return 'No expenses recorded this month.';
+});
 
 const legendEntries = computed(() => buildLegendEntries());
 const totalActiveExpenses = computed(() => {
-  return monthExpenses.value
+  return displayedExpenses.value
     .filter((exp) => exp.amount < 0 && !disabledCategories.value.has(exp.category))
     .reduce((sum, exp) => sum + Math.abs(exp.amount), 0);
 });
@@ -363,14 +427,21 @@ const overallBudgetStatus = computed(() => {
 
 async function loadBudgetsForCurrentMonth() {
   try {
-    await refreshBudgetSummaries(currentDate.value);
+    await refreshBudgetSummaries(monthCursor.value);
   } catch (error) {
     console.error('Failed to load monthly budgets', error);
   }
 }
 
-function alignCurrentCycle(baseDate = currentDate.value) {
-  currentDate.value = getCycleAnchor(baseDate, state.startDate, state.endOfMonth);
+function alignCurrentCycle(baseDate = currentDate.value, { updateCurrent = true, updateCursor = true } = {}) {
+  const aligned = getCycleAnchor(baseDate, state.startDate, state.endOfMonth);
+  if (updateCursor) {
+    monthCursor.value = new Date(aligned);
+  }
+  if (updateCurrent) {
+    currentDate.value = new Date(aligned);
+  }
+  return new Date(aligned);
 }
 
 watch(
@@ -381,7 +452,7 @@ watch(
   }
 );
 
-watch(monthExpenses, () => {
+watch(displayedExpenses, () => {
   assignCategoryColors();
   updateChart();
 });
@@ -389,19 +460,40 @@ watch(monthExpenses, () => {
 watch(
   () => [state.startDate, state.endOfMonth],
   async () => {
-    alignCurrentCycle();
-    await loadBudgetsForCurrentMonth();
-    assignCategoryColors();
-    updateChart();
+    if (dateFilter.value === 'month') {
+      alignCurrentCycle(monthCursor.value);
+      await loadBudgetsForCurrentMonth();
+      assignCategoryColors();
+      updateChart();
+    } else {
+      alignCurrentCycle(monthCursor.value, { updateCurrent: false, updateCursor: true });
+    }
   }
 );
 
 watch(disabledCategories, updateChart, { deep: true });
 
+watch(
+  dateFilter,
+  async (next) => {
+    if (next === 'month') {
+      alignCurrentCycle(monthCursor.value);
+      await loadBudgetsForCurrentMonth();
+    } else {
+      currentDate.value = new Date();
+    }
+    disabledCategories.value = new Set();
+    await nextTick();
+    assignCategoryColors();
+    updateChart();
+  }
+);
+
 onMounted(async () => {
   await loadInitialData();
   alignCurrentCycle();
   await loadBudgetsForCurrentMonth();
+  monthCursor.value = new Date(currentDate.value);
   assignCategoryColors();
   updateChart();
 });
@@ -469,25 +561,25 @@ function assignCategoryColors() {
 }
 
 async function gotoPrevMonth() {
-  const date = new Date(currentDate.value);
+  if (dateFilter.value !== 'month') return;
+  const date = new Date(monthCursor.value);
   date.setMonth(date.getMonth() - 1);
   alignCurrentCycle(date);
   await loadBudgetsForCurrentMonth();
-  nextTick(() => {
-    assignCategoryColors();
-    updateChart();
-  });
+  await nextTick();
+  assignCategoryColors();
+  updateChart();
 }
 
 async function gotoNextMonth() {
-  const date = new Date(currentDate.value);
+  if (dateFilter.value !== 'month') return;
+  const date = new Date(monthCursor.value);
   date.setMonth(date.getMonth() + 1);
   alignCurrentCycle(date);
   await loadBudgetsForCurrentMonth();
-  nextTick(() => {
-    assignCategoryColors();
-    updateChart();
-  });
+  await nextTick();
+  assignCategoryColors();
+  updateChart();
 }
 
 function calculateCategoryBreakdown(expenses) {
@@ -510,11 +602,11 @@ function calculateCategoryBreakdown(expenses) {
 }
 
 function buildLegendEntries() {
-  const breakdown = calculateCategoryBreakdown(monthExpenses.value);
+  const breakdown = calculateCategoryBreakdown(displayedExpenses.value);
   const categoryMap = new Map(breakdown.map((item) => [item.category, item]));
   const currentMonthCategories = Array.from(
     new Set(
-      monthExpenses.value
+      displayedExpenses.value
         .filter((exp) => exp.amount < 0)
         .map((exp) => exp.category)
     )
@@ -619,7 +711,7 @@ function updateChart() {
     }
     return;
   }
-  const breakdown = calculateCategoryBreakdown(monthExpenses.value);
+  const breakdown = calculateCategoryBreakdown(displayedExpenses.value);
   if (chartInstance) {
     chartInstance.destroy();
   }
