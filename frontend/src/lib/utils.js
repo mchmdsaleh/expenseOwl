@@ -108,6 +108,31 @@ export function getWeekBounds(date = new Date()) {
   return { start: new Date(startLocal.toISOString()), end: new Date(endLocal.toISOString()) };
 }
 
+export function getYesterdayBounds(date = new Date()) {
+  const local = new Date(date);
+  local.setDate(local.getDate() - 1);
+  const startLocal = new Date(local.getFullYear(), local.getMonth(), local.getDate(), 0, 0, 0, 0);
+  const endLocal = new Date(local.getFullYear(), local.getMonth(), local.getDate(), 23, 59, 59, 999);
+  return { start: new Date(startLocal.toISOString()), end: new Date(endLocal.toISOString()) };
+}
+
+function getLocalDayBounds(dateInput) {
+  if (!dateInput) return null;
+  const [year, month, day] = dateInput.split('-').map(Number);
+  if ([year, month, day].some((value) => Number.isNaN(value))) return null;
+  const startLocal = new Date(year, month - 1, day, 0, 0, 0, 0);
+  const endLocal = new Date(year, month - 1, day, 23, 59, 59, 999);
+  return { start: new Date(startLocal.toISOString()), end: new Date(endLocal.toISOString()) };
+}
+
+export function getCustomRangeBounds(startDateInput, endDateInput) {
+  const startBounds = getLocalDayBounds(startDateInput);
+  const endBounds = getLocalDayBounds(endDateInput);
+  if (!startBounds || !endBounds) return null;
+  if (startBounds.start > endBounds.end) return null;
+  return { start: startBounds.start, end: endBounds.end };
+}
+
 export function getMonthBounds(date, startDate = 1, endOfMonth = false) {
   const localDate = new Date(date);
   if (Number.isNaN(localDate.getTime())) {
@@ -193,12 +218,24 @@ export function getMonthExpenses(expenses, currentDate, startDate, endOfMonth = 
     .sort((a, b) => new Date(b.date) - new Date(a.date));
 }
 
-export function filterExpensesByRange(expenses, range, referenceDate, startDate, endOfMonth = false) {
+export function filterExpensesByRange(
+  expenses,
+  range,
+  referenceDate,
+  startDate,
+  endOfMonth = false,
+  options = {}
+) {
   let bounds;
   if (range === 'today') {
     bounds = getTodayBounds(referenceDate);
+  } else if (range === 'yesterday') {
+    bounds = getYesterdayBounds(referenceDate);
   } else if (range === 'week') {
     bounds = getWeekBounds(referenceDate);
+  } else if (range === 'range') {
+    bounds = getCustomRangeBounds(options.start, options.end);
+    if (!bounds) return [];
   } else {
     bounds = getMonthBounds(referenceDate, startDate, endOfMonth);
   }
@@ -235,6 +272,22 @@ export function formatDayLabel(date = new Date()) {
     day: 'numeric',
     year: 'numeric',
   });
+}
+
+export function formatRangeLabel(startInput, endInput) {
+  const startBounds = getLocalDayBounds(startInput);
+  const endBounds = getLocalDayBounds(endInput);
+  if (!startBounds || !endBounds) {
+    return 'Select date range';
+  }
+  const start = startBounds.start;
+  const end = endBounds.end;
+  const sameDay = start.toDateString() === end.toDateString();
+  const startOptions = { month: 'short', day: 'numeric', year: 'numeric' };
+  const endOptions = sameDay ? startOptions : { month: 'short', day: 'numeric', year: 'numeric' };
+  const startLabel = start.toLocaleDateString('en-US', startOptions);
+  const endLabel = end.toLocaleDateString('en-US', endOptions);
+  return sameDay ? startLabel : `${startLabel} - ${endLabel}`;
 }
 
 export function escapeHTML(str) {

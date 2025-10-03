@@ -106,12 +106,28 @@
             <option value="month">This Month</option>
             <option value="week">This Week</option>
             <option value="today">Today</option>
+            <option value="yesterday">Yesterday</option>
+            <option value="range">Custom Range</option>
           </select>
           <i
             class="fa-solid fa-chevron-down pointer-events-none absolute right-3 top-1/2 -translate-y-1/2
                   text-[var(--text-secondary)] text-[10px]"
             aria-hidden="true"
           ></i>
+        </div>
+
+        <div
+          v-if="dateFilter === 'range'"
+          class="grid min-w-[220px] gap-2 md:grid-cols-2 md:items-center"
+        >
+          <label class="flex flex-col text-xs text-[var(--text-secondary)]">
+            <span class="mb-1 text-[11px] uppercase tracking-wide">Start</span>
+            <input v-model="rangeStart" type="date" :class="inputClass" />
+          </label>
+          <label class="flex flex-col text-xs text-[var(--text-secondary)]">
+            <span class="mb-1 text-[11px] uppercase tracking-wide">End</span>
+            <input v-model="rangeEnd" type="date" :class="inputClass" />
+          </label>
         </div>
 
         <!-- Sort option -->
@@ -128,6 +144,7 @@
           ></i>
         </div>
       </div>
+      <p v-if="rangeValidationMessage" class="text-xs italic text-amber-300">{{ rangeValidationMessage }}</p>
       <div
         v-if="tableExpenses.length === 0"
         class="w-full rounded-3xl border border-dashed border-[var(--border)] bg-[var(--bg-secondary)]/60 py-12 text-center text-base italic text-[var(--text-secondary)]"
@@ -212,6 +229,7 @@ import {
   formatCurrency as formatCurrencyRaw,
   formatWeekRange,
   formatDayLabel,
+  formatRangeLabel,
   getCycleAnchor,
 } from '../lib/utils';
 
@@ -226,6 +244,8 @@ const formMessage = ref({ text: '', type: '' });
 const showDeleteModal = ref(false);
 const expenseToDelete = ref(null);
 const rawAmount = ref('');
+const rangeStart = ref(formatDateForInput(new Date()));
+const rangeEnd = ref(formatDateForInput(new Date()));
 
 const userDisplayName = computed(() => {
   const first = (state.user?.firstName || '').trim();
@@ -241,8 +261,16 @@ const periodLabel = computed(() => {
   if (dateFilter.value === 'today') {
     return formatDayLabel(currentDate.value);
   }
+  if (dateFilter.value === 'yesterday') {
+    const yesterday = new Date(currentDate.value);
+    yesterday.setDate(yesterday.getDate() - 1);
+    return formatDayLabel(yesterday);
+  }
   if (dateFilter.value === 'week') {
     return formatWeekRange(currentDate.value);
+  }
+  if (dateFilter.value === 'range') {
+    return formatRangeLabel(rangeStart.value, rangeEnd.value);
   }
   return formatMonth(currentDate.value);
 });
@@ -254,6 +282,16 @@ const filteredExpenses = computed(() => {
   if (dateFilter.value === 'month') {
     return getMonthExpenses(state.expenses, currentDate.value, state.startDate, state.endOfMonth);
   }
+  if (dateFilter.value === 'range') {
+    return filterExpensesByRange(
+      state.expenses,
+      'range',
+      currentDate.value,
+      state.startDate,
+      state.endOfMonth,
+      { start: rangeStart.value, end: rangeEnd.value }
+    );
+  }
   return filterExpensesByRange(state.expenses, dateFilter.value, currentDate.value, state.startDate, state.endOfMonth);
 });
 
@@ -264,6 +302,12 @@ const hasTags = computed(() => tableExpenses.value.some((expense) => Array.isArr
 const emptyTableMessage = computed(() => {
   if (showAll.value) {
     return 'No transactions found';
+  }
+  if (dateFilter.value === 'yesterday') {
+    return 'No transactions recorded yesterday';
+  }
+  if (dateFilter.value === 'range') {
+    return 'No transactions found in this range';
   }
   if (dateFilter.value === 'today') {
     return 'No transactions recorded today';
@@ -367,6 +411,17 @@ const sortChoices = [
   { value: 'nameDesc', label: 'Name (Z-A)' },
 ];
 
+const rangeValidationMessage = computed(() => {
+  if (dateFilter.value !== 'range') return '';
+  if (!rangeStart.value || !rangeEnd.value) {
+    return 'Select both start and end dates';
+  }
+  if (new Date(rangeStart.value) > new Date(rangeEnd.value)) {
+    return 'Start date must be before end date';
+  }
+  return '';
+});
+
 function ensureCurrentMonthAvailable() {
   // noop placeholder for future adjustments
 }
@@ -420,6 +475,13 @@ function createDefaultForm() {
     reportGain: false,
     submitLabel: 'Add Expense',
   };
+}
+
+function formatDateForInput(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 function resetForm() {
