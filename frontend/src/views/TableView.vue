@@ -136,6 +136,17 @@
           </label>
         </div>
 
+        <div v-if="selectedCategory" :class="categoryFilterChipClass">
+          <i class="fa-solid fa-filter text-xs text-[var(--accent)]"></i>
+          <div class="flex flex-col leading-none">
+            <span class="text-[10px] uppercase tracking-[0.18em] text-[var(--text-secondary)]">Category</span>
+            <span class="text-sm font-medium text-[var(--text-primary)]">{{ selectedCategory }}</span>
+          </div>
+          <button type="button" class="text-xs text-[var(--text-secondary)] transition hover:text-[var(--text-primary)]" @click="clearCategoryFilter">
+            Clear
+          </button>
+        </div>
+
         <!-- Sort option -->
         <div class="relative min-w-0">
           <select v-model="sortOption" :class="selectClass" aria-label="Sort transactions">
@@ -222,6 +233,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import TagInput from '../components/TagInput.vue';
 import state, { loadInitialData, refreshExpenses } from '../stores/appState';
 import { apiFetch } from '../lib/api';
@@ -239,6 +251,8 @@ import {
   getCycleAnchor,
 } from '../lib/utils';
 
+const route = useRoute();
+const router = useRouter();
 const currentDate = ref(new Date());
 const monthCursor = ref(new Date());
 const dateFilter = ref('month');
@@ -252,6 +266,8 @@ const expenseToDelete = ref(null);
 const rawAmount = ref('');
 const rangeStart = ref(formatDateForInput(new Date()));
 const rangeEnd = ref(formatDateForInput(new Date()));
+const syncingFromRoute = ref(false);
+const selectedCategory = ref('');
 
 const userDisplayName = computed(() => {
   const first = (state.user?.firstName || '').trim();
@@ -282,14 +298,13 @@ const periodLabel = computed(() => {
 });
 
 const filteredExpenses = computed(() => {
+  let results;
   if (showAll.value) {
-    return [...state.expenses];
-  }
-  if (dateFilter.value === 'month') {
-    return getMonthExpenses(state.expenses, currentDate.value, state.startDate, state.endOfMonth);
-  }
-  if (dateFilter.value === 'range') {
-    return filterExpensesByRange(
+    results = [...state.expenses];
+  } else if (dateFilter.value === 'month') {
+    results = getMonthExpenses(state.expenses, currentDate.value, state.startDate, state.endOfMonth);
+  } else if (dateFilter.value === 'range') {
+    results = filterExpensesByRange(
       state.expenses,
       'range',
       currentDate.value,
@@ -297,8 +312,15 @@ const filteredExpenses = computed(() => {
       state.endOfMonth,
       { start: rangeStart.value, end: rangeEnd.value }
     );
+  } else {
+    results = filterExpensesByRange(state.expenses, dateFilter.value, currentDate.value, state.startDate, state.endOfMonth);
   }
-  return filterExpensesByRange(state.expenses, dateFilter.value, currentDate.value, state.startDate, state.endOfMonth);
+
+  if (selectedCategory.value) {
+    results = results.filter((expense) => normalizeCategory(expense.category) === selectedCategory.value);
+  }
+
+  return results;
 });
 
 const tableExpenses = computed(() => sortExpenses(filteredExpenses.value));
@@ -358,7 +380,7 @@ watch(
 );
 
 watch(dateFilter, (next) => {
-  if (showAll.value) return;
+  if (syncingFromRoute.value || showAll.value) return;
   if (next === 'month') {
     alignCurrentCycle(monthCursor.value);
   } else {
@@ -367,6 +389,7 @@ watch(dateFilter, (next) => {
 });
 
 watch(showAll, (value) => {
+  if (syncingFromRoute.value) return;
   if (!value) {
     if (dateFilter.value === 'month') {
       alignCurrentCycle(monthCursor.value);
@@ -376,10 +399,92 @@ watch(showAll, (value) => {
   }
 });
 
+function applyRouteFilters(query = route.query) {
+  if (!query || typeof query !== 'object') return;
+
+  const allowedFilters = new Set(['month', 'week', 'today', 'yesterday', 'range']);
+  const parseBoolean = (value) => {
+    if (typeof value === 'boolean') return value;
+    if (typeof value !== 'string') return null;
+    const normalized = value.toLowerCase();
+    if (['1', 'true', 'yes'].includes(normalized)) return true;
+    if (['0', 'false', 'no'].includes(normalized)) return false;
+    return null;
+  };
+  const parseDate = (value) => {
+    if (typeof value !== 'string' || !value) return null;
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  };
+
+  const queryFilter = typeof query.filter === 'string' && allowedFilters.has(query.filter) ? query.filter : null;
+  const querySort = typeof query.sort === 'string' && sortChoices.some((option) => option.value === query.sort)
+    ? query.sort
+    : null;
+  const queryShowAll = parseBoolean(query.showAll);
+  const anchorString = typeof query.cursor === 'string' && query.cursor ? query.cursor : typeof query.anchor === 'string' ? query.anchor : null;
+  const anchorDate = parseDate(anchorString);
+
+  syncingFromRoute.value = true;
+
+  if (queryShowAll !== null) {
+    showAll.value = queryShowAll;
+  }
+
+  if (queryFilter) {
+    dateFilter.value = queryFilter;
+  }
+
+  if (queryFilter === 'range') {
+    if (typeof query.start === 'string' && query.start) {
+      rangeStart.value = query.start;
+    }
+    if (typeof query.end === 'string' && query.end) {
+      rangeEnd.value = query.end;
+    }
+  }
+
+  if (querySort) {
+    sortOption.value = querySort;
+  }
+
+  syncingFromRoute.value = false;
+
+  const categoryParam = typeof query.category === 'string' && query.category.trim() ? query.category.trim() : '';
+  selectedCategory.value = categoryParam;
+
+  if (showAll.value) return;
+
+  if (anchorDate) {
+    monthCursor.value = anchorDate;
+  }
+
+  if (queryFilter === 'month' && anchorDate) {
+    alignCurrentCycle(anchorDate);
+  } else if (anchorDate) {
+    currentDate.value = anchorDate;
+  }
+}
+
+function clearCategoryFilter() {
+  selectedCategory.value = '';
+  const nextQuery = { ...route.query };
+  delete nextQuery.category;
+  router.replace({ query: nextQuery }).catch(() => {});
+}
+
 onMounted(async () => {
   await loadInitialData();
   alignCurrentCycle(currentDate.value);
+  applyRouteFilters(route.query);
 });
+
+watch(
+  () => route.query,
+  (query) => {
+    applyRouteFilters(query);
+  }
+);
 
 const iconButtonClass =
   'inline-flex h-11 w-11 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--bg-secondary)] text-lg text-[var(--text-primary)] transition duration-150 ease-out hover:bg-[var(--accent)] hover:text-white hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40 focus:ring-offset-2 focus:ring-offset-[var(--bg-primary)]';
@@ -418,6 +523,10 @@ const rangeInputLabelClass =
 const rangeDateInputClass =
   'w-full appearance-none border-0 bg-transparent p-0 text-sm font-medium text-[var(--text-primary)] ' +
   'focus:outline-none focus:ring-0';
+
+const categoryFilterChipClass =
+  'inline-flex items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-secondary)]/80 px-4 py-2 ' +
+  'shadow-sm backdrop-blur transition duration-150 ease-out';
 
 const sortChoices = [
   { value: 'dateAsc', label: 'Date (Newest)' },
@@ -476,6 +585,10 @@ function alignCurrentCycle(baseDate = currentDate.value, { updateCurrent = true,
     currentDate.value = new Date(aligned);
   }
   return new Date(aligned);
+}
+
+function normalizeCategory(category) {
+  return (category && category.trim()) || 'Uncategorized';
 }
 
 function createDefaultForm() {

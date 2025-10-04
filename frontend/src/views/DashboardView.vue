@@ -141,7 +141,12 @@
         {{ emptyDashboardMessage }}
       </div>
       <template v-else>
-        <div class="flex h-80 flex-1 items-center justify-center">
+        <div
+          class="flex h-80 flex-1 cursor-pointer items-center justify-center"
+          role="button"
+          aria-label="View detailed transactions"
+          @click="handleChartClick"
+        >
           <canvas ref="chartCanvas"></canvas>
         </div>
         <div class="flex flex-1 flex-col gap-4">
@@ -250,6 +255,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue';
+import { useRouter } from 'vue-router';
 import { Chart, registerables } from 'chart.js';
 import state, { loadInitialData, refreshExpenses, refreshBudgetSummaries } from '../stores/appState';
 import TagInput from '../components/TagInput.vue';
@@ -275,6 +281,7 @@ Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Rob
 
 const chartCanvas = ref(null);
 let chartInstance = null;
+const router = useRouter();
 
 const currentDate = ref(new Date());
 const monthCursor = ref(new Date());
@@ -425,7 +432,11 @@ const emptyDashboardMessage = computed(() => {
 const legendEntries = computed(() => buildLegendEntries());
 const totalActiveExpenses = computed(() => {
   return displayedExpenses.value
-    .filter((exp) => exp.amount < 0 && !disabledCategories.value.has(exp.category))
+    .filter((exp) => {
+      if (exp.amount >= 0) return false;
+      const category = normalizeCategoryName(exp.category);
+      return !disabledCategories.value.has(category);
+    })
     .reduce((sum, exp) => sum + Math.abs(exp.amount), 0);
 });
 const totalActiveFormatted = computed(() => formatCurrency(totalActiveExpenses.value));
@@ -632,16 +643,20 @@ function setFormMessage(text, type) {
   }
 }
 
+function normalizeCategoryName(category) {
+  return (typeof category === 'string' && category.trim()) || 'Uncategorized';
+}
+
 function assignCategoryColors() {
   const colors = { ...categoryColors.value };
+  const baseCategories = Array.isArray(state.categories) ? state.categories : [];
   const allCategories = Array.from(
     new Set([
-      ...state.categories,
-      ...state.expenses.map((expense) => expense.category).filter(Boolean),
+      ...baseCategories.map((category) => normalizeCategoryName(category)),
+      ...state.expenses.map((expense) => normalizeCategoryName(expense.category)),
     ]),
   );
   allCategories.forEach((category) => {
-    if (!category) return;
     if (!colors[category]) {
       const nextIndex = Object.keys(colors).length;
       colors[category] = colorPalette[nextIndex % colorPalette.length];
@@ -676,9 +691,11 @@ function calculateCategoryBreakdown(expenses) {
   const categoryTotals = {};
   let totalAmount = 0;
   expenses.forEach((exp) => {
-    if (exp.amount < 0 && !disabledCategories.value.has(exp.category)) {
+    if (exp.amount < 0) {
       const amount = Math.abs(exp.amount);
-      categoryTotals[exp.category] = (categoryTotals[exp.category] || 0) + amount;
+      const category = normalizeCategoryName(exp.category);
+      if (disabledCategories.value.has(category)) return;
+      categoryTotals[category] = (categoryTotals[category] || 0) + amount;
       totalAmount += amount;
     }
   });
@@ -698,7 +715,7 @@ function buildLegendEntries() {
     new Set(
       displayedExpenses.value
         .filter((exp) => exp.amount < 0)
-        .map((exp) => exp.category)
+        .map((exp) => normalizeCategoryName(exp.category))
     )
   );
   currentMonthCategories.sort((a, b) => {
@@ -836,5 +853,37 @@ function updateChart() {
       },
     },
   });
+}
+
+function handleChartClick(event) {
+  if (!hasExpenseData.value || !chartInstance) return;
+  const query = buildTableNavigationQuery();
+  const elements = chartInstance.getElementsAtEventForMode(
+    event.nativeEvent ?? event,
+    'nearest',
+    { intersect: true },
+    true
+  );
+  if (Array.isArray(elements) && elements.length > 0) {
+    const { index } = elements[0];
+    const category = chartInstance.data.labels?.[index];
+    if (typeof category === 'string' && category.trim()) {
+      query.category = category.trim();
+    }
+  }
+  router.push({ name: 'table', query }).catch(() => {});
+}
+
+function buildTableNavigationQuery() {
+  const query = { filter: dateFilter.value };
+  if (dateFilter.value === 'range') {
+    if (rangeStart.value) query.start = rangeStart.value;
+    if (rangeEnd.value) query.end = rangeEnd.value;
+  } else if (dateFilter.value === 'month') {
+    query.cursor = formatDateForInput(monthCursor.value);
+  } else {
+    query.anchor = formatDateForInput(currentDate.value);
+  }
+  return query;
 }
 </script>
