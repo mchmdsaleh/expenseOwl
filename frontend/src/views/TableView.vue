@@ -94,7 +94,7 @@
     </div>
 
     <div>
-      <div class="grid grid-cols-2 gap-2 md:flex md:items-center md:gap-3 mb-5">
+      <div class="mb-5 flex flex-wrap items-center gap-2 md:gap-3">
         <!-- Date filter -->
         <div class="relative min-w-0">
           <select
@@ -118,15 +118,21 @@
 
         <div
           v-if="dateFilter === 'range'"
-          class="grid min-w-[220px] gap-2 md:grid-cols-2 md:items-center"
+          class="flex w-full flex-wrap items-center gap-2 md:w-auto md:flex-nowrap"
         >
-          <label class="flex flex-col text-xs text-[var(--text-secondary)]">
-            <span class="mb-1 text-[11px] uppercase tracking-wide">Start</span>
-            <input v-model="rangeStart" type="date" :class="inputClass" />
+          <label :class="rangeInputWrapperClass">
+            <i class="fa-solid fa-calendar-day shrink-0 text-sm text-[var(--text-secondary)]"></i>
+            <div class="flex min-w-[140px] flex-1 flex-col gap-1">
+              <span :class="rangeInputLabelClass">Start</span>
+              <input v-model="rangeStart" type="date" :class="rangeDateInputClass" />
+            </div>
           </label>
-          <label class="flex flex-col text-xs text-[var(--text-secondary)]">
-            <span class="mb-1 text-[11px] uppercase tracking-wide">End</span>
-            <input v-model="rangeEnd" type="date" :class="inputClass" />
+          <label :class="rangeInputWrapperClass">
+            <i class="fa-solid fa-calendar-check shrink-0 text-sm text-[var(--text-secondary)]"></i>
+            <div class="flex min-w-[140px] flex-1 flex-col gap-1">
+              <span :class="rangeInputLabelClass">End</span>
+              <input v-model="rangeEnd" type="date" :class="rangeDateInputClass" />
+            </div>
           </label>
         </div>
 
@@ -401,6 +407,17 @@ const selectClass =
   'h-11 pl-4 pr-10 appearance-none text-sm text-[var(--text-primary)] ' +
   'focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40 ' +
   'disabled:cursor-not-allowed disabled:opacity-60';
+
+const rangeInputWrapperClass =
+  'flex w-full items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-secondary)]/70 px-4 py-3 ' +
+  'shadow-sm transition duration-150 ease-out md:flex-1 focus-within:border-[var(--accent)] focus-within:bg-[var(--bg-primary)]/80 focus-within:shadow-lg';
+
+const rangeInputLabelClass =
+  'text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--text-secondary)]';
+
+const rangeDateInputClass =
+  'w-full appearance-none border-0 bg-transparent p-0 text-sm font-medium text-[var(--text-primary)] ' +
+  'focus:outline-none focus:ring-0';
 
 const sortChoices = [
   { value: 'dateAsc', label: 'Date (Newest)' },
