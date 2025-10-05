@@ -28,14 +28,31 @@
       </div>
     </div>
 
-    <div class="flex flex-row gap-2 md:items-center justify-between">
-      <div class="relative">
-        <select v-model="dateFilter" :class="filterSelectClass">
-          <option value="month">This Month</option>
-          <option value="week">This Week</option>
-          <option value="today">Today</option>
-        </select>
-        <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] pointer-events-none text-xs"></i>
+    <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+      <div class="flex flex-col gap-2 md:flex-row md:items-center">
+        <div class="relative">
+          <select v-model="dateFilter" :class="filterSelectClass">
+            <option value="month">This Month</option>
+            <option value="week">This Week</option>
+            <option value="today">Today</option>
+            <option value="yesterday">Yesterday</option>
+            <option value="range">Custom Range</option>
+          </select>
+          <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] pointer-events-none text-xs"></i>
+        </div>
+        <div
+          v-if="dateFilter === 'range'"
+          class="grid gap-2 md:ml-4 md:grid-cols-2"
+        >
+          <label class="flex flex-col text-xs text-[var(--text-secondary)]">
+            <span class="mb-1 text-[11px] uppercase tracking-wide">Start</span>
+            <input v-model="rangeStart" type="date" :class="inputClass" />
+          </label>
+          <label class="flex flex-col text-xs text-[var(--text-secondary)]">
+            <span class="mb-1 text-[11px] uppercase tracking-wide">End</span>
+            <input v-model="rangeEnd" type="date" :class="inputClass" />
+          </label>
+        </div>
       </div>
       <div class="flex justify-end">
         <button :class="primaryButtonClass" @click="toggleExpenseForm">
@@ -44,6 +61,7 @@
         </button>
       </div>
     </div>
+    <p v-if="rangeValidationMessage" class="text-xs italic text-amber-300">{{ rangeValidationMessage }}</p>
 
     <div v-if="showExpenseForm" id="addExpenseContainer">
       <div :class="cardClass">
@@ -238,6 +256,7 @@ import {
   colorPalette,
   formatWeekRange,
   formatDayLabel,
+  formatRangeLabel,
   getCycleAnchor,
 } from '../lib/utils';
 import { apiFetch } from '../lib/api';
@@ -257,6 +276,8 @@ const dateFilter = ref('month');
 const showExpenseForm = ref(false);
 const disabledCategories = ref(new Set());
 const categoryColors = ref({});
+const rangeStart = ref(formatDateForInput(daysAgo(6)));
+const rangeEnd = ref(formatDateForInput(new Date()));
 
 const form = ref(createDefaultForm());
 const formMessage = ref({ text: '', type: '' });
@@ -332,6 +353,16 @@ const displayedExpenses = computed(() => {
   if (dateFilter.value === 'month') {
     return monthExpenses.value;
   }
+  if (dateFilter.value === 'range') {
+    return filterExpensesByRange(
+      state.expenses,
+      'range',
+      currentDate.value,
+      state.startDate,
+      state.endOfMonth,
+      { start: rangeStart.value, end: rangeEnd.value }
+    );
+  }
   return filterExpensesByRange(state.expenses, dateFilter.value, currentDate.value, state.startDate, state.endOfMonth);
 });
 const hasExpenseData = computed(() => displayedExpenses.value.some((expense) => expense.amount < 0));
@@ -344,13 +375,27 @@ const periodLabel = computed(() => {
   if (dateFilter.value === 'today') {
     return formatDayLabel(currentDate.value);
   }
+  if (dateFilter.value === 'yesterday') {
+    const yesterday = new Date(currentDate.value);
+    yesterday.setDate(yesterday.getDate() - 1);
+    return formatDayLabel(yesterday);
+  }
   if (dateFilter.value === 'week') {
     return formatWeekRange(currentDate.value);
+  }
+  if (dateFilter.value === 'range') {
+    return formatRangeLabel(rangeStart.value, rangeEnd.value);
   }
   return formatMonth(currentDate.value);
 });
 
 const emptyDashboardMessage = computed(() => {
+  if (dateFilter.value === 'yesterday') {
+    return 'No expenses recorded yesterday.';
+  }
+  if (dateFilter.value === 'range') {
+    return 'No expenses recorded in this range.';
+  }
   if (dateFilter.value === 'today') {
     return 'No expenses recorded today.';
   }
@@ -367,6 +412,17 @@ const totalActiveExpenses = computed(() => {
     .reduce((sum, exp) => sum + Math.abs(exp.amount), 0);
 });
 const totalActiveFormatted = computed(() => formatCurrency(totalActiveExpenses.value));
+
+const rangeValidationMessage = computed(() => {
+  if (dateFilter.value !== 'range') return '';
+  if (!rangeStart.value || !rangeEnd.value) {
+    return 'Select both start and end dates';
+  }
+  if (new Date(rangeStart.value) > new Date(rangeEnd.value)) {
+    return 'Start date must be before end date';
+  }
+  return '';
+});
 
 const budgetSummaries = computed(() => {
   if (!monthlyBudgets.value.length) return [];
@@ -475,12 +531,16 @@ watch(disabledCategories, updateChart, { deep: true });
 
 watch(
   dateFilter,
-  async (next) => {
+  async (next, prev) => {
     if (next === 'month') {
       alignCurrentCycle(monthCursor.value);
       await loadBudgetsForCurrentMonth();
     } else {
       currentDate.value = new Date();
+    }
+    if (next === 'range' && prev !== 'range') {
+      rangeStart.value = formatDateForInput(daysAgo(6));
+      rangeEnd.value = formatDateForInput(new Date());
     }
     disabledCategories.value = new Set();
     await nextTick();
@@ -504,6 +564,19 @@ onBeforeUnmount(() => {
     chartInstance = null;
   }
 });
+
+function daysAgo(amount) {
+  const date = new Date();
+  date.setDate(date.getDate() - amount);
+  return date;
+}
+
+function formatDateForInput(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
 
 function createDefaultForm() {
   const today = new Date();

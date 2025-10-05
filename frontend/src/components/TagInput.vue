@@ -32,7 +32,7 @@
     />
     <div
       v-if="showDropdown"
-      class="absolute left-0 top-full z-50 mt-2 w-full overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-secondary)]/95 shadow-card backdrop-blur"
+      class="mt-2 w-full basis-full overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-secondary)]/95 shadow-card backdrop-blur"
     >
       <button
         v-for="tag in filteredSuggestions"
