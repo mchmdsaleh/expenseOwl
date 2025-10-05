@@ -28,8 +28,8 @@
       </div>
     </div>
 
-    <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-      <div class="flex flex-col gap-2 md:flex-row md:items-center">
+    <div class="flex flex-wrap items-center justify-between gap-2">
+      <div class="flex flex-wrap  items-center gap-2">
         <div class="relative">
           <select v-model="dateFilter" :class="filterSelectClass">
             <option value="month">This Month</option>
@@ -42,19 +42,25 @@
         </div>
         <div
           v-if="dateFilter === 'range'"
-          class="grid gap-2 md:ml-4 md:grid-cols-2"
+          class="flex w-full flex-wrap items-center gap-2 md:ml-4 md:w-auto md:flex-nowrap"
         >
-          <label class="flex flex-col text-xs text-[var(--text-secondary)]">
-            <span class="mb-1 text-[11px] uppercase tracking-wide">Start</span>
-            <input v-model="rangeStart" type="date" :class="inputClass" />
+          <label :class="rangeInputWrapperClass">
+            <i class="fa-solid fa-calendar-day shrink-0 text-sm text-[var(--text-secondary)]"></i>
+            <div class="flex min-w-[140px] flex-1 flex-col gap-1">
+              <span :class="rangeInputLabelClass">Start</span>
+              <input v-model="rangeStart" type="date" :class="rangeDateInputClass" />
+            </div>
           </label>
-          <label class="flex flex-col text-xs text-[var(--text-secondary)]">
-            <span class="mb-1 text-[11px] uppercase tracking-wide">End</span>
-            <input v-model="rangeEnd" type="date" :class="inputClass" />
+          <label :class="rangeInputWrapperClass">
+            <i class="fa-solid fa-calendar-check shrink-0 text-sm text-[var(--text-secondary)]"></i>
+            <div class="flex min-w-[140px] flex-1 flex-col gap-1">
+              <span :class="rangeInputLabelClass">End</span>
+              <input v-model="rangeEnd" type="date" :class="rangeDateInputClass" />
+            </div>
           </label>
         </div>
       </div>
-      <div class="flex justify-end">
+      <div class="flex items-center justify-end gap-2 shrink-0">
         <button :class="primaryButtonClass" @click="toggleExpenseForm">
           <i :class="showExpenseForm ? 'fa-solid fa-times' : 'fa-solid fa-plus'"></i>
           {{ showExpenseForm ? 'Close' : 'Add Expense' }}
@@ -135,7 +141,12 @@
         {{ emptyDashboardMessage }}
       </div>
       <template v-else>
-        <div class="flex h-80 flex-1 items-center justify-center">
+        <div
+          class="flex h-80 flex-1 cursor-pointer items-center justify-center"
+          role="button"
+          aria-label="View detailed transactions"
+          @click="handleChartClick"
+        >
           <canvas ref="chartCanvas"></canvas>
         </div>
         <div class="flex flex-1 flex-col gap-4">
@@ -244,6 +255,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue';
+import { useRouter } from 'vue-router';
 import { Chart, registerables } from 'chart.js';
 import state, { loadInitialData, refreshExpenses, refreshBudgetSummaries } from '../stores/appState';
 import TagInput from '../components/TagInput.vue';
@@ -269,6 +281,7 @@ Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Rob
 
 const chartCanvas = ref(null);
 let chartInstance = null;
+const router = useRouter();
 
 const currentDate = ref(new Date());
 const monthCursor = ref(new Date());
@@ -306,6 +319,17 @@ const filterSelectClass =
   'min-w-[180px] w-auto rounded-full border border-[var(--border)] bg-[var(--bg-secondary)] ' +
   'h-11 pl-4 pr-12 appearance-none text-sm text-[var(--text-primary)] ' +
   'focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40';
+
+const rangeInputWrapperClass =
+  'flex w-full items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-secondary)]/70 px-4 py-3 ' +
+  'shadow-sm transition duration-150 ease-out md:flex-1 focus-within:border-[var(--accent)] focus-within:bg-[var(--bg-primary)]/80 focus-within:shadow-lg';
+
+const rangeInputLabelClass =
+  'text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--text-secondary)]';
+
+const rangeDateInputClass =
+  'w-full appearance-none border-0 bg-transparent p-0 text-sm font-medium text-[var(--text-primary)] ' +
+  'focus:outline-none focus:ring-0';
 
 const cardClass =
   'rounded-3xl border border-[var(--border)] bg-[var(--bg-secondary)]/80 p-6 shadow-card backdrop-blur';
@@ -408,7 +432,11 @@ const emptyDashboardMessage = computed(() => {
 const legendEntries = computed(() => buildLegendEntries());
 const totalActiveExpenses = computed(() => {
   return displayedExpenses.value
-    .filter((exp) => exp.amount < 0 && !disabledCategories.value.has(exp.category))
+    .filter((exp) => {
+      if (exp.amount >= 0) return false;
+      const category = normalizeCategoryName(exp.category);
+      return !disabledCategories.value.has(category);
+    })
     .reduce((sum, exp) => sum + Math.abs(exp.amount), 0);
 });
 const totalActiveFormatted = computed(() => formatCurrency(totalActiveExpenses.value));
@@ -615,16 +643,20 @@ function setFormMessage(text, type) {
   }
 }
 
+function normalizeCategoryName(category) {
+  return (typeof category === 'string' && category.trim()) || 'Uncategorized';
+}
+
 function assignCategoryColors() {
   const colors = { ...categoryColors.value };
+  const baseCategories = Array.isArray(state.categories) ? state.categories : [];
   const allCategories = Array.from(
     new Set([
-      ...state.categories,
-      ...state.expenses.map((expense) => expense.category).filter(Boolean),
+      ...baseCategories.map((category) => normalizeCategoryName(category)),
+      ...state.expenses.map((expense) => normalizeCategoryName(expense.category)),
     ]),
   );
   allCategories.forEach((category) => {
-    if (!category) return;
     if (!colors[category]) {
       const nextIndex = Object.keys(colors).length;
       colors[category] = colorPalette[nextIndex % colorPalette.length];
@@ -659,9 +691,11 @@ function calculateCategoryBreakdown(expenses) {
   const categoryTotals = {};
   let totalAmount = 0;
   expenses.forEach((exp) => {
-    if (exp.amount < 0 && !disabledCategories.value.has(exp.category)) {
+    if (exp.amount < 0) {
       const amount = Math.abs(exp.amount);
-      categoryTotals[exp.category] = (categoryTotals[exp.category] || 0) + amount;
+      const category = normalizeCategoryName(exp.category);
+      if (disabledCategories.value.has(category)) return;
+      categoryTotals[category] = (categoryTotals[category] || 0) + amount;
       totalAmount += amount;
     }
   });
@@ -681,7 +715,7 @@ function buildLegendEntries() {
     new Set(
       displayedExpenses.value
         .filter((exp) => exp.amount < 0)
-        .map((exp) => exp.category)
+        .map((exp) => normalizeCategoryName(exp.category))
     )
   );
   currentMonthCategories.sort((a, b) => {
@@ -819,5 +853,37 @@ function updateChart() {
       },
     },
   });
+}
+
+function handleChartClick(event) {
+  if (!hasExpenseData.value || !chartInstance) return;
+  const query = buildTableNavigationQuery();
+  const elements = chartInstance.getElementsAtEventForMode(
+    event.nativeEvent ?? event,
+    'nearest',
+    { intersect: true },
+    true
+  );
+  if (Array.isArray(elements) && elements.length > 0) {
+    const { index } = elements[0];
+    const category = chartInstance.data.labels?.[index];
+    if (typeof category === 'string' && category.trim()) {
+      query.category = category.trim();
+    }
+  }
+  router.push({ name: 'table', query }).catch(() => {});
+}
+
+function buildTableNavigationQuery() {
+  const query = { filter: dateFilter.value };
+  if (dateFilter.value === 'range') {
+    if (rangeStart.value) query.start = rangeStart.value;
+    if (rangeEnd.value) query.end = rangeEnd.value;
+  } else if (dateFilter.value === 'month') {
+    query.cursor = formatDateForInput(monthCursor.value);
+  } else {
+    query.anchor = formatDateForInput(currentDate.value);
+  }
+  return query;
 }
 </script>
