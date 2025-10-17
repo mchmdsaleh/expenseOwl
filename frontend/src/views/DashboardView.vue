@@ -29,7 +29,7 @@
     </div>
 
     <div class="flex flex-wrap items-center justify-between gap-2">
-      <div class="flex flex-wrap  items-center gap-2">
+      <div class="flex flex-wrap items-center gap-2">
         <div class="relative">
           <select v-model="dateFilter" :class="filterSelectClass">
             <option value="month">This Month</option>
@@ -60,16 +60,21 @@
           </label>
         </div>
       </div>
-      <div class="flex items-center justify-end gap-2 shrink-0">
-        <button :class="primaryButtonClass" @click="toggleExpenseForm">
-          <i :class="showExpenseForm ? 'fa-solid fa-times' : 'fa-solid fa-plus'"></i>
-          {{ showExpenseForm ? 'Close' : 'Add Expense' }}
-        </button>
+      <div class="shrink-0">
+        <AddExpenseSpeedDial
+          :manual-open="showExpenseForm"
+          :typing-open="showTypingForm"
+          :primary-button-class="primaryButtonClass"
+          :speed-dial-button-class="speedDialButtonClass"
+          @open-manual="handleOpenManual"
+          @open-typing="handleOpenTyping"
+          @close-all="handleCloseAddPanels"
+        />
       </div>
     </div>
     <p v-if="rangeValidationMessage" class="text-xs italic text-amber-300">{{ rangeValidationMessage }}</p>
 
-    <div v-if="showExpenseForm" id="addExpenseContainer">
+    <div v-if="showExpenseForm" id="addExpenseContainer" ref="manualCardRef">
       <div :class="cardClass">
         <form class="grid gap-4 md:grid-cols-2" @submit.prevent="submitExpense">
           <div class="flex flex-col gap-2">
@@ -135,6 +140,16 @@
         </div>
       </div>
     </div>
+
+    <QuickAddExpenseCard
+      v-if="showTypingForm"
+      ref="typingCardRef"
+      :card-class="cardClass"
+      :input-class="inputClass"
+      :primary-button-class="primaryButtonClass"
+      @switch-manual="handleOpenManual"
+      @added="handleQuickAddSuccess"
+    />
 
     <div class="flex flex-col gap-6 rounded-3xl border border-[var(--border)] bg-[var(--bg-secondary)]/80 p-6 shadow-card backdrop-blur lg:flex-row">
       <div v-if="!hasExpenseData" class="w-full rounded-3xl border border-dashed border-[var(--border)] bg-[var(--bg-secondary)]/60 py-12 text-center text-base italic text-[var(--text-secondary)]">
@@ -259,6 +274,8 @@ import { useRouter } from 'vue-router';
 import { Chart, registerables } from 'chart.js';
 import state, { loadInitialData, refreshExpenses, refreshBudgetSummaries } from '../stores/appState';
 import TagInput from '../components/TagInput.vue';
+import AddExpenseSpeedDial from '../components/AddExpenseSpeedDial.vue';
+import QuickAddExpenseCard from '../components/QuickAddExpenseCard.vue';
 import {
   formatMonth,
   getMonthExpenses,
@@ -295,6 +312,9 @@ const rangeEnd = ref(formatDateForInput(new Date()));
 const form = ref(createDefaultForm());
 const formMessage = ref({ text: '', type: '' });
 const rawAmount = ref('');
+const showTypingForm = ref(false);
+const manualCardRef = ref(null);
+const typingCardRef = ref(null);
 
 const userDisplayName = computed(() => {
   const first = (state.user?.firstName || '').trim();
@@ -339,6 +359,9 @@ const legendItemClass =
 
 const cashflowCardClass =
   'flex flex-col items-center justify-center rounded-3xl border border-[var(--border)] bg-[var(--bg-secondary)]/80 px-6 py-6 text-center shadow-card backdrop-blur';
+
+const speedDialButtonClass =
+  'flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--bg-secondary)]/90 px-4 py-2 text-sm font-medium text-[var(--text-primary)] transition duration-150 ease-out hover:bg-[var(--accent)] hover:text-white hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40 focus:ring-offset-2 focus:ring-offset-[var(--bg-primary)]';
 
 const categories = computed(() => state.categories);
 const baseBudgets = computed(() => state.budgets || []);
@@ -622,13 +645,6 @@ function createDefaultForm() {
   };
 }
 
-function toggleExpenseForm() {
-  showExpenseForm.value = !showExpenseForm.value;
-  if (!showExpenseForm.value) {
-    resetForm();
-  }
-}
-
 function resetForm() {
   form.value = createDefaultForm();
   rawAmount.value = '';
@@ -641,6 +657,50 @@ function setFormMessage(text, type) {
       formMessage.value = { text: '', type: '' };
     }, 3000);
   }
+}
+
+async function scrollToAddSection(target) {
+  await nextTick();
+  let element = null;
+  if (target === 'manual') {
+    element = manualCardRef.value;
+  } else if (typingCardRef.value) {
+    element =
+      typeof typingCardRef.value.getContainer === 'function'
+        ? typingCardRef.value.getContainer()
+        : typingCardRef.value.$el ?? typingCardRef.value;
+  }
+  if (element && typeof element.scrollIntoView === 'function') {
+    const rect = element.getBoundingClientRect();
+    const offset = Math.max(window.pageYOffset + rect.top - 80, 0);
+    window.scrollTo({ top: offset, behavior: 'smooth' });
+  }
+}
+
+function handleOpenManual() {
+  resetForm();
+  showTypingForm.value = false;
+  showExpenseForm.value = true;
+  scrollToAddSection('manual');
+}
+
+async function handleOpenTyping() {
+  showExpenseForm.value = false;
+  showTypingForm.value = true;
+  await nextTick();
+  typingCardRef.value?.reset?.();
+  scrollToAddSection('typing');
+}
+
+function handleCloseAddPanels() {
+  showExpenseForm.value = false;
+  showTypingForm.value = false;
+  resetForm();
+  typingCardRef.value?.reset?.();
+}
+
+async function handleQuickAddSuccess() {
+  await refreshExpenses();
 }
 
 function normalizeCategoryName(category) {
@@ -755,6 +815,23 @@ function normalizeAmount(event) {
   event.target.value = formattedAmount.value;
 }
 
+async function postExpense(body) {
+  const payload = { ...body };
+  const blob = await encryptPayload(payload);
+  if (blob) {
+    payload.blob = blob;
+  }
+  const response = await apiFetch('/expense', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.error || 'Failed to add expense');
+  }
+}
+
 async function submitExpense() {
   if (!form.value.category) {
     setFormMessage('Please select a category', 'error');
@@ -765,34 +842,20 @@ async function submitExpense() {
     setFormMessage('Please enter a valid amount', 'error');
     return;
   }
-  if (!form.value.reportGain) {
-    amount *= -1;
-  }
-  const body = {
+  const normalizedAmount = form.value.reportGain ? Math.abs(amount) : -Math.abs(amount);
+  const payload = {
     name: form.value.name,
     category: form.value.category,
-    amount,
+    amount: normalizedAmount,
     date: getISODateWithLocalTime(form.value.date),
     tags: form.value.tags,
   };
-  const blob = await encryptPayload(body);
-  if (blob) {
-    body.blob = blob;
-  }
   try {
-    const response = await apiFetch('/expense', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.error || 'Failed to add expense');
-    }
+    await postExpense(payload);
     setFormMessage('Expense added successfully!', 'success');
     resetForm();
     await refreshExpenses();
-    showExpenseForm.value = false;
+    handleCloseAddPanels();
   } catch (error) {
     console.error('Error adding expense', error);
     setFormMessage(error.message || 'Failed to add expense', 'error');

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
+	"github.com/tanq16/expenseowl/internal/ai"
 	"github.com/tanq16/expenseowl/internal/api"
 	"github.com/tanq16/expenseowl/internal/auth"
 	"github.com/tanq16/expenseowl/internal/integrations/telegram"
@@ -41,7 +42,15 @@ func runServer() {
 
 	telegramService := telegram.NewService(dbProvider.DB())
 
-	handler := api.NewHandler(store, userService, jwtManager, telegramService)
+	aiParser, err := ai.NewExpenseParser(os.Getenv("OPENAI_API_KEY"))
+	if err != nil {
+		log.Fatalf("Failed to initialize AI expense parser: %v", err)
+	}
+	if aiParser == nil {
+		log.Println("OPENAI_API_KEY not set; AI expense parsing disabled")
+	}
+
+	handler := api.NewHandler(store, userService, jwtManager, telegramService, aiParser)
 
 	mux := http.NewServeMux()
 
@@ -121,6 +130,7 @@ func runServer() {
 	mux.HandleFunc("/expense/edit", handler.RequireAPIAuth(handler.EditExpense))
 	mux.HandleFunc("/expense/delete", handler.RequireAPIAuth(handler.DeleteExpense))
 	mux.HandleFunc("/expenses/delete", handler.RequireAPIAuth(handler.DeleteMultipleExpenses))
+	mux.HandleFunc("/ai/parse-expense", handler.RequireAPIAuth(handler.ParseExpenseAI))
 
 	// Recurring Expenses
 	mux.HandleFunc("/recurring-expense", handler.RequireAPIAuth(handler.AddRecurringExpense))
@@ -143,13 +153,28 @@ func runServer() {
 
 	server := &http.Server{
 		Addr:    ":9080",
-		Handler: mux,
+		Handler: withCORS(mux),
 	}
 
 	log.Println("Starting server on port 9080...")
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("Server failed to start: %v", err)
 	}
+}
+
+func withCORS(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+		w.Header().Set("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type,Authorization,X-Requested-With,X-Encryption-Key")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func newRedisClient() *redis.Client {

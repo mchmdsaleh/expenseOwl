@@ -3,6 +3,18 @@ import { resetEncryptionCache } from './encryption';
 
 const TOKEN_KEY = 'expenseowl_token';
 
+const explicitApiBase = import.meta.env?.VITE_API_BASE_URL || '';
+let detectedApiBase = '';
+
+if (typeof window !== 'undefined' && !explicitApiBase) {
+  const { protocol, hostname, port } = window.location;
+  if (port === '5173') {
+    detectedApiBase = `${protocol}//${hostname}:9080`;
+  }
+}
+
+const API_BASE = explicitApiBase || detectedApiBase;
+
 export function getAuthToken() {
   if (typeof window === 'undefined') return null;
   return localStorage.getItem(TOKEN_KEY);
@@ -40,7 +52,11 @@ export async function apiFetch(url, options = {}) {
   if (cipher && !opts.headers['X-Encryption-Key']) {
     opts.headers['X-Encryption-Key'] = cipher;
   }
-  const response = await fetch(url, opts);
+  let targetUrl = url;
+  if (!/^https?:\/\//i.test(url) && API_BASE) {
+    targetUrl = url.startsWith('/') ? `${API_BASE}${url}` : `${API_BASE}/${url}`;
+  }
+  const response = await fetch(targetUrl, opts);
   if (response.status === 401) {
     clearAuthToken();
     clearCipher();
