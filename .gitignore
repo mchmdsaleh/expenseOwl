@@ -4,8 +4,13 @@ main
 .vscode
 *Zone.Identifier
 .env
-expenseowl
 
+# Ignore Go build output
+expenseowl
+expenseowl.exe
+
+# Ignore frontend build output (Vite, React, etc.)
+internal/web/dist/
 
 node_modules
 frontend/node_modules
