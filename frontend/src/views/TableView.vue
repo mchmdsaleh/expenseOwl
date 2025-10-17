@@ -22,13 +22,24 @@
         <i class="fa-solid fa-circle-user text-[var(--accent)]"></i>
         <span>{{ userDisplayName }}</span>
       </div>
-      <label for="showAllToggle" class="flex items-center gap-2 self-end md:self-auto">
-        <input id="showAllToggle" v-model="showAll" type="checkbox" :class="checkboxClass" />
-        Show All Transactions
-      </label>
+      <div class="flex items-center gap-2 self-end md:self-auto">
+        <label for="showAllToggle" class="flex items-center gap-2">
+          <input id="showAllToggle" v-model="showAll" type="checkbox" :class="checkboxClass" />
+          Show All Transactions
+        </label>
+        <AddExpenseSpeedDial
+          :manual-open="showExpenseForm"
+          :typing-open="showTypingForm"
+          :primary-button-class="primaryButtonClass"
+          :speed-dial-button-class="speedDialButtonClass"
+          @open-manual="handleOpenManual"
+          @open-typing="handleOpenTyping"
+          @close-all="handleCloseAddPanels"
+        />
+      </div>
     </div>
 
-    <div :class="cardClass">
+    <div v-if="showExpenseForm" :class="cardClass" ref="manualCardRef">
       <form class="grid gap-4 md:grid-cols-2" @submit.prevent="submitExpense">
         <div class="flex flex-col gap-2">
           <label class="text-sm font-medium text-[var(--text-secondary)]" for="name">Name</label>
@@ -92,6 +103,16 @@
         {{ formMessage.text }}
       </div>
     </div>
+
+    <QuickAddExpenseCard
+      v-if="showTypingForm"
+      ref="typingCardRef"
+      :card-class="cardClass"
+      :input-class="inputClass"
+      :primary-button-class="primaryButtonClass"
+      @switch-manual="handleOpenManual"
+      @added="handleQuickAddSuccess"
+    />
 
     <div>
       <div class="mb-5 flex flex-wrap items-center gap-2 md:gap-3">
@@ -232,9 +253,11 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch, onMounted, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import TagInput from '../components/TagInput.vue';
+import AddExpenseSpeedDial from '../components/AddExpenseSpeedDial.vue';
+import QuickAddExpenseCard from '../components/QuickAddExpenseCard.vue';
 import state, { loadInitialData, refreshExpenses } from '../stores/appState';
 import { apiFetch } from '../lib/api';
 import { encryptPayload } from '../lib/encryption';
@@ -268,6 +291,10 @@ const rangeStart = ref(formatDateForInput(new Date()));
 const rangeEnd = ref(formatDateForInput(new Date()));
 const syncingFromRoute = ref(false);
 const selectedCategory = ref('');
+const showExpenseForm = ref(false);
+const showTypingForm = ref(false);
+const manualCardRef = ref(null);
+const typingCardRef = ref(null);
 
 const userDisplayName = computed(() => {
   const first = (state.user?.firstName || '').trim();
@@ -492,6 +519,9 @@ const iconButtonClass =
 const primaryButtonClass =
   'inline-flex items-center justify-center gap-2 rounded-full border border-[var(--border)] bg-[var(--bg-secondary)] px-5 py-2 text-sm font-medium text-[var(--text-primary)] transition duration-150 ease-out hover:bg-[var(--accent)] hover:text-white hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40 focus:ring-offset-2 focus:ring-offset-[var(--bg-primary)] disabled:cursor-not-allowed disabled:opacity-50';
 
+const speedDialButtonClass =
+  'flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--bg-secondary)]/90 px-4 py-2 text-sm font-medium text-[var(--text-primary)] transition duration-150 ease-out hover:bg-[var(--accent)] hover:text-white hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40 focus:ring-offset-2 focus:ring-offset-[var(--bg-primary)]';
+
 const inputClass =
   'w-full rounded-xl border border-[var(--border)] bg-[var(--bg-primary)] px-4 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40';
 
@@ -620,6 +650,48 @@ function resetForm() {
   rawAmount.value = '';
 }
 
+async function scrollToAddSection(target) {
+  await nextTick();
+  let element = null;
+  if (target === 'manual') {
+    element = manualCardRef.value;
+  } else if (typingCardRef.value) {
+    element =
+      typeof typingCardRef.value.getContainer === 'function'
+        ? typingCardRef.value.getContainer()
+        : typingCardRef.value.$el ?? typingCardRef.value;
+  }
+  if (element && typeof element.scrollIntoView === 'function') {
+    element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+function handleOpenManual() {
+  resetForm();
+  showTypingForm.value = false;
+  showExpenseForm.value = true;
+  scrollToAddSection('manual');
+}
+
+async function handleOpenTyping() {
+  showExpenseForm.value = false;
+  showTypingForm.value = true;
+  await nextTick();
+  typingCardRef.value?.reset?.();
+  scrollToAddSection('typing');
+}
+
+function handleCloseAddPanels() {
+  showExpenseForm.value = false;
+  showTypingForm.value = false;
+  resetForm();
+  typingCardRef.value?.reset?.();
+}
+
+async function handleQuickAddSuccess() {
+  await refreshExpenses();
+}
+
 function gotoPrevMonth() {
   if (showAll.value || dateFilter.value !== 'month') return;
   const date = new Date(monthCursor.value);
@@ -663,7 +735,9 @@ function editExpense(expense) {
     submitLabel: 'Update Expense',
   };
   rawAmount.value = String(Math.abs(expense.amount));
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  showTypingForm.value = false;
+  showExpenseForm.value = true;
+  scrollToAddSection('manual');
 }
 
 function toLocalDate(isoDate) {
@@ -721,7 +795,7 @@ async function submitExpense() {
     }
     await refreshExpenses();
     setFormMessage(editId.value ? 'Expense updated successfully!' : 'Expense added successfully!', 'success');
-    resetForm();
+    handleCloseAddPanels();
   } catch (error) {
     console.error('Failed to save expense', error);
     setFormMessage(error.message || 'Failed to save expense', 'error');
