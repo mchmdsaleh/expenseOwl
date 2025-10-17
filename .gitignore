@@ -4,6 +4,7 @@ main
 .vscode
 *Zone.Identifier
 .env
+expenseowl
 
 
 node_modules
