@@ -322,17 +322,54 @@
       </div>
       <div :class="cardClass">
         <h2 align="center" class="text-xl font-semibold text-[var(--text-primary)]">Import/Export Data</h2>
-        <div class="mt-4 flex flex-col items-center justify-center gap-3 text-xs md:flex-row md:text-sm">
-          <button
-            type="button"
-            :class="[primaryButtonClass, 'text-xs md:text-sm w-full md:w-auto whitespace-nowrap']"
-            @click="exportCsv"
-            :disabled="exportingCsv"
+        <div class="mt-4 space-y-4">
+          <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div class="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+              <input id="exportAllToggle" v-model="exportAll" type="checkbox" :class="checkboxClass" />
+              <label class="cursor-pointer select-none" for="exportAllToggle">Export all transactions</label>
+            </div>
+            <div v-if="!exportAll" class="relative w-full md:w-auto">
+              <select
+                v-model="exportDateFilter"
+                :class="[inputClass, 'appearance-none pr-10']"
+              >
+                <option value="month">This Month</option>
+                <option value="week">This Week</option>
+                <option value="today">Today</option>
+                <option value="yesterday">Yesterday</option>
+                <option value="range">Custom Range</option>
+              </select>
+              <i class="fa-solid fa-chevron-down pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs text-[var(--text-secondary)]"></i>
+            </div>
+          </div>
+          <div
+            v-if="!exportAll && exportDateFilter === 'range'"
+            class="flex flex-col gap-2 md:flex-row"
           >
-            {{ exportingCsv ? 'Exporting…' : 'Export to CSV' }}
-          </button>
-          <label :class="[primaryButtonClass, 'text-xs md:text-sm w-full md:w-auto whitespace-nowrap']" for="csv-import-file">Import from CSV</label>
-          <input id="csv-import-file" ref="csvImportRef" type="file" accept=".csv" hidden @change="(event) => handleImport(event, '/import/csv')" />
+            <label class="flex w-full flex-col gap-1 text-xs">
+              <span class="font-semibold uppercase tracking-[0.18em] text-[var(--text-secondary)]">Start</span>
+              <input v-model="exportRangeStart" type="date" :class="inputClass" />
+            </label>
+            <label class="flex w-full flex-col gap-1 text-xs">
+              <span class="font-semibold uppercase tracking-[0.18em] text-[var(--text-secondary)]">End</span>
+              <input v-model="exportRangeEnd" type="date" :class="inputClass" />
+            </label>
+          </div>
+          <p v-if="exportRangeValidationMessage" class="text-xs italic text-amber-300">
+            {{ exportRangeValidationMessage }}
+          </p>
+          <div class="flex flex-col items-center justify-center gap-3 text-xs md:flex-row md:text-sm">
+            <button
+              type="button"
+              :class="[primaryButtonClass, 'text-xs md:text-sm w-full md:w-auto whitespace-nowrap']"
+              @click="exportCsv"
+              :disabled="exportingCsv"
+            >
+              {{ exportingCsv ? 'Exporting…' : 'Export to CSV' }}
+            </button>
+            <label :class="[primaryButtonClass, 'text-xs md:text-sm w-full md:w-auto whitespace-nowrap']" for="csv-import-file">Import from CSV</label>
+            <input id="csv-import-file" ref="csvImportRef" type="file" accept=".csv" hidden @change="(event) => handleImport(event, '/import/csv')" />
+          </div>
         </div>
         <div
           v-if="exportMessage.text"
@@ -577,6 +614,10 @@ const themeMessage = ref({ text: '', type: '' });
 const importMessage = ref({ text: '', type: '' });
 const exportMessage = ref({ text: '', type: '' });
 const exportingCsv = ref(false);
+const exportDateFilter = ref('month');
+const exportRangeStart = ref('');
+const exportRangeEnd = ref('');
+const exportAll = ref(false);
 const importSummary = ref(null);
 const csvImportRef = ref(null);
 const csvImportOldRef = ref(null);
@@ -610,6 +651,19 @@ const allTags = computed(() => {
     (expense.tags || []).forEach((tag) => combined.add(tag));
   });
   return Array.from(combined);
+});
+
+const exportRangeValidationMessage = computed(() => {
+  if (exportAll.value || exportDateFilter.value !== 'range') {
+    return '';
+  }
+  if (!exportRangeStart.value || !exportRangeEnd.value) {
+    return 'Select both start and end dates';
+  }
+  if (new Date(exportRangeStart.value) > new Date(exportRangeEnd.value)) {
+    return 'Start date must be before end date';
+  }
+  return '';
 });
 
 const budgetList = computed(() => {
@@ -1165,10 +1219,26 @@ async function saveCurrency() {
 
 async function exportCsv() {
   if (exportingCsv.value) return;
+  if (!exportAll.value && exportDateFilter.value === 'range' && exportRangeValidationMessage.value) {
+    setExportMessage(exportRangeValidationMessage.value, 'error');
+    return;
+  }
+  const params = new URLSearchParams();
+  if (exportAll.value) {
+    params.set('period', 'all');
+  } else {
+    params.set('period', exportDateFilter.value);
+    if (exportDateFilter.value === 'range') {
+      params.set('start', exportRangeStart.value);
+      params.set('end', exportRangeEnd.value);
+    }
+  }
+  const query = params.toString();
+  const target = query ? `/export/csv?${query}` : '/export/csv';
   exportingCsv.value = true;
   setExportMessage('', '');
   try {
-    const response = await apiFetch('/export/csv', {
+    const response = await apiFetch(target, {
       method: 'GET',
       headers: { Accept: 'text/csv' },
     });
