@@ -671,7 +671,9 @@ async function scrollToAddSection(target) {
         : typingCardRef.value.$el ?? typingCardRef.value;
   }
   if (element && typeof element.scrollIntoView === 'function') {
-    element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const rect = element.getBoundingClientRect();
+    const offset = Math.max(window.pageYOffset + rect.top - 80, 0);
+    window.scrollTo({ top: offset, behavior: 'smooth' });
   }
 }
 
