@@ -3,7 +3,7 @@
     <form class="space-y-4" @submit.prevent="handleSubmit">
       <div class="space-y-2">
         <label class="text-sm font-medium text-[var(--text-secondary)]" :for="inputId">
-          Quick add (Name | Amount | Category | Date | Tags)
+          Quick add (describe expenses in plain text)
         </label>
         <textarea
           :id="inputId"
@@ -13,13 +13,17 @@
           :placeholder="placeholder"
         ></textarea>
         <p class="text-xs text-[var(--text-secondary)]">
-          Use <code>Name | Amount | Category</code> with optional <code>| Date</code> (<code>YYYY-MM-DD</code>) and <code>| Tags</code>.
-          Prefix amount with <code>+</code> to record income.
+          Tulis satu atau beberapa transaksi seperti percakapan biasa. Contoh:
+          <span class="italic">"kopi 12k di Kopi Kenangan t:ngantor"; "Bayar PLN 250 ribu tanggal 2024-05-02"</span>. Jika ada beberapa transaksi, pisahkan dengan titik koma (<code>;</code>). Tag opsional gunakan <code>t: tag1, tag2</code>.
         </p>
       </div>
       <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <button type="submit" :class="[primaryButtonClass, 'w-full sm:w-auto']">
-          Save Expense
+        <button
+          type="submit"
+          :class="[primaryButtonClass, 'w-full sm:w-auto']"
+          :disabled="isSubmitting"
+        >
+          {{ isSubmitting ? 'Processing…' : 'Save Expense' }}
         </button>
         <button
           type="button"
@@ -45,10 +49,9 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue';
+import { ref } from 'vue';
 import { apiFetch } from '../lib/api';
 import { encryptPayload } from '../lib/encryption';
-import { getISODateWithLocalTime } from '../lib/utils';
 
 const props = defineProps({
   cardClass: {
@@ -68,7 +71,7 @@ const props = defineProps({
   },
   placeholder: {
     type: String,
-    default: 'Coffee | 4.50 | Food | 2024-05-15 | morning,work',
+    default: 'kopi 12k di Kopi Kenangan t:ngantor; bayar PLN 250rb 2 Mei 2024',
   },
   inputId: {
     type: String,
@@ -81,6 +84,7 @@ const emits = defineEmits(['added', 'switch-manual']);
 const typingInput = ref('');
 const typingMessage = ref({ text: '', type: '' });
 const containerRef = ref(null);
+const isSubmitting = ref(false);
 
 async function postExpense(body) {
   const payload = { ...body };
@@ -108,72 +112,65 @@ function setTypingMessage(text, type) {
   }
 }
 
-function normalizeDate(value) {
-  if (!value) {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  }
-  return value;
-}
-
 async function handleSubmit() {
+  if (isSubmitting.value) return;
   if (!typingInput.value.trim()) {
     setTypingMessage('Enter expense details using the format above.', 'error');
     return;
   }
-  const segments = typingInput.value
-    .split('|')
-    .map((segment) => segment.trim())
-    .filter(Boolean);
-  if (segments.length < 3) {
-    setTypingMessage('Use at least “Name | Amount | Category”.', 'error');
-    return;
-  }
-  const [nameSegment, amountSegment, categorySegment, dateSegment = '', tagsSegment = ''] = segments;
-  if (!nameSegment) {
-    setTypingMessage('Name is required.', 'error');
-    return;
-  }
-  if (!categorySegment) {
-    setTypingMessage('Category is required.', 'error');
-    return;
-  }
-  const numericAmount = Number(amountSegment.replace(/[^0-9.+-]/g, ''));
-  if (!Number.isFinite(numericAmount) || numericAmount === 0) {
-    setTypingMessage('Amount must be a non-zero number.', 'error');
-    return;
-  }
-  const isGain = /^\s*\+/.test(amountSegment);
-  const normalizedAmount = isGain ? Math.abs(numericAmount) : -Math.abs(numericAmount);
-  const dateInput = normalizeDate(dateSegment);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
-    setTypingMessage('Date must use YYYY-MM-DD format.', 'error');
-    return;
-  }
-  const tags = tagsSegment
-    .split(',')
-    .map((tag) => tag.trim())
-    .filter(Boolean);
-
-  const payload = {
-    name: nameSegment,
-    category: categorySegment,
-    amount: normalizedAmount,
-    date: getISODateWithLocalTime(dateInput),
-    tags,
-  };
-
+  isSubmitting.value = true;
   try {
-    await postExpense(payload);
-    setTypingMessage('Expense added successfully!', 'success');
-    typingInput.value = '';
-    emits('added');
+    const defaultDate = new Date().toISOString();
+    const response = await apiFetch('/ai/parse-expense', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: typingInput.value, defaultDate }),
+    });
+    if (response.status === 503) {
+      setTypingMessage('AI expense parser is not configured. Please add expenses manually.', 'error');
+      return;
+    }
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || 'Failed to parse expenses');
+    }
+    const payload = await response.json().catch(() => ({}));
+    const entriesRaw = Array.isArray(payload?.expenses)
+      ? payload.expenses
+      : Array.isArray(payload)
+        ? payload
+        : payload?.expenses != null
+          ? [payload.expenses]
+          : [];
+    if (!entriesRaw.length) {
+      setTypingMessage('No transactions detected. Please refine your message.', 'error');
+      return;
+    }
+    let successCount = 0;
+    const errors = [];
+    for (const entry of entriesRaw) {
+      try {
+        const normalized = normalizeParsedEntry(entry, defaultDate);
+        await postExpense(normalized);
+        successCount += 1;
+      } catch (err) {
+        errors.push(err instanceof Error ? err.message : String(err));
+      }
+    }
+    if (successCount > 0) {
+      setTypingMessage(`Added ${successCount} transaction${successCount > 1 ? 's' : ''}.`, 'success');
+      typingInput.value = '';
+      emits('added');
+    } else if (errors.length) {
+      setTypingMessage(errors[0], 'error');
+    } else {
+      setTypingMessage('Unable to add transactions from the provided text.', 'error');
+    }
   } catch (error) {
     console.error('Failed quick add expense', error);
     setTypingMessage(error.message || 'Failed to add expense', 'error');
+  } finally {
+    isSubmitting.value = false;
   }
 }
 
@@ -181,9 +178,66 @@ defineExpose({
   reset() {
     typingInput.value = '';
     typingMessage.value = { text: '', type: '' };
+    isSubmitting.value = false;
   },
   getContainer() {
     return containerRef.value;
   },
 });
+
+const CATEGORY_MAP = {
+  food_drinks: 'Food',
+  transport: 'Travel',
+  fuel: 'Fuel',
+  shopping: 'Shopping',
+  bills_utilities: 'Utilities',
+  entertainment: 'Entertainment',
+  health_fitness: 'Healthcare',
+  groceries: 'Groceries',
+  personal_care: 'Personal Care',
+  software_subscription: 'Software',
+  misc: 'Miscellaneous',
+};
+
+function normalizeParsedEntry(entry, fallbackDate) {
+  if (!entry || typeof entry !== 'object') {
+    throw new Error('Received invalid expense from parser');
+  }
+  const amount = Number(entry.amount);
+  if (!Number.isFinite(amount) || amount === 0) {
+    throw new Error('Parsed transaction has an invalid amount');
+  }
+  const rawDate = typeof entry.date === 'string' && entry.date ? entry.date : fallbackDate;
+  let parsedDate = new Date(rawDate);
+  if (Number.isNaN(parsedDate.getTime())) {
+    parsedDate = new Date(fallbackDate);
+  }
+  const isoDate = parsedDate.toISOString();
+  const tags = Array.isArray(entry.tags) ? entry.tags.filter((tag) => tag && typeof tag === 'string') : [];
+  const uniqueTags = [...new Set(tags.map((tag) => tag.trim()).filter(Boolean))];
+  const category = mapCategoryName(entry.category);
+  const payload = {
+    name: entry.name || 'Quick add expense',
+    category,
+    amount: amount > 0 ? -Math.abs(amount) : amount,
+    date: isoDate,
+  };
+  if (uniqueTags.length) {
+    payload.tags = uniqueTags;
+  }
+  return payload;
+}
+
+function mapCategoryName(raw) {
+  const key = String(raw || '').toLowerCase();
+  if (CATEGORY_MAP[key]) {
+    return CATEGORY_MAP[key];
+  }
+  const beautified = key
+    .split(/[^a-z0-9]+/i)
+    .filter(Boolean)
+    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+    .join(' ');
+  return beautified || 'Miscellaneous';
+}
 </script>

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/tanq16/expenseowl/internal/ai"
 	"github.com/tanq16/expenseowl/internal/auth"
 	"github.com/tanq16/expenseowl/internal/integrations/telegram"
 	"github.com/tanq16/expenseowl/internal/storage"
@@ -23,15 +25,17 @@ type Handler struct {
 	users    *user.Service
 	auth     *auth.JWTManager
 	telegram *telegram.Service
+	parser   *ai.Parser
 }
 
 // NewHandler creates a new API handler.
-func NewHandler(s storage.Storage, userService *user.Service, authManager *auth.JWTManager, telegramService *telegram.Service) *Handler {
+func NewHandler(s storage.Storage, userService *user.Service, authManager *auth.JWTManager, telegramService *telegram.Service, parser *ai.Parser) *Handler {
 	return &Handler{
 		storage:  s,
 		users:    userService,
 		auth:     authManager,
 		telegram: telegramService,
+		parser:   parser,
 	}
 }
 
@@ -1269,6 +1273,44 @@ func (h *Handler) AdminUpdateUserRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "role updated"})
+}
+
+// ParseExpenseAI leverages the configured AI parser to extract structured expenses from free-form text.
+func (h *Handler) ParseExpenseAI(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
+		return
+	}
+	if h.parser == nil || !h.parser.IsEnabled() {
+		writeJSON(w, http.StatusServiceUnavailable, ErrorResponse{Error: "AI expense parser is not configured"})
+		return
+	}
+	if _, err := h.userFromRequest(r); err != nil {
+		unauthorized(w)
+		return
+	}
+	var payload struct {
+		Text        string `json:"text"`
+		DefaultDate string `json:"defaultDate"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid request body"})
+		return
+	}
+	payload.Text = strings.TrimSpace(payload.Text)
+	if payload.Text == "" {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "text is required"})
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+	defer cancel()
+	expenses, err := h.parser.Parse(ctx, payload.Text, payload.DefaultDate)
+	if err != nil {
+		log.Printf("AI ERROR: failed to parse expenses: %v\n", err)
+		writeJSON(w, http.StatusBadGateway, ErrorResponse{Error: "failed to parse expenses"})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"expenses": expenses})
 }
 
 // ServeSPA continues to deliver the frontend bundle.
