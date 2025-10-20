@@ -796,8 +796,13 @@ async function submitExpense() {
       throw new Error(error.error || 'Failed to save expense');
     }
     await refreshExpenses();
-    setFormMessage(editId.value ? 'Expense updated successfully!' : 'Expense added successfully!', 'success');
-    handleCloseAddPanels();
+    const wasEditing = Boolean(editId.value);
+    setFormMessage(wasEditing ? 'Expense updated successfully!' : 'Expense added successfully!', 'success');
+    if (wasEditing) {
+      handleCloseAddPanels();
+    } else {
+      resetForm();
+    }
   } catch (error) {
     console.error('Failed to save expense', error);
     setFormMessage(error.message || 'Failed to save expense', 'error');

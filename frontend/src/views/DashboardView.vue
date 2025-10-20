@@ -855,7 +855,6 @@ async function submitExpense() {
     setFormMessage('Expense added successfully!', 'success');
     resetForm();
     await refreshExpenses();
-    handleCloseAddPanels();
   } catch (error) {
     console.error('Error adding expense', error);
     setFormMessage(error.message || 'Failed to add expense', 'error');
