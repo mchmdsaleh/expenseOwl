@@ -1313,6 +1313,55 @@ func (h *Handler) ParseExpenseAI(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"expenses": expenses})
 }
 
+func (h *Handler) AddExpensesBatch(w http.ResponseWriter, r *http.Request) {
+	log.Printf("DEBUG: AddExpensesBatch called\n")
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "Method not allowed"})
+		return
+	}
+	userCtx, err := h.userFromRequest(r)
+	if err != nil {
+		unauthorized(w)
+		return
+	}
+	manager, err := h.encryptionManagerFromRequest(r)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	var expenses []storage.Expense
+	if err := json.NewDecoder(r.Body).Decode(&expenses); err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "Invalid request body"})
+		return
+	}
+
+	for i := range expenses {
+		expenses[i].UserID = userCtx.ID
+		if expenses[i].ID == "" {
+			expenses[i].ID = uuid.New().String()
+		}
+		if err := expenses[i].Validate(); err != nil {
+			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: fmt.Sprintf("Invalid expense at index %d: %v", i, err)})
+			return
+		}
+		blob, err := manager.Encrypt(expenses[i])
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to encrypt expense"})
+			return
+		}
+		expenses[i].Blob = blob
+	}
+
+	if err := h.storage.AddMultipleExpenses(userCtx.ID, expenses); err != nil {
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "Failed to save expenses"})
+		log.Printf("API ERROR: Failed to save multiple expenses: %v\n", err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"status": "success", "count": fmt.Sprintf("%d", len(expenses))})
+}
+
 // ServeSPA continues to deliver the frontend bundle.
 func (h *Handler) ServeSPA(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {

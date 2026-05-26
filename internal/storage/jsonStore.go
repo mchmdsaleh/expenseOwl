@@ -109,3 +109,15 @@ func (s *jsonStore) RemoveMultipleExpenses(userID string, ids []string) error {
 func (s *jsonStore) UpdateExpense(userID, id string, expense Expense) error {
 	return fmt.Errorf("json backend not available")
 }
+func (s *jsonStore) GetAIContext(userID string) (string, error) {
+	return "", fmt.Errorf("json backend not available")
+}
+func (s *jsonStore) UpdateAIContext(userID, context string) error {
+	return fmt.Errorf("json backend not available")
+}
+func (s *jsonStore) GetAIConfig(userID string) (*AIConfig, error) {
+	return nil, fmt.Errorf("json backend not available")
+}
+func (s *jsonStore) UpdateAIConfig(userID string, config AIConfig) error {
+	return fmt.Errorf("json backend not available")
+}

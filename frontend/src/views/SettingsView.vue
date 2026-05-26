@@ -60,8 +60,83 @@
             {{ categoryMessage.text }}
           </div>
         </div>
+      </div>
     </div>
-  </div>
+
+    <div :class="cardClass">
+      <h2 align="center" class="text-xl font-semibold text-[var(--text-primary)]">AI Chatbot Configuration</h2>
+      <p class="mt-2 text-sm text-[var(--text-secondary)] text-center">
+        Select your preferred AI model and provider.
+      </p>
+      <div class="mt-4 grid gap-4 md:grid-cols-2">
+        <div class="flex flex-col gap-2">
+          <label class="text-sm font-medium text-[var(--text-secondary)]">Provider</label>
+          <select v-model="aiConfig.provider" :class="inputClass">
+            <option value="openai">OpenAI</option>
+            <option value="anthropic">Anthropic (via shim)</option>
+            <option value="google">Google Gemini (via shim)</option>
+            <option value="deepseek">DeepSeek</option>
+            <option value="kimi">Kimi</option>
+            <option value="qwen">Qwen / Alibaba</option>
+            <option value="custom">Custom (OpenAI Compatible)</option>
+          </select>
+        </div>
+        <div class="flex flex-col gap-2">
+          <label class="text-sm font-medium text-[var(--text-secondary)]">Model Name</label>
+          <input v-model="aiConfig.model" type="text" :class="inputClass" placeholder="e.g. gpt-4o, deepseek-chat" />
+        </div>
+        <div class="flex flex-col gap-2 md:col-span-2">
+          <label class="text-sm font-medium text-[var(--text-secondary)]">Base URL (Optional)</label>
+          <input v-model="aiConfig.baseUrl" type="text" :class="inputClass" placeholder="https://api.openai.com/v1" />
+        </div>
+        <div class="flex flex-col gap-2 md:col-span-2">
+          <label class="text-sm font-medium text-[var(--text-secondary)]">API Key</label>
+          <input v-model="aiConfig.apiKey" type="password" :class="inputClass" placeholder="sk-..." />
+        </div>
+        <div class="flex flex-col gap-3 md:col-span-2 sm:flex-row sm:items-center sm:justify-between">
+          <button type="button" :class="primaryButtonClass" @click="saveAIConfig">Save AI Config</button>
+          <div
+            v-if="aiConfigMessage.text"
+            :class="[
+              'rounded-full px-4 py-2 text-center text-sm font-medium',
+              aiConfigMessage.type === 'success'
+                ? 'bg-emerald-500/20 text-emerald-200'
+                : 'bg-rose-500/20 text-rose-200'
+            ]"
+          >
+            {{ aiConfigMessage.text }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div :class="cardClass">
+      <h2 align="center" class="text-xl font-semibold text-[var(--text-primary)]">AI Chatbot Context</h2>
+      <p class="mt-2 text-sm text-[var(--text-secondary)] text-center">
+        Define custom rules for the AI chatbot (e.g., name overrides, bank mutation parsing, or specific category mappings).
+      </p>
+      <div class="mt-4 space-y-4">
+        <textarea
+          v-model="aiContext"
+          :class="[inputClass, 'h-48 font-mono text-xs']"
+          placeholder="Enter custom AI instructions here... (e.g., If description contains 'familymart', rename to 'Kopi')"
+        ></textarea>
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <button type="button" :class="primaryButtonClass" @click="saveAIContext">Save AI Context</button>
+          <div
+            v-if="aiContextMessage.text"
+            :class="[
+              'rounded-full px-4 py-2 text-center text-sm font-medium',
+              aiContextMessage.type === 'success'
+                ? 'bg-emerald-500/20 text-emerald-200'
+                : 'bg-rose-500/20 text-rose-200'
+            ]"
+          >
+            {{ aiContextMessage.text }}
+          </div>
+        </div>
+      </div>
+    </div>
 
     <div :class="cardClass">
       <h2 align="center" class="text-xl font-semibold text-[var(--text-primary)]">Budget Settings</h2>
@@ -568,7 +643,7 @@
 import { ref, reactive, computed, watch, onMounted, nextTick } from 'vue';
 import TagInput from '../components/TagInput.vue';
 import state, { loadInitialData, refreshExpenses, refreshRecurringExpenses, refreshBudgets, refreshBudgetSummaries } from '../stores/appState';
-import { apiFetch } from '../lib/api';
+import { apiFetch, getAIContext, updateAIContext, getAIConfig, updateAIConfig } from '../lib/api';
 import { encryptPayload } from '../lib/encryption';
 import { currencyBehaviors, formatCurrency as formatCurrencyRaw, getISODateWithLocalTime, formatMonth as formatMonthLabel } from '../lib/utils';
 
@@ -610,6 +685,17 @@ const endOfMonthMessage = ref({ text: '', type: '' });
 
 const theme = ref(localStorage.getItem('theme') || 'system');
 const themeMessage = ref({ text: '', type: '' });
+
+const aiContext = ref('');
+const aiContextMessage = ref({ text: '', type: '' });
+
+const aiConfig = ref({
+  provider: 'openai',
+  model: 'gpt-4o',
+  baseUrl: '',
+  apiKey: '',
+});
+const aiConfigMessage = ref({ text: '', type: '' });
 
 const importMessage = ref({ text: '', type: '' });
 const exportMessage = ref({ text: '', type: '' });
@@ -770,7 +856,41 @@ watch(budgetMonth, (value, oldValue) => {
 onMounted(async () => {
   await loadInitialData();
   await loadBudgetSummaries();
+  try {
+    const [context, config] = await Promise.all([
+      getAIContext(),
+      getAIConfig()
+    ]);
+    aiContext.value = context;
+    if (config) {
+      aiConfig.value = { ...aiConfig.value, ...config };
+    }
+  } catch (err) {
+    console.error('Failed to load AI settings', err);
+  }
 });
+
+async function saveAIContext() {
+  try {
+    await updateAIContext(aiContext.value);
+    aiContextMessage.value = { text: 'AI context saved successfully.', type: 'success' };
+    dismissAfter(() => (aiContextMessage.value = { text: '', type: '' }));
+  } catch (err) {
+    aiContextMessage.value = { text: err.message || 'Failed to save AI context', type: 'error' };
+    dismissAfter(() => (aiContextMessage.value = { text: '', type: '' }));
+  }
+}
+
+async function saveAIConfig() {
+  try {
+    await updateAIConfig(aiConfig.value);
+    aiConfigMessage.value = { text: 'AI config saved successfully.', type: 'success' };
+    dismissAfter(() => (aiConfigMessage.value = { text: '', type: '' }));
+  } catch (err) {
+    aiConfigMessage.value = { text: err.message || 'Failed to save AI config', type: 'error' };
+    dismissAfter(() => (aiConfigMessage.value = { text: '', type: '' }));
+  }
+}
 
 function createBudgetForm() {
   return {

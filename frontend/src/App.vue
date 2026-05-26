@@ -43,12 +43,14 @@
     <main class="flex-1">
       <RouterView />
     </main>
+    <ChatbotWidget v-if="state.user" />
   </div>
 </template>
 
 <script setup>
 import { computed } from 'vue';
 import { useRoute, useRouter, RouterLink, RouterView } from 'vue-router';
+import ChatbotWidget from './components/ChatbotWidget.vue';
 import { apiFetch, clearAuthToken } from './lib/api';
 import { clearCipher } from './lib/cipher';
 import { resetEncryptionCache } from './lib/encryption';
