@@ -40,8 +40,35 @@
   ],
   "transactions": [
     {
+      "name": "Monthly Salary",
+      "amount": 25000000,
+      "category": "Income",
+      "dayOfMonth": 1,
+      "tags": [
+        "salary"
+      ]
+    },
+    {
+      "name": "Freelance Project",
+      "amount": 5000000,
+      "category": "Income",
+      "dayOfMonth": 15,
+      "tags": [
+        "freelance"
+      ]
+    },
+    {
+      "name": "Bonus",
+      "amount": 3000000,
+      "category": "Income",
+      "dayOfMonth": 28,
+      "tags": [
+        "bonus"
+      ]
+    },
+    {
       "name": "Breakfast at Cafe",
-      "amount": 187500,
+      "amount": -187500,
       "category": "Food \u0026 Dining",
       "dayOfMonth": 1,
       "tags": [
@@ -50,7 +77,7 @@
     },
     {
       "name": "Grocery Shopping",
-      "amount": 1800000,
+      "amount": -1800000,
       "category": "Food \u0026 Dining",
       "dayOfMonth": 2,
       "tags": [
@@ -59,7 +86,7 @@
     },
     {
       "name": "Lunch with friends",
-      "amount": 525000,
+      "amount": -525000,
       "category": "Food \u0026 Dining",
       "dayOfMonth": 5,
       "tags": [
@@ -68,7 +95,7 @@
     },
     {
       "name": "Pizza Night",
-      "amount": 427500,
+      "amount": -427500,
       "category": "Food \u0026 Dining",
       "dayOfMonth": 8,
       "tags": [
@@ -77,7 +104,7 @@
     },
     {
       "name": "Grocery Shopping",
-      "amount": 1425000,
+      "amount": -1425000,
       "category": "Food \u0026 Dining",
       "dayOfMonth": 10,
       "tags": [
@@ -86,7 +113,7 @@
     },
     {
       "name": "Coffee with colleague",
-      "amount": 120000,
+      "amount": -120000,
       "category": "Food \u0026 Dining",
       "dayOfMonth": 12,
       "tags": [
@@ -95,7 +122,7 @@
     },
     {
       "name": "Dinner at restaurant",
-      "amount": 975000,
+      "amount": -975000,
       "category": "Food \u0026 Dining",
       "dayOfMonth": 15,
       "tags": [
@@ -104,7 +131,7 @@
     },
     {
       "name": "Grocery Shopping",
-      "amount": 1650000,
+      "amount": -1650000,
       "category": "Food \u0026 Dining",
       "dayOfMonth": 18,
       "tags": [
@@ -113,7 +140,7 @@
     },
     {
       "name": "Brunch",
-      "amount": 630000,
+      "amount": -630000,
       "category": "Food \u0026 Dining",
       "dayOfMonth": 22,
       "tags": [
@@ -122,7 +149,7 @@
     },
     {
       "name": "Fast food",
-      "amount": 232500,
+      "amount": -232500,
       "category": "Food \u0026 Dining",
       "dayOfMonth": 25,
       "tags": [
@@ -131,7 +158,7 @@
     },
     {
       "name": "Uber ride",
-      "amount": 270000,
+      "amount": -270000,
       "category": "Transportation",
       "dayOfMonth": 3,
       "tags": [
@@ -140,7 +167,7 @@
     },
     {
       "name": "Gas",
-      "amount": 975000,
+      "amount": -975000,
       "category": "Transportation",
       "dayOfMonth": 7,
       "tags": [
@@ -149,7 +176,7 @@
     },
     {
       "name": "Bus pass - Monthly",
-      "amount": 1200000,
+      "amount": -1200000,
       "category": "Transportation",
       "dayOfMonth": 1,
       "tags": [
@@ -158,7 +185,7 @@
     },
     {
       "name": "Taxi ride",
-      "amount": 330000,
+      "amount": -330000,
       "category": "Transportation",
       "dayOfMonth": 14,
       "tags": [
@@ -167,7 +194,7 @@
     },
     {
       "name": "Clothes",
-      "amount": 1275000,
+      "amount": -1275000,
       "category": "Shopping",
       "dayOfMonth": 4,
       "tags": [
@@ -176,7 +203,7 @@
     },
     {
       "name": "Books",
-      "amount": 675000,
+      "amount": -675000,
       "category": "Shopping",
       "dayOfMonth": 9,
       "tags": [
@@ -185,7 +212,7 @@
     },
     {
       "name": "Electronics store",
-      "amount": 1800000,
+      "amount": -1800000,
       "category": "Shopping",
       "dayOfMonth": 16,
       "tags": [
@@ -194,7 +221,7 @@
     },
     {
       "name": "Home items",
-      "amount": 900000,
+      "amount": -900000,
       "category": "Shopping",
       "dayOfMonth": 20,
       "tags": [
@@ -203,7 +230,7 @@
     },
     {
       "name": "Movie tickets",
-      "amount": 450000,
+      "amount": -450000,
       "category": "Entertainment",
       "dayOfMonth": 6,
       "tags": [
@@ -212,7 +239,7 @@
     },
     {
       "name": "Streaming subscription",
-      "amount": 239850,
+      "amount": -239850,
       "category": "Entertainment",
       "dayOfMonth": 1,
       "tags": [
@@ -221,7 +248,7 @@
     },
     {
       "name": "Concert ticket",
-      "amount": 1125000,
+      "amount": -1125000,
       "category": "Entertainment",
       "dayOfMonth": 19,
       "tags": [
@@ -230,7 +257,7 @@
     },
     {
       "name": "Electricity bill",
-      "amount": 1800000,
+      "amount": -1800000,
       "category": "Utilities",
       "dayOfMonth": 5,
       "tags": [
@@ -239,7 +266,7 @@
     },
     {
       "name": "Water bill",
-      "amount": 675000,
+      "amount": -675000,
       "category": "Utilities",
       "dayOfMonth": 10,
       "tags": [
@@ -248,7 +275,7 @@
     },
     {
       "name": "Internet",
-      "amount": 1275000,
+      "amount": -1275000,
       "category": "Utilities",
       "dayOfMonth": 1,
       "tags": [
@@ -257,7 +284,7 @@
     },
     {
       "name": "Pharmacy",
-      "amount": 525000,
+      "amount": -525000,
       "category": "Healthcare",
       "dayOfMonth": 11,
       "tags": [
@@ -266,7 +293,7 @@
     },
     {
       "name": "Doctor visit",
-      "amount": 2250000,
+      "amount": -2250000,
       "category": "Healthcare",
       "dayOfMonth": 17,
       "tags": [
@@ -275,7 +302,7 @@
     },
     {
       "name": "Online course",
-      "amount": 1485000,
+      "amount": -1485000,
       "category": "Education",
       "dayOfMonth": 2,
       "tags": [
@@ -284,7 +311,7 @@
     },
     {
       "name": "Textbook",
-      "amount": 1275000,
+      "amount": -1275000,
       "category": "Education",
       "dayOfMonth": 13,
       "tags": [
@@ -293,7 +320,7 @@
     },
     {
       "name": "Haircut",
-      "amount": 525000,
+      "amount": -525000,
       "category": "Personal Care",
       "dayOfMonth": 21,
       "tags": [
@@ -302,7 +329,7 @@
     },
     {
       "name": "Gym membership",
-      "amount": 900000,
+      "amount": -900000,
       "category": "Personal Care",
       "dayOfMonth": 1,
       "tags": [
@@ -310,6 +337,6 @@
       ]
     }
   ],
-  "generatedAt": "2026-06-01T20:26:50.280152054+08:00",
+  "generatedAt": "2026-06-01T20:56:41.260233366+08:00",
   "note": "This file contains the demo data template. To use for the next month:\n1. Update the \"generatedAt\" field to the new month\n2. The \"dayOfMonth\" field in transactions will be used as-is\n3. Simply re-run the seed script and it will use these dates for the new month"
 }

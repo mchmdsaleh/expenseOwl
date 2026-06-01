@@ -101,6 +101,7 @@ func main() {
 
 	// Update user settings with demo categories
 	demoCategories := []string{
+		"Income",
 		"Food & Dining",
 		"Transportation",
 		"Shopping",
@@ -153,51 +154,56 @@ func main() {
 
 	// Add demo transactions for the current month
 	demoTransactions := []DemoTransaction{
-		// Food & Dining
-		{Name: "Breakfast at Cafe", Amount: 187500, Category: "Food & Dining", DayOfMonth: 1, Tags: []string{"breakfast"}},
-		{Name: "Grocery Shopping", Amount: 1800000, Category: "Food & Dining", DayOfMonth: 2, Tags: []string{"groceries"}},
-		{Name: "Lunch with friends", Amount: 525000, Category: "Food & Dining", DayOfMonth: 5, Tags: []string{"lunch"}},
-		{Name: "Pizza Night", Amount: 427500, Category: "Food & Dining", DayOfMonth: 8, Tags: []string{"dinner"}},
-		{Name: "Grocery Shopping", Amount: 1425000, Category: "Food & Dining", DayOfMonth: 10, Tags: []string{"groceries"}},
-		{Name: "Coffee with colleague", Amount: 120000, Category: "Food & Dining", DayOfMonth: 12, Tags: []string{"coffee"}},
-		{Name: "Dinner at restaurant", Amount: 975000, Category: "Food & Dining", DayOfMonth: 15, Tags: []string{"dinner"}},
-		{Name: "Grocery Shopping", Amount: 1650000, Category: "Food & Dining", DayOfMonth: 18, Tags: []string{"groceries"}},
-		{Name: "Brunch", Amount: 630000, Category: "Food & Dining", DayOfMonth: 22, Tags: []string{"brunch"}},
-		{Name: "Fast food", Amount: 232500, Category: "Food & Dining", DayOfMonth: 25, Tags: []string{"fast-food"}},
+		// INCOME (positive amounts)
+		{Name: "Monthly Salary", Amount: 25000000, Category: "Income", DayOfMonth: 1, Tags: []string{"salary"}},
+		{Name: "Freelance Project", Amount: 5000000, Category: "Income", DayOfMonth: 15, Tags: []string{"freelance"}},
+		{Name: "Bonus", Amount: 3000000, Category: "Income", DayOfMonth: 28, Tags: []string{"bonus"}},
 
-		// Transportation
-		{Name: "Uber ride", Amount: 270000, Category: "Transportation", DayOfMonth: 3, Tags: []string{"uber"}},
-		{Name: "Gas", Amount: 975000, Category: "Transportation", DayOfMonth: 7, Tags: []string{"fuel"}},
-		{Name: "Bus pass - Monthly", Amount: 1200000, Category: "Transportation", DayOfMonth: 1, Tags: []string{"transit"}},
-		{Name: "Taxi ride", Amount: 330000, Category: "Transportation", DayOfMonth: 14, Tags: []string{"taxi"}},
+		// Food & Dining (expenses - negative amounts)
+		{Name: "Breakfast at Cafe", Amount: -187500, Category: "Food & Dining", DayOfMonth: 1, Tags: []string{"breakfast"}},
+		{Name: "Grocery Shopping", Amount: -1800000, Category: "Food & Dining", DayOfMonth: 2, Tags: []string{"groceries"}},
+		{Name: "Lunch with friends", Amount: -525000, Category: "Food & Dining", DayOfMonth: 5, Tags: []string{"lunch"}},
+		{Name: "Pizza Night", Amount: -427500, Category: "Food & Dining", DayOfMonth: 8, Tags: []string{"dinner"}},
+		{Name: "Grocery Shopping", Amount: -1425000, Category: "Food & Dining", DayOfMonth: 10, Tags: []string{"groceries"}},
+		{Name: "Coffee with colleague", Amount: -120000, Category: "Food & Dining", DayOfMonth: 12, Tags: []string{"coffee"}},
+		{Name: "Dinner at restaurant", Amount: -975000, Category: "Food & Dining", DayOfMonth: 15, Tags: []string{"dinner"}},
+		{Name: "Grocery Shopping", Amount: -1650000, Category: "Food & Dining", DayOfMonth: 18, Tags: []string{"groceries"}},
+		{Name: "Brunch", Amount: -630000, Category: "Food & Dining", DayOfMonth: 22, Tags: []string{"brunch"}},
+		{Name: "Fast food", Amount: -232500, Category: "Food & Dining", DayOfMonth: 25, Tags: []string{"fast-food"}},
 
-		// Shopping
-		{Name: "Clothes", Amount: 1275000, Category: "Shopping", DayOfMonth: 4, Tags: []string{"fashion"}},
-		{Name: "Books", Amount: 675000, Category: "Shopping", DayOfMonth: 9, Tags: []string{"books"}},
-		{Name: "Electronics store", Amount: 1800000, Category: "Shopping", DayOfMonth: 16, Tags: []string{"tech"}},
-		{Name: "Home items", Amount: 900000, Category: "Shopping", DayOfMonth: 20, Tags: []string{"home"}},
+		// Transportation (expenses)
+		{Name: "Uber ride", Amount: -270000, Category: "Transportation", DayOfMonth: 3, Tags: []string{"uber"}},
+		{Name: "Gas", Amount: -975000, Category: "Transportation", DayOfMonth: 7, Tags: []string{"fuel"}},
+		{Name: "Bus pass - Monthly", Amount: -1200000, Category: "Transportation", DayOfMonth: 1, Tags: []string{"transit"}},
+		{Name: "Taxi ride", Amount: -330000, Category: "Transportation", DayOfMonth: 14, Tags: []string{"taxi"}},
 
-		// Entertainment
-		{Name: "Movie tickets", Amount: 450000, Category: "Entertainment", DayOfMonth: 6, Tags: []string{"movies"}},
-		{Name: "Streaming subscription", Amount: 239850, Category: "Entertainment", DayOfMonth: 1, Tags: []string{"subscription"}},
-		{Name: "Concert ticket", Amount: 1125000, Category: "Entertainment", DayOfMonth: 19, Tags: []string{"concerts"}},
+		// Shopping (expenses)
+		{Name: "Clothes", Amount: -1275000, Category: "Shopping", DayOfMonth: 4, Tags: []string{"fashion"}},
+		{Name: "Books", Amount: -675000, Category: "Shopping", DayOfMonth: 9, Tags: []string{"books"}},
+		{Name: "Electronics store", Amount: -1800000, Category: "Shopping", DayOfMonth: 16, Tags: []string{"tech"}},
+		{Name: "Home items", Amount: -900000, Category: "Shopping", DayOfMonth: 20, Tags: []string{"home"}},
 
-		// Utilities
-		{Name: "Electricity bill", Amount: 1800000, Category: "Utilities", DayOfMonth: 5, Tags: []string{"bills"}},
-		{Name: "Water bill", Amount: 675000, Category: "Utilities", DayOfMonth: 10, Tags: []string{"bills"}},
-		{Name: "Internet", Amount: 1275000, Category: "Utilities", DayOfMonth: 1, Tags: []string{"subscription"}},
+		// Entertainment (expenses)
+		{Name: "Movie tickets", Amount: -450000, Category: "Entertainment", DayOfMonth: 6, Tags: []string{"movies"}},
+		{Name: "Streaming subscription", Amount: -239850, Category: "Entertainment", DayOfMonth: 1, Tags: []string{"subscription"}},
+		{Name: "Concert ticket", Amount: -1125000, Category: "Entertainment", DayOfMonth: 19, Tags: []string{"concerts"}},
 
-		// Healthcare
-		{Name: "Pharmacy", Amount: 525000, Category: "Healthcare", DayOfMonth: 11, Tags: []string{"medication"}},
-		{Name: "Doctor visit", Amount: 2250000, Category: "Healthcare", DayOfMonth: 17, Tags: []string{"medical"}},
+		// Utilities (expenses)
+		{Name: "Electricity bill", Amount: -1800000, Category: "Utilities", DayOfMonth: 5, Tags: []string{"bills"}},
+		{Name: "Water bill", Amount: -675000, Category: "Utilities", DayOfMonth: 10, Tags: []string{"bills"}},
+		{Name: "Internet", Amount: -1275000, Category: "Utilities", DayOfMonth: 1, Tags: []string{"subscription"}},
 
-		// Education
-		{Name: "Online course", Amount: 1485000, Category: "Education", DayOfMonth: 2, Tags: []string{"learning"}},
-		{Name: "Textbook", Amount: 1275000, Category: "Education", DayOfMonth: 13, Tags: []string{"books"}},
+		// Healthcare (expenses)
+		{Name: "Pharmacy", Amount: -525000, Category: "Healthcare", DayOfMonth: 11, Tags: []string{"medication"}},
+		{Name: "Doctor visit", Amount: -2250000, Category: "Healthcare", DayOfMonth: 17, Tags: []string{"medical"}},
 
-		// Personal Care
-		{Name: "Haircut", Amount: 525000, Category: "Personal Care", DayOfMonth: 21, Tags: []string{"salon"}},
-		{Name: "Gym membership", Amount: 900000, Category: "Personal Care", DayOfMonth: 1, Tags: []string{"fitness"}},
+		// Education (expenses)
+		{Name: "Online course", Amount: -1485000, Category: "Education", DayOfMonth: 2, Tags: []string{"learning"}},
+		{Name: "Textbook", Amount: -1275000, Category: "Education", DayOfMonth: 13, Tags: []string{"books"}},
+
+		// Personal Care (expenses)
+		{Name: "Haircut", Amount: -525000, Category: "Personal Care", DayOfMonth: 21, Tags: []string{"salon"}},
+		{Name: "Gym membership", Amount: -900000, Category: "Personal Care", DayOfMonth: 1, Tags: []string{"fitness"}},
 	}
 
 	// Get current month start
