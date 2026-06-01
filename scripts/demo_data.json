@@ -1,0 +1,315 @@
+{
+  "credentials": {
+    "email": "demo@expenseowl.com",
+    "password": "Demo123456!",
+    "userID": "2aeca26b-6ffb-47dd-9cfa-dbdd16925d5b"
+  },
+  "budgets": [
+    {
+      "category": "Food \u0026 Dining",
+      "amount": 9000000
+    },
+    {
+      "category": "Transportation",
+      "amount": 3000000
+    },
+    {
+      "category": "Shopping",
+      "amount": 4500000
+    },
+    {
+      "category": "Entertainment",
+      "amount": 2250000
+    },
+    {
+      "category": "Utilities",
+      "amount": 3750000
+    },
+    {
+      "category": "Healthcare",
+      "amount": 1500000
+    },
+    {
+      "category": "Education",
+      "amount": 3000000
+    },
+    {
+      "category": "Personal Care",
+      "amount": 1500000
+    }
+  ],
+  "transactions": [
+    {
+      "name": "Breakfast at Cafe",
+      "amount": 187500,
+      "category": "Food \u0026 Dining",
+      "dayOfMonth": 1,
+      "tags": [
+        "breakfast"
+      ]
+    },
+    {
+      "name": "Grocery Shopping",
+      "amount": 1800000,
+      "category": "Food \u0026 Dining",
+      "dayOfMonth": 2,
+      "tags": [
+        "groceries"
+      ]
+    },
+    {
+      "name": "Lunch with friends",
+      "amount": 525000,
+      "category": "Food \u0026 Dining",
+      "dayOfMonth": 5,
+      "tags": [
+        "lunch"
+      ]
+    },
+    {
+      "name": "Pizza Night",
+      "amount": 427500,
+      "category": "Food \u0026 Dining",
+      "dayOfMonth": 8,
+      "tags": [
+        "dinner"
+      ]
+    },
+    {
+      "name": "Grocery Shopping",
+      "amount": 1425000,
+      "category": "Food \u0026 Dining",
+      "dayOfMonth": 10,
+      "tags": [
+        "groceries"
+      ]
+    },
+    {
+      "name": "Coffee with colleague",
+      "amount": 120000,
+      "category": "Food \u0026 Dining",
+      "dayOfMonth": 12,
+      "tags": [
+        "coffee"
+      ]
+    },
+    {
+      "name": "Dinner at restaurant",
+      "amount": 975000,
+      "category": "Food \u0026 Dining",
+      "dayOfMonth": 15,
+      "tags": [
+        "dinner"
+      ]
+    },
+    {
+      "name": "Grocery Shopping",
+      "amount": 1650000,
+      "category": "Food \u0026 Dining",
+      "dayOfMonth": 18,
+      "tags": [
+        "groceries"
+      ]
+    },
+    {
+      "name": "Brunch",
+      "amount": 630000,
+      "category": "Food \u0026 Dining",
+      "dayOfMonth": 22,
+      "tags": [
+        "brunch"
+      ]
+    },
+    {
+      "name": "Fast food",
+      "amount": 232500,
+      "category": "Food \u0026 Dining",
+      "dayOfMonth": 25,
+      "tags": [
+        "fast-food"
+      ]
+    },
+    {
+      "name": "Uber ride",
+      "amount": 270000,
+      "category": "Transportation",
+      "dayOfMonth": 3,
+      "tags": [
+        "uber"
+      ]
+    },
+    {
+      "name": "Gas",
+      "amount": 975000,
+      "category": "Transportation",
+      "dayOfMonth": 7,
+      "tags": [
+        "fuel"
+      ]
+    },
+    {
+      "name": "Bus pass - Monthly",
+      "amount": 1200000,
+      "category": "Transportation",
+      "dayOfMonth": 1,
+      "tags": [
+        "transit"
+      ]
+    },
+    {
+      "name": "Taxi ride",
+      "amount": 330000,
+      "category": "Transportation",
+      "dayOfMonth": 14,
+      "tags": [
+        "taxi"
+      ]
+    },
+    {
+      "name": "Clothes",
+      "amount": 1275000,
+      "category": "Shopping",
+      "dayOfMonth": 4,
+      "tags": [
+        "fashion"
+      ]
+    },
+    {
+      "name": "Books",
+      "amount": 675000,
+      "category": "Shopping",
+      "dayOfMonth": 9,
+      "tags": [
+        "books"
+      ]
+    },
+    {
+      "name": "Electronics store",
+      "amount": 1800000,
+      "category": "Shopping",
+      "dayOfMonth": 16,
+      "tags": [
+        "tech"
+      ]
+    },
+    {
+      "name": "Home items",
+      "amount": 900000,
+      "category": "Shopping",
+      "dayOfMonth": 20,
+      "tags": [
+        "home"
+      ]
+    },
+    {
+      "name": "Movie tickets",
+      "amount": 450000,
+      "category": "Entertainment",
+      "dayOfMonth": 6,
+      "tags": [
+        "movies"
+      ]
+    },
+    {
+      "name": "Streaming subscription",
+      "amount": 239850,
+      "category": "Entertainment",
+      "dayOfMonth": 1,
+      "tags": [
+        "subscription"
+      ]
+    },
+    {
+      "name": "Concert ticket",
+      "amount": 1125000,
+      "category": "Entertainment",
+      "dayOfMonth": 19,
+      "tags": [
+        "concerts"
+      ]
+    },
+    {
+      "name": "Electricity bill",
+      "amount": 1800000,
+      "category": "Utilities",
+      "dayOfMonth": 5,
+      "tags": [
+        "bills"
+      ]
+    },
+    {
+      "name": "Water bill",
+      "amount": 675000,
+      "category": "Utilities",
+      "dayOfMonth": 10,
+      "tags": [
+        "bills"
+      ]
+    },
+    {
+      "name": "Internet",
+      "amount": 1275000,
+      "category": "Utilities",
+      "dayOfMonth": 1,
+      "tags": [
+        "subscription"
+      ]
+    },
+    {
+      "name": "Pharmacy",
+      "amount": 525000,
+      "category": "Healthcare",
+      "dayOfMonth": 11,
+      "tags": [
+        "medication"
+      ]
+    },
+    {
+      "name": "Doctor visit",
+      "amount": 2250000,
+      "category": "Healthcare",
+      "dayOfMonth": 17,
+      "tags": [
+        "medical"
+      ]
+    },
+    {
+      "name": "Online course",
+      "amount": 1485000,
+      "category": "Education",
+      "dayOfMonth": 2,
+      "tags": [
+        "learning"
+      ]
+    },
+    {
+      "name": "Textbook",
+      "amount": 1275000,
+      "category": "Education",
+      "dayOfMonth": 13,
+      "tags": [
+        "books"
+      ]
+    },
+    {
+      "name": "Haircut",
+      "amount": 525000,
+      "category": "Personal Care",
+      "dayOfMonth": 21,
+      "tags": [
+        "salon"
+      ]
+    },
+    {
+      "name": "Gym membership",
+      "amount": 900000,
+      "category": "Personal Care",
+      "dayOfMonth": 1,
+      "tags": [
+        "fitness"
+      ]
+    }
+  ],
+  "generatedAt": "2026-06-01T20:26:50.280152054+08:00",
+  "note": "This file contains the demo data template. To use for the next month:\n1. Update the \"generatedAt\" field to the new month\n2. The \"dayOfMonth\" field in transactions will be used as-is\n3. Simply re-run the seed script and it will use these dates for the new month"
+}

@@ -344,6 +344,15 @@ func (s *Service) Get(ctx context.Context, id uuid.UUID) (*User, error) {
 	return s.repo.findByID(ctx, id)
 }
 
+// GetByEmail retrieves a user by email address.
+func (s *Service) GetByEmail(ctx context.Context, email string) (*User, error) {
+	email = strings.TrimSpace(strings.ToLower(email))
+	if email == "" {
+		return nil, errInvalidArguments
+	}
+	return s.repo.findByEmail(ctx, email)
+}
+
 // Repo exposes underlying repository for advanced operations.
 func (s *Service) Repo() *Repository {
 	return s.repo
