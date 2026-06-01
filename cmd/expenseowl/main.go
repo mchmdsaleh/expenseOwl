@@ -131,6 +131,11 @@ func runServer() {
 	mux.HandleFunc("/expense/delete", handler.RequireAPIAuth(handler.DeleteExpense))
 	mux.HandleFunc("/expenses/delete", handler.RequireAPIAuth(handler.DeleteMultipleExpenses))
 	mux.HandleFunc("/ai/parse-expense", handler.RequireAPIAuth(handler.ParseExpenseAI))
+        mux.HandleFunc("/api/v1/chat", handler.RequireAPIAuth(handler.Chat))
+        mux.HandleFunc("/api/v1/ai/context", handler.RequireAPIAuth(handler.GetAIContext))
+        mux.HandleFunc("/api/v1/ai/context/edit", handler.RequireAPIAuth(handler.UpdateAIContext))
+        mux.HandleFunc("/api/v1/ai/config", handler.RequireAPIAuth(handler.GetAIConfig))
+        mux.HandleFunc("/api/v1/ai/config/edit", handler.RequireAPIAuth(handler.UpdateAIConfig))
 
 	// Recurring Expenses
 	mux.HandleFunc("/recurring-expense", handler.RequireAPIAuth(handler.AddRecurringExpense))
@@ -150,6 +155,7 @@ func runServer() {
 
 	// External API
 	mux.HandleFunc("/api/v1/expenses", handler.AuthenticateExternal(handler.CreateExpenseHandler))
+        mux.HandleFunc("/api/v1/expenses/batch", handler.RequireAPIAuth(handler.AddExpensesBatch))
 
 	server := &http.Server{
 		Addr:    ":9080",

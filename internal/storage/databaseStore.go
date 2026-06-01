@@ -47,13 +47,25 @@ CREATE TABLE IF NOT EXISTS user_settings (
     categories TEXT NOT NULL,
     currency VARCHAR(255) NOT NULL,
     start_date INTEGER NOT NULL,
-    end_of_month BOOLEAN NOT NULL DEFAULT FALSE
+    end_of_month BOOLEAN NOT NULL DEFAULT FALSE,
+    ai_context TEXT NOT NULL DEFAULT '',
+    ai_config TEXT NOT NULL DEFAULT '{}'
 );
 `
 
 	ensureUserSettingsEndOfMonthColumnSQL = `
 ALTER TABLE user_settings
     ADD COLUMN IF NOT EXISTS end_of_month BOOLEAN NOT NULL DEFAULT FALSE;
+`
+
+	ensureUserSettingsAIContextColumnSQL = `
+ALTER TABLE user_settings
+    ADD COLUMN IF NOT EXISTS ai_context TEXT NOT NULL DEFAULT '';
+`
+
+	ensureUserSettingsAIConfigColumnSQL = `
+ALTER TABLE user_settings
+    ADD COLUMN IF NOT EXISTS ai_config TEXT NOT NULL DEFAULT '{}';
 `
 
 	createExpensesTableSQL = `
@@ -187,6 +199,8 @@ func createTables(db *sql.DB) error {
 		ensureUserRoleColumnSQL,
 		createUserSettingsTableSQL,
 		ensureUserSettingsEndOfMonthColumnSQL,
+		ensureUserSettingsAIContextColumnSQL,
+		ensureUserSettingsAIConfigColumnSQL,
 		createExpensesTableSQL,
 		createBudgetsTableSQL,
 		createBudgetOverridesTableSQL,
@@ -317,14 +331,14 @@ func (s *databaseStore) GetConfig(userID string) (*Config, error) {
 	if err := s.EnsureUserDefaults(userID); err != nil {
 		return nil, err
 	}
-	var categoriesStr, currency string
+	var categoriesStr, currency, aiContext, aiConfigStr string
 	var startDate int
 	var endOfMonth bool
 	err := s.db.QueryRow(`
-        SELECT categories, currency, start_date, end_of_month
+        SELECT categories, currency, start_date, end_of_month, ai_context, ai_config
         FROM user_settings
         WHERE user_id = $1
-    `, userID).Scan(&categoriesStr, &currency, &startDate, &endOfMonth)
+    `, userID).Scan(&categoriesStr, &currency, &startDate, &endOfMonth, &aiContext, &aiConfigStr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load user config: %v", err)
 	}
@@ -332,6 +346,15 @@ func (s *databaseStore) GetConfig(userID string) (*Config, error) {
 	config.Currency = currency
 	config.StartDate = startDate
 	config.EndOfMonth = endOfMonth
+	config.AIContext = aiContext
+	var aiConfig AIConfig
+	if aiConfigStr != "" && aiConfigStr != "{}" {
+		if err := json.Unmarshal([]byte(aiConfigStr), &aiConfig); err != nil {
+			log.Printf("DB ERROR: failed to unmarshal ai_config: %v\n", err)
+		} else {
+			config.AIConfig = &aiConfig
+		}
+	}
 	if err := json.Unmarshal([]byte(categoriesStr), &config.Categories); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal categories: %v", err)
 	}
@@ -428,6 +451,57 @@ func (s *databaseStore) UpdateEndOfMonth(userID string, endOfMonth bool) error {
 		return err
 	}
 	_, err := s.db.Exec(`UPDATE user_settings SET end_of_month = $1 WHERE user_id = $2`, endOfMonth, userID)
+	return err
+}
+
+func (s *databaseStore) GetAIContext(userID string) (string, error) {
+	if err := s.EnsureUserDefaults(userID); err != nil {
+		return "", err
+	}
+	var context string
+	err := s.db.QueryRow(`SELECT ai_context FROM user_settings WHERE user_id = $1`, userID).Scan(&context)
+	if err != nil {
+		return "", fmt.Errorf("failed to load AI context: %v", err)
+	}
+	return context, nil
+}
+
+func (s *databaseStore) UpdateAIContext(userID, context string) error {
+	if err := s.EnsureUserDefaults(userID); err != nil {
+		return err
+	}
+	_, err := s.db.Exec(`UPDATE user_settings SET ai_context = $1 WHERE user_id = $2`, context, userID)
+	return err
+}
+
+func (s *databaseStore) GetAIConfig(userID string) (*AIConfig, error) {
+	if err := s.EnsureUserDefaults(userID); err != nil {
+		return nil, err
+	}
+	var configStr string
+	err := s.db.QueryRow(`SELECT ai_config FROM user_settings WHERE user_id = $1`, userID).Scan(&configStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load AI config: %v", err)
+	}
+	if configStr == "" || configStr == "{}" {
+		return nil, nil
+	}
+	var config AIConfig
+	if err := json.Unmarshal([]byte(configStr), &config); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal AI config: %v", err)
+	}
+	return &config, nil
+}
+
+func (s *databaseStore) UpdateAIConfig(userID string, config AIConfig) error {
+	if err := s.EnsureUserDefaults(userID); err != nil {
+		return err
+	}
+	configJSON, err := json.Marshal(config)
+	if err != nil {
+		return fmt.Errorf("failed to marshal AI config: %v", err)
+	}
+	_, err = s.db.Exec(`UPDATE user_settings SET ai_config = $1 WHERE user_id = $2`, string(configJSON), userID)
 	return err
 }
 

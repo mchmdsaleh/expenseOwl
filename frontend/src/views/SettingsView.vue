@@ -1,563 +1,541 @@
 <template>
-  <section class="space-y-6">
-    <div :class="cardClass">
-      <h2 align="center" class="text-xl font-semibold text-[var(--text-primary)]">Category Settings</h2>
-      <div class="mt-4 space-y-3">
+  <section class="space-y-10 animate-in fade-in duration-700">
+    <!-- Category Settings -->
+    <div class="glass-card p-6 md:p-8 rounded-3xl">
+      <div class="flex items-center gap-3 mb-6">
+         <div class="h-10 w-10 bg-indigo-500/20 text-indigo-500 rounded-xl flex items-center justify-center">
+            <i class="fa-solid fa-tags text-xl"></i>
+         </div>
+         <h2 class="text-xl font-black tracking-tight text-[var(--text-primary)]">Categories</h2>
+      </div>
+      
+      <div class="space-y-3">
         <div
           v-for="item in visibleCategories"
           :key="item.category"
-          class="flex items-center justify-between gap-3 rounded-full border border-[var(--border)] bg-[var(--bg-primary)]/60 px-4 py-2 text-sm text-[var(--text-primary)]"
+          class="flex items-center justify-between gap-4 p-3 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border)] transition-all hover:border-[var(--accent)]/50 group"
         >
-          <div class="flex items-center gap-3">
-            <span class="text-[var(--text-secondary)]"><i class="fa-solid fa-grip-lines"></i></span>
-            <span>{{ item.category }}</span>
+          <div class="flex items-center gap-4">
+            <span class="text-[var(--text-secondary)] cursor-grab active:cursor-grabbing hover:text-[var(--text-primary)] transition-colors"><i class="fa-solid fa-grip-vertical"></i></span>
+            <span class="font-bold text-sm text-[var(--text-primary)]">{{ item.category }}</span>
           </div>
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <button
               type="button"
-              :class="iconButtonTiny"
+              class="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-[var(--bg-primary)] text-[var(--text-secondary)] disabled:opacity-20"
               @click="moveCategory(item.index, -1)"
               :disabled="item.index === 0"
             >
-              <i class="fa-solid fa-arrow-up"></i>
+              <i class="fa-solid fa-chevron-up text-[10px]"></i>
             </button>
             <button
               type="button"
-              :class="iconButtonTiny"
+              class="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-[var(--bg-primary)] text-[var(--text-secondary)] disabled:opacity-20"
               @click="moveCategory(item.index, 1)"
               :disabled="item.index === categories.length - 1"
             >
-              <i class="fa-solid fa-arrow-down"></i>
+              <i class="fa-solid fa-chevron-down text-[10px]"></i>
             </button>
-            <button type="button" :class="iconDangerButtonTiny" @click="removeCategory(item.index)">
-              <i class="fa-solid fa-times"></i>
+            <button type="button" class="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-rose-500/10 text-rose-500" @click="removeCategory(item.index)">
+              <i class="fa-solid fa-trash-can text-[10px]"></i>
             </button>
           </div>
         </div>
-        <div
-          v-if="canLoadMoreCategories"
-          class="flex justify-center"
-        >
-          <button type="button" :class="primaryButtonClass" @click="loadMoreCategories">Load More</button>
+        
+        <div v-if="canLoadMoreCategories" class="flex justify-center pt-2">
+          <button type="button" class="text-xs font-bold text-[var(--accent)] hover:underline" @click="loadMoreCategories">Show all categories ({{ categories.length }})</button>
         </div>
-        <div class="flex flex-col gap-3 sm:flex-row">
-          <input v-model="newCategory" type="text" placeholder="Add new category" :class="inputClass" />
-          <button type="button" :class="[primaryButtonClass, 'sm:w-auto']" @click="addCategory">
-            Add
-          </button>
-        </div>
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <button type="button" :class="primaryButtonClass" @click="saveCategories">Save Categories</button>
-          <div
-            v-if="categoryMessage.text"
-            :class="[
-              'rounded-full px-4 py-2 text-center text-sm font-medium',
-              categoryMessage.type === 'success'
-                ? 'bg-emerald-500/20 text-emerald-200'
-                : 'bg-rose-500/20 text-rose-200'
-            ]"
-          >
-            {{ categoryMessage.text }}
-          </div>
-        </div>
-    </div>
-  </div>
 
-    <div :class="cardClass">
-      <h2 align="center" class="text-xl font-semibold text-[var(--text-primary)]">Budget Settings</h2>
-      <form class="mt-4 grid gap-4 md:grid-cols-2" @submit.prevent="submitBudget">
-        <div class="flex flex-col gap-2">
-          <label class="text-sm font-medium text-[var(--text-secondary)]" for="budgetCategory">Category</label>
-          <select id="budgetCategory" v-model="budgetForm.category" :class="inputClass" required>
+        <div class="flex flex-col gap-4 mt-6 sm:flex-row">
+          <input v-model="newCategory" type="text" placeholder="New category name..." class="input-modern flex-1" />
+          <button type="button" class="btn-primary sm:w-auto px-8" @click="addCategory">Add</button>
+        </div>
+
+        <div class="flex flex-col gap-3 mt-4 sm:flex-row sm:items-center sm:justify-between border-t border-[var(--border)] pt-6">
+          <button type="button" class="btn-primary bg-indigo-600 shadow-indigo-600/20 text-[var(--text-primary)]" @click="saveCategories">Save Changes</button>
+          <transition name="fade">
+            <div v-if="categoryMessage.text" :class="['rounded-xl px-4 py-2 text-sm font-bold', categoryMessage.type === 'success' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400']">
+              {{ categoryMessage.text }}
+            </div>
+          </transition>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI Configuration -->
+    <div class="grid gap-8 lg:grid-cols-2">
+    <div class="glass-card p-6 md:p-8 rounded-3xl relative overflow-hidden">
+        <div class="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
+           <i class="fa-solid fa-microchip text-6xl text-[var(--accent)]"></i>
+        </div>
+        <div class="flex items-center gap-3 mb-6">
+           <div class="h-10 w-10 bg-violet-500/20 text-violet-500 rounded-xl flex items-center justify-center">
+              <i class="fa-solid fa-robot text-xl"></i>
+           </div>
+           <h2 class="text-xl font-black tracking-tight text-[var(--text-primary)]">AI Model</h2>
+        </div>
+
+        <div class="grid gap-6">
+          <div class="space-y-2">
+            <label class="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-1">Provider</label>
+            <select v-model="aiConfig.provider" class="input-modern w-full appearance-none text-[var(--text-primary)]">
+              <option value="openai">OpenAI</option>
+              <option value="anthropic">Anthropic (Shim)</option>
+              <option value="google">Google Gemini (Shim)</option>
+              <option value="deepseek">DeepSeek</option>
+              <option value="kimi">Kimi</option>
+              <option value="qwen">Qwen / Alibaba</option>
+              <option value="custom">Custom (OpenAI Compatible)</option>
+            </select>
+          </div>
+          <div class="space-y-2">
+            <label class="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-1">Model Name</label>
+            <input v-model="aiConfig.model" type="text" class="input-modern w-full font-mono text-xs text-[var(--text-primary)]" placeholder="gpt-4o, deepseek-chat..." />
+          </div>
+          <div class="space-y-2">
+            <label class="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-1">Base URL (Optional)</label>
+            <input v-model="aiConfig.baseUrl" type="text" class="input-modern w-full font-mono text-xs text-[var(--text-primary)]" placeholder="https://api.openai.com/v1" />
+          </div>
+          <div class="space-y-2">
+            <label class="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-1">API Key</label>
+            <input v-model="aiConfig.apiKey" type="password" class="input-modern w-full text-[var(--text-primary)]" placeholder="sk-..." />
+          </div>
+          <div class="pt-2">
+            <button type="button" class="btn-primary w-full bg-violet-600 shadow-violet-600/20 text-[var(--text-primary)]" @click="saveAIConfig">Save AI Config</button>
+            <transition name="fade">
+              <div v-if="aiConfigMessage.text" :class="['mt-4 rounded-xl px-4 py-2 text-center text-xs font-bold', aiConfigMessage.type === 'success' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400']">
+                {{ aiConfigMessage.text }}
+              </div>
+            </transition>
+          </div>
+        </div>
+      </div>
+
+      <div class="glass-card p-6 md:p-8 rounded-3xl flex flex-col h-full">
+        <div class="flex items-center gap-3 mb-4">
+           <div class="h-10 w-10 bg-indigo-500/20 text-indigo-500 rounded-xl flex items-center justify-center">
+              <i class="fa-solid fa-brain text-xl"></i>
+           </div>
+           <h2 class="text-xl font-black tracking-tight text-[var(--text-primary)]">AI Context</h2>
+        </div>
+        <p class="text-xs text-[var(--text-secondary)] leading-relaxed mb-6 font-medium">
+          Define custom rules for parsing bank mutations or receipt images. (e.g., "Always rename FamilyMart to Kopi")
+        </p>
+        <textarea
+          v-model="aiContext"
+          class="input-modern w-full flex-1 min-h-[250px] font-mono text-[10px] leading-relaxed resize-none p-4 text-[var(--text-primary)]"
+          placeholder="Enter custom AI instructions here..."
+        ></textarea>
+        <div class="pt-6">
+          <button type="button" class="btn-primary w-full text-[var(--text-primary)]" @click="saveAIContext">Save Context Rules</button>
+          <transition name="fade">
+            <div v-if="aiContextMessage.text" :class="['mt-4 rounded-xl px-4 py-2 text-center text-xs font-bold', aiContextMessage.type === 'success' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400']">
+              {{ aiContextMessage.text }}
+            </div>
+          </transition>
+        </div>
+      </div>
+    </div>
+
+    <!-- Budget Settings -->
+    <div class="glass-card p-6 md:p-8 rounded-3xl">
+      <div class="flex items-center gap-3 mb-8">
+         <div class="h-10 w-10 bg-emerald-500/20 text-emerald-500 rounded-xl flex items-center justify-center">
+            <i class="fa-solid fa-sack-dollar text-xl"></i>
+         </div>
+         <h2 class="text-xl font-black tracking-tight text-[var(--text-primary)]">Budget Limits</h2>
+      </div>
+
+      <form class="grid gap-6 md:grid-cols-2 bg-[var(--bg-elevated)] p-6 rounded-2xl border border-[var(--border)]" @submit.prevent="submitBudget">
+        <div class="space-y-2">
+          <label class="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-1" for="budgetCategory">Category</label>
+          <select id="budgetCategory" v-model="budgetForm.category" class="input-modern w-full appearance-none text-[var(--text-primary)]" required>
             <option value="" disabled>Select category</option>
             <option v-for="category in budgetCategoryOptions" :key="category" :value="category">
               {{ category }}
             </option>
           </select>
         </div>
-        <div class="flex flex-col gap-2">
-          <label class="text-sm font-medium text-[var(--text-secondary)]" for="budgetAmount">Monthly Limit</label>
-          <input
-            id="budgetAmount"
-            :value="formattedBudgetAmount"
-            inputmode="decimal"
-            :class="inputClass"
-            required
-            @input="handleBudgetAmountInput"
-            @blur="normalizeBudgetAmount"
-          />
+        <div class="space-y-2">
+          <label class="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-1" for="budgetAmount">Monthly Limit</label>
+          <div class="relative">
+             <span class="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] font-bold text-sm">IDR</span>
+             <input
+               id="budgetAmount"
+               :value="formattedBudgetAmount"
+               inputmode="decimal"
+               class="input-modern w-full pl-12 text-lg font-black tabular-nums text-[var(--text-primary)]"
+               required
+               @input="handleBudgetAmountInput"
+               @blur="normalizeBudgetAmount"
+             />
+          </div>
         </div>
-        <div class="flex flex-col gap-2 md:col-span-2 md:flex-row md:items-center md:justify-between">
+        <div class="md:col-span-2 flex items-center justify-between gap-4 pt-2">
           <div class="flex gap-2">
-            <button type="submit" :class="[primaryButtonClass, 'w-full md:w-auto']">{{ budgetForm.submitLabel }}</button>
-            <button
-              v-if="budgetForm.id"
-              type="button"
-              :class="[primaryButtonClass, 'w-full md:w-auto']"
-              @click="resetBudgetForm"
-            >
-              Cancel
-            </button>
+            <button type="submit" class="btn-primary min-w-[140px] text-[var(--text-primary)]">{{ budgetForm.submitLabel }}</button>
+            <button v-if="budgetForm.id" type="button" class="px-6 py-2.5 rounded-2xl border border-[var(--border)] text-sm font-bold text-[var(--text-primary)] hover:bg-[var(--bg-primary)] transition-all" @click="resetBudgetForm">Cancel</button>
           </div>
-          <div
-            v-if="budgetMessage.text"
-            :class="[
-              'rounded-full px-4 py-2 text-center text-sm font-medium',
-              budgetMessage.type === 'success'
-                ? 'bg-emerald-500/20 text-emerald-200'
-                : 'bg-rose-500/20 text-rose-200'
-            ]"
-          >
-            {{ budgetMessage.text }}
-          </div>
+          <transition name="fade">
+            <div v-if="budgetMessage.text" :class="['rounded-xl px-4 py-2 text-sm font-bold', budgetMessage.type === 'success' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400']">
+              {{ budgetMessage.text }}
+            </div>
+          </transition>
         </div>
       </form>
 
-      <div class="mt-6 space-y-4">
-        <div v-if="budgetList.length" class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <label class="text-sm font-medium text-[var(--text-secondary)]" for="budgetMonth">Adjust month</label>
-          <div class="flex items-center gap-3 sm:gap-4">
-            <input id="budgetMonth" type="month" v-model="budgetMonth" :class="inputClass" @change="handleBudgetMonthChange" />
-            <span class="text-xs text-[var(--text-secondary)]">Showing overrides for {{ budgetMonthLabel }}</span>
+      <div class="mt-10 space-y-6">
+        <div v-if="budgetList.length" class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between px-2 text-[var(--text-primary)]">
+          <div class="flex flex-col">
+            <h3 class="text-sm font-black uppercase tracking-widest text-[var(--text-secondary)]">Active Overrides</h3>
+            <p class="text-[10px] font-medium text-[var(--text-secondary)]">Adjusting limits for {{ budgetMonthLabel }}</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <input id="budgetMonth" type="month" v-model="budgetMonth" class="input-modern text-xs font-bold h-10 text-[var(--text-primary)]" @change="handleBudgetMonthChange" />
           </div>
         </div>
-        <template v-if="budgetList.length === 0">
-          <div
-            class="rounded-3xl border border-dashed border-[var(--border)] bg-[var(--bg-secondary)]/60 py-6 text-center text-sm italic text-[var(--text-secondary)]"
-          >
-            No budgets configured yet. Add one above to get started.
-          </div>
-        </template>
-        <template v-else>
+
+        <div v-if="budgetList.length === 0" class="py-12 text-center border-2 border-dashed border-[var(--border)] rounded-3xl italic text-[var(--text-secondary)] text-sm font-medium">
+          No budgets configured yet.
+        </div>
+        
+        <div v-else class="grid gap-6">
           <div
             v-for="budget in budgetList"
             :key="budget.id"
-            class="space-y-4 rounded-3xl border border-[var(--border)] bg-[var(--bg-secondary)]/60 px-5 py-5 shadow-card backdrop-blur"
+            class="p-6 rounded-3xl border border-[var(--border)] bg-[var(--bg-secondary)] shadow-sm hover:shadow-xl transition-all"
           >
-            <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div class="space-y-1 text-sm text-[var(--text-secondary)]">
-                <div class="text-base font-semibold text-[var(--text-primary)]">{{ budget.category }}</div>
-                <div>Base limit: <span class="font-mono text-[var(--text-primary)]">{{ formatCurrency(budget.amount) }}</span></div>
-                <div v-if="budgetSummaryMap[budget.id]" class="text-xs text-[var(--text-secondary)]">
-                  Effective for {{ budgetMonthLabel }}:
-                  <span class="font-mono text-[var(--text-primary)]">{{ formatCurrency(budgetSummaryMap[budget.id].effectiveAmount || budget.amount) }}</span>
-                </div>
-                <div v-if="budgetSummaryMap[budget.id]?.overrideAmount != null" class="text-xs text-[var(--text-secondary)]">
-                  Override: {{ formatCurrency(budgetSummaryMap[budget.id].overrideAmount || 0) }}
-                </div>
-                <div v-if="budgetSummaryMap[budget.id]?.adjustmentId" class="text-xs text-[var(--text-secondary)]">
-                  Adjustment: {{ formatCurrency(budgetSummaryMap[budget.id].adjustmentAmount || 0) }}
+            <div class="flex items-start justify-between mb-6">
+              <div class="space-y-1">
+                <div class="text-lg font-black tracking-tight text-[var(--text-primary)]">{{ budget.category }}</div>
+                <div class="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+                   Base: <span class="text-[var(--text-primary)] font-black tabular-nums">{{ formatCurrency(budget.amount) }}</span>
                 </div>
               </div>
-              <div class="flex items-center gap-2">
-                <button type="button" :class="iconDangerButtonTiny" @click="openDeleteBudget(budget)">
-                  <i class="fa-solid fa-trash-can"></i>
-                </button>
-              </div>
+              <button type="button" class="h-10 w-10 flex items-center justify-center rounded-xl bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all active:scale-90 shadow-sm" @click="openDeleteBudget(budget)">
+                <i class="fa-solid fa-trash-can text-sm"></i>
+              </button>
             </div>
-            <div class="grid gap-4 md:grid-cols-2" v-if="budgetForms[budget.id]">
-              <div class="space-y-2">
-                <label class="text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]" :for="`override-${budget.id}`">
-                  Per-month override
-                </label>
-                <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
-                  <input
-                    :id="`override-${budget.id}`"
-                    v-model="budgetForms[budget.id].override"
-                    :class="inputClass"
-                    placeholder="Override amount"
-                  />
+
+            <div class="grid gap-6 md:grid-cols-2">
+               <!-- Override -->
+               <div class="space-y-3 bg-[var(--bg-elevated)] p-4 rounded-2xl relative overflow-hidden">
+                  <div class="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">Month Override</div>
                   <div class="flex gap-2">
-                    <button type="button" :class="[primaryButtonClass, 'text-xs px-4 py-1.5']" @click="saveBudgetOverride(budget)">
-                      Save
-                    </button>
-                    <button
-                      v-if="budgetSummaryMap[budget.id]?.overrideId"
-                      type="button"
-                      :class="[primaryButtonClass, 'text-xs px-4 py-1.5']"
-                      @click="clearBudgetOverride(budget)"
-                    >
-                      Clear
-                    </button>
+                     <input v-model="budgetForms[budget.id].override" class="input-modern flex-1 h-10 text-xs font-bold bg-[var(--bg-primary)] text-[var(--text-primary)]" placeholder="New limit..." />
+                     <button @click="saveBudgetOverride(budget)" class="h-10 px-4 rounded-xl bg-[var(--accent)] text-white text-[10px] font-black uppercase transition-all hover:brightness-110 active:scale-95 shadow-lg shadow-indigo-500/20">Save</button>
                   </div>
-                </div>
-              </div>
-              <div class="space-y-2">
-                <label class="text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]" :for="`adjustment-${budget.id}`">
-                  One-time adjustment
-                </label>
-                <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
-                  <input
-                    :id="`adjustment-${budget.id}`"
-                    v-model="budgetForms[budget.id].adjustment"
-                    :class="inputClass"
-                    placeholder="Adjustment (e.g., 50 or -25)"
-                  />
+                  <div v-if="budgetSummaryMap[budget.id]?.overrideId" class="flex items-center justify-between mt-2">
+                     <span class="text-[10px] font-bold text-amber-400">Active: {{ formatCurrency(budgetSummaryMap[budget.id].overrideAmount || 0) }}</span>
+                     <button @click="clearBudgetOverride(budget)" class="text-[9px] font-black text-rose-400 hover:underline">Reset</button>
+                  </div>
+               </div>
+               <!-- Adjustment -->
+               <div class="space-y-3 bg-[var(--bg-elevated)] p-4 rounded-2xl">
+                  <div class="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">Adjustment (±)</div>
                   <div class="flex gap-2">
-                    <button type="button" :class="[primaryButtonClass, 'text-xs px-4 py-1.5']" @click="saveBudgetAdjustment(budget)">
-                      Save
-                    </button>
-                    <button
-                      v-if="budgetSummaryMap[budget.id]?.adjustmentId"
-                      type="button"
-                      :class="[primaryButtonClass, 'text-xs px-4 py-1.5']"
-                      @click="clearBudgetAdjustment(budget)"
-                    >
-                      Clear
-                    </button>
+                     <input v-model="budgetForms[budget.id].adjustment" class="input-modern flex-1 h-10 text-xs font-bold bg-[var(--bg-primary)] text-[var(--text-primary)]" placeholder="e.g. +50, -20..." />
+                     <button @click="saveBudgetAdjustment(budget)" class="h-10 px-4 rounded-xl bg-[var(--accent)] text-white text-[10px] font-black uppercase transition-all hover:brightness-110 active:scale-95 shadow-lg shadow-indigo-500/20">Apply</button>
                   </div>
-                </div>
-                <p class="text-[11px] text-[var(--text-secondary)]">Positive numbers add to the limit; negative numbers reduce it for this month only.</p>
-              </div>
+                  <div v-if="budgetSummaryMap[budget.id]?.adjustmentId" class="flex items-center justify-between mt-2">
+                     <span class="text-[10px] font-bold text-emerald-400">Active: {{ budgetSummaryMap[budget.id].adjustmentAmount > 0 ? '+' : '' }}{{ formatCurrency(budgetSummaryMap[budget.id].adjustmentAmount || 0) }}</span>
+                     <button @click="clearBudgetAdjustment(budget)" class="text-[9px] font-black text-rose-400 hover:underline">Reset</button>
+                  </div>
+               </div>
             </div>
           </div>
-        </template>
+        </div>
       </div>
     </div>
 
-    <div class="grid gap-6 md:grid-cols-2">
-      <div :class="cardClass">
-        <h2 align="center" class="text-xl font-semibold text-[var(--text-primary)]">Currency Settings</h2>
-        <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-          <select v-model="currencyCode" :class="inputClass">
+    <!-- Layout Configs -->
+    <div class="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+      <!-- Currency -->
+      <div class="glass-card p-6 rounded-3xl">
+        <div class="flex items-center gap-3 mb-6">
+           <div class="h-8 w-8 bg-amber-500/20 text-amber-500 rounded-lg flex items-center justify-center">
+              <i class="fa-solid fa-coins text-sm"></i>
+           </div>
+           <h2 class="text-base font-black tracking-tight text-[var(--text-primary)]">Currency</h2>
+        </div>
+        <div class="flex gap-2">
+          <select v-model="currencyCode" class="input-modern flex-1 h-11 text-sm appearance-none pr-8 text-[var(--text-primary)]">
             <option v-for="code in currencyOptions" :key="code" :value="code">
               {{ code.toUpperCase() }} ({{ currencyBehaviors[code].symbol }})
             </option>
           </select>
-          <button type="button" :class="primaryButtonClass" @click="saveCurrency">Save</button>
+          <button type="button" class="btn-primary h-11 px-4 text-[var(--text-primary)]" @click="saveCurrency">Set</button>
         </div>
-        <div
-          v-if="currencyMessage.text"
-          :class="[
-            'mt-4 rounded-full px-4 py-2 text-center text-sm font-medium',
-            currencyMessage.type === 'success'
-              ? 'bg-emerald-500/20 text-emerald-200'
-              : 'bg-rose-500/20 text-rose-200'
-          ]"
-        >
-          {{ currencyMessage.text }}
+        <transition name="fade">
+          <div v-if="currencyMessage.text" class="mt-4 text-xs font-bold text-center text-emerald-400">{{ currencyMessage.text }}</div>
+        </transition>
+      </div>
+
+      <!-- Start Date -->
+      <div class="glass-card p-6 rounded-3xl">
+        <div class="flex items-center gap-3 mb-6">
+           <div class="h-8 w-8 bg-sky-500/20 text-sky-500 rounded-lg flex items-center justify-center">
+              <i class="fa-solid fa-calendar-day text-sm"></i>
+           </div>
+           <h2 class="text-base font-black tracking-tight text-[var(--text-primary)]">Cycle Start</h2>
+        </div>
+        <div class="flex gap-2 mb-4">
+          <input v-model.number="startDate" type="number" min="1" max="31" class="input-modern flex-1 h-11 text-[var(--text-primary)]" :disabled="endOfMonth" />
+          <button type="button" class="btn-primary h-11 px-4 text-[var(--text-primary)]" @click="saveStartDate" :disabled="endOfMonth">Set</button>
+        </div>
+        <label class="flex items-center gap-3 cursor-pointer group p-2 rounded-xl hover:bg-[var(--bg-elevated)] transition-all">
+          <input type="checkbox" class="sr-only peer" v-model="endOfMonth" />
+          <div class="h-5 w-9 bg-slate-700 rounded-full peer peer-checked:bg-[var(--accent)] transition-colors relative after:content-[''] after:absolute after:top-1 after:left-1 after:h-3 after:w-3 after:bg-white after:rounded-full after:transition-transform peer-checked:after:translate-x-4"></div>
+          <span class="text-xs font-bold text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] transition-colors">End of Month Alignment</span>
+        </label>
+        <div class="mt-4 text-right" v-if="endOfMonth !== state.endOfMonth">
+           <button @click="saveEndOfMonth" class="text-[10px] font-black text-[var(--accent)] uppercase tracking-widest hover:underline">Confirm Alignment Change</button>
         </div>
       </div>
-      <div :class="cardClass">
-        <h2 align="center" class="text-xl font-semibold text-[var(--text-primary)]">Start Date Settings</h2>
-        <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-          <input v-model.number="startDate" type="number" min="1" max="31" :class="inputClass" :disabled="endOfMonth" />
-          <button type="button" :class="primaryButtonClass" @click="saveStartDate" :disabled="endOfMonth">
-            Save
-          </button>
+
+      <!-- Theme -->
+      <div class="glass-card p-6 rounded-3xl">
+        <div class="flex items-center gap-3 mb-6">
+           <div class="h-8 w-8 bg-indigo-500/20 text-indigo-500 rounded-lg flex items-center justify-center">
+              <i class="fa-solid fa-palette text-sm"></i>
+           </div>
+           <h2 class="text-base font-black tracking-tight text-[var(--text-primary)]">Theme</h2>
         </div>
-        <div
-          v-if="startDateMessage.text"
-          :class="[
-            'mt-4 rounded-full px-4 py-2 text-center text-sm font-medium',
-            startDateMessage.type === 'success'
-              ? 'bg-emerald-500/20 text-emerald-200'
-              : 'bg-rose-500/20 text-rose-200'
-          ]"
-        >
-          {{ startDateMessage.text }}
+        <div class="relative group">
+           <select v-model="theme" @change="applyTheme" class="input-modern w-full h-11 appearance-none pr-10 text-sm text-[var(--text-primary)]">
+             <option value="system">System Default</option>
+             <option value="light">Modern Light</option>
+             <option value="dark">Modern Dark</option>
+           </select>
+           <i class="fa-solid fa-angle-down absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] pointer-events-none group-hover:text-[var(--accent)] transition-colors"></i>
         </div>
-        <div class="mt-6 space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--bg-primary)]/60 p-4">
-          <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div class="sm:max-w-[70%]">
-              <div class="text-sm font-medium text-[var(--text-primary)]">Align cycle to month end</div>
-              <p class="text-xs text-[var(--text-secondary)]">When enabled, each budgeting period runs from the last day of the previous month through the last day of the current month.</p>
-            </div>
-            <label class="relative inline-flex h-6 w-12 cursor-pointer items-center">
-              <input
-                type="checkbox"
-                class="peer sr-only"
-                v-model="endOfMonth"
-              />
-              <span class="absolute inset-0 rounded-full bg-[var(--border)] transition-colors duration-200 peer-checked:bg-[var(--accent)]"></span>
-              <span class="absolute left-1 h-4 w-4 rounded-full bg-white transition-transform duration-200 peer-checked:translate-x-6"></span>
-            </label>
-          </div>
-          <div class="flex justify-end">
-            <button
-              type="button"
-              :class="primaryButtonClass"
-              @click="saveEndOfMonth"
-              :disabled="endOfMonth === state.endOfMonth"
-            >
-              Update
-            </button>
-          </div>
-          <div
-            v-if="endOfMonthMessage.text"
-            :class="[
-              'rounded-full px-4 py-2 text-center text-sm font-medium',
-              endOfMonthMessage.type === 'success'
-                ? 'bg-emerald-500/20 text-emerald-200'
-                : 'bg-rose-500/20 text-rose-200'
-            ]"
-          >
-            {{ endOfMonthMessage.text }}
-          </div>
-        </div>
+        <transition name="fade">
+          <div v-if="themeMessage.text" class="mt-4 text-xs font-bold text-center text-indigo-400">{{ themeMessage.text }}</div>
+        </transition>
       </div>
     </div>
 
-    <div class="grid gap-6 md:grid-cols-2">
-      <div :class="cardClass">
-        <h2 align="center" class="text-xl font-semibold text-[var(--text-primary)]">Theme Settings</h2>
-        <div class="mt-4">
-          <select v-model="theme" @change="applyTheme" :class="inputClass">
-            <option value="system">System Default</option>
-            <option value="light">Light</option>
-            <option value="dark">Dark</option>
-          </select>
-        </div>
-        <div
-          v-if="themeMessage.text"
-          :class="[
-            'mt-4 rounded-full px-4 py-2 text-center text-sm font-medium',
-            themeMessage.type === 'success'
-              ? 'bg-emerald-500/20 text-emerald-200'
-              : 'bg-rose-500/20 text-rose-200'
-          ]"
-        >
-          {{ themeMessage.text }}
-        </div>
+    <!-- Recurring Transactions -->
+    <div class="glass-card p-6 md:p-8 rounded-3xl" ref="recurringCardRef">
+      <div class="flex items-center gap-3 mb-8">
+         <div class="h-10 w-10 bg-indigo-500/20 text-indigo-500 rounded-xl flex items-center justify-center">
+            <i class="fa-solid fa-arrows-spin text-xl"></i>
+         </div>
+         <h2 class="text-xl font-black tracking-tight text-[var(--text-primary)]">Recurring Transactions</h2>
       </div>
-      <div :class="cardClass">
-        <h2 align="center" class="text-xl font-semibold text-[var(--text-primary)]">Import/Export Data</h2>
-        <div class="mt-4 space-y-4">
-          <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div class="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
-              <input id="exportAllToggle" v-model="exportAll" type="checkbox" :class="checkboxClass" />
-              <label class="cursor-pointer select-none" for="exportAllToggle">Export all transactions</label>
-            </div>
-            <div v-if="!exportAll" class="relative w-full md:w-auto">
-              <select
-                v-model="exportDateFilter"
-                :class="[inputClass, 'appearance-none pr-10']"
-              >
-                <option value="month">This Month</option>
-                <option value="week">This Week</option>
-                <option value="today">Today</option>
-                <option value="yesterday">Yesterday</option>
-                <option value="range">Custom Range</option>
-              </select>
-              <i class="fa-solid fa-chevron-down pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs text-[var(--text-secondary)]"></i>
-            </div>
-          </div>
-          <div
-            v-if="!exportAll && exportDateFilter === 'range'"
-            class="flex flex-col gap-2 md:flex-row"
-          >
-            <label class="flex w-full flex-col gap-1 text-xs">
-              <span class="font-semibold uppercase tracking-[0.18em] text-[var(--text-secondary)]">Start</span>
-              <input v-model="exportRangeStart" type="date" :class="inputClass" />
-            </label>
-            <label class="flex w-full flex-col gap-1 text-xs">
-              <span class="font-semibold uppercase tracking-[0.18em] text-[var(--text-secondary)]">End</span>
-              <input v-model="exportRangeEnd" type="date" :class="inputClass" />
-            </label>
-          </div>
-          <p v-if="exportRangeValidationMessage" class="text-xs italic text-amber-300">
-            {{ exportRangeValidationMessage }}
-          </p>
-          <div class="flex flex-col items-center justify-center gap-3 text-xs md:flex-row md:text-sm">
-            <button
-              type="button"
-              :class="[primaryButtonClass, 'text-xs md:text-sm w-full md:w-auto whitespace-nowrap']"
-              @click="exportCsv"
-              :disabled="exportingCsv"
-            >
-              {{ exportingCsv ? 'Exporting…' : 'Export to CSV' }}
-            </button>
-            <label :class="[primaryButtonClass, 'text-xs md:text-sm w-full md:w-auto whitespace-nowrap']" for="csv-import-file">Import from CSV</label>
-            <input id="csv-import-file" ref="csvImportRef" type="file" accept=".csv" hidden @change="(event) => handleImport(event, '/import/csv')" />
-          </div>
-        </div>
-        <div
-          v-if="exportMessage.text"
-          :class="[
-            'mt-3 rounded-full px-4 py-2 text-center text-sm font-medium',
-            exportMessage.type === 'success'
-              ? 'bg-emerald-500/20 text-emerald-200'
-              : 'bg-rose-500/20 text-rose-200'
-          ]"
-        >
-          {{ exportMessage.text }}
-        </div>
-        <div
-          v-if="importMessage.text"
-          :class="[
-            'mt-4 rounded-full px-4 py-2 text-center text-sm font-medium',
-            importMessage.type === 'success'
-              ? 'bg-emerald-500/20 text-emerald-200'
-              : 'bg-rose-500/20 text-rose-200'
-          ]"
-        >
-          {{ importMessage.text }}
-        </div>
-        <div
-          v-if="importSummary"
-          class="mt-4 space-y-1 rounded-2xl border border-[var(--border)] bg-[var(--bg-primary)]/60 px-4 py-4 text-sm text-[var(--text-secondary)]"
-        >
-          <h3 class="text-base font-semibold text-[var(--text-primary)]">Import Summary</h3>
-          <p>Total Processed: <span class="font-semibold text-[var(--text-primary)]">{{ importSummary.totalProcessed }}</span></p>
-          <p>Imported: <span class="font-semibold text-emerald-300">{{ importSummary.imported }}</span></p>
-          <p>Skipped: <span class="font-semibold text-rose-300">{{ importSummary.skipped }}</span></p>
-          <p>New Categories: <span class="font-semibold text-[var(--text-primary)]">{{ importSummary.newCategories }}</span></p>
-        </div>
-      </div>
-    </div>
 
-    <div :class="cardClass" ref="recurringCardRef">
-      <h2 align="center" class="text-xl font-semibold text-[var(--text-primary)]">Recurring Transactions</h2>
-      <form class="mt-4 grid gap-4 md:grid-cols-2" @submit.prevent="submitRecurring">
-        <div class="flex flex-col gap-2">
-          <label class="text-sm font-medium text-[var(--text-secondary)]" for="recurringName">Name</label>
-          <input id="recurringName" v-model="recurringForm.name" type="text" :class="inputClass" required />
+      <form class="grid gap-6 md:grid-cols-3 bg-[var(--bg-elevated)] p-8 rounded-3xl border border-[var(--border)]" @submit.prevent="submitRecurring">
+        <div class="space-y-2">
+          <label class="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-1">Name</label>
+          <input v-model="recurringForm.name" type="text" class="input-modern w-full text-[var(--text-primary)]" placeholder="Netflix, Rent, etc..." required />
         </div>
-        <div class="flex flex-col gap-2">
-          <label class="text-sm font-medium text-[var(--text-secondary)]" for="recurringAmount">Amount</label>
+        <div class="space-y-2">
+          <label class="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-1">Amount</label>
           <input
-            id="recurringAmount"
             :value="formattedRecurringAmount"
             inputmode="decimal"
-            :class="inputClass"
+            class="input-modern w-full font-black text-lg tabular-nums text-[var(--text-primary)]"
             required
             @input="handleRecurringAmountInput"
             @blur="normalizeRecurringAmount"
           />
         </div>
-        <div class="flex flex-col gap-2">
-          <label class="text-sm font-medium text-[var(--text-secondary)]" for="recurringCategory">Category</label>
-          <select id="recurringCategory" v-model="recurringForm.category" :class="inputClass" required>
+        <div class="space-y-2">
+          <label class="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-1">Category</label>
+          <select v-model="recurringForm.category" class="input-modern w-full appearance-none text-[var(--text-primary)]" required>
             <option value="" disabled>Select category</option>
             <option v-for="category in state.categories" :key="category" :value="category">{{ category }}</option>
           </select>
         </div>
-        <div class="flex flex-col gap-2">
-          <label class="text-sm font-medium text-[var(--text-secondary)]">Tags</label>
-          <TagInput v-model="recurringForm.tags" :suggestions="allTags" />
-        </div>
-        <div class="flex flex-col gap-2">
-          <label class="text-sm font-medium text-[var(--text-secondary)]" for="recurringInterval">Interval</label>
-          <select id="recurringInterval" v-model="recurringForm.interval" :class="inputClass" required>
+        <div class="space-y-2">
+          <label class="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-1">Interval</label>
+          <select v-model="recurringForm.interval" class="input-modern w-full appearance-none text-[var(--text-primary)]" required>
             <option value="daily">Daily</option>
             <option value="weekly">Weekly</option>
             <option value="monthly">Monthly</option>
             <option value="yearly">Yearly</option>
           </select>
         </div>
-        <div class="flex flex-col gap-2">
-          <label class="text-sm font-medium text-[var(--text-secondary)]" for="recurringStartDate">Start Date</label>
-          <input id="recurringStartDate" v-model="recurringForm.startDate" type="date" :class="inputClass" required />
+        <div class="space-y-2">
+          <label class="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-1">Start Date</label>
+          <input v-model="recurringForm.startDate" type="date" class="input-modern w-full text-[var(--text-primary)]" required />
         </div>
-        <div class="flex flex-col gap-2">
-          <label class="text-sm font-medium text-[var(--text-secondary)]" for="recurringOccurrences">Occurrences (0 for indefinite)</label>
-          <input id="recurringOccurrences" v-model.number="recurringForm.occurrences" type="number" min="0" :class="inputClass" required />
+        <div class="space-y-2">
+          <label class="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-1">Limit Occurrences</label>
+          <input v-model.number="recurringForm.occurrences" type="number" min="0" class="input-modern w-full text-[var(--text-primary)]" />
         </div>
-        <div class="flex flex-col gap-2">
-          <label class="text-sm font-medium text-[var(--text-secondary)] mb-2" for="recurringReportGain">Report Gain</label>
-          <label class="relative inline-flex h-6 w-12 cursor-pointer items-center">
-            <input
-              id="recurringReportGain"
-              v-model="recurringForm.reportGain"
-              type="checkbox"
-              class="peer sr-only"
-            />
-            <span class="absolute inset-0 rounded-full bg-[var(--border)] transition-colors duration-200 peer-checked:bg-[var(--accent)]"></span>
-            <span class="absolute left-1 h-4 w-4 rounded-full bg-white transition-transform duration-200 peer-checked:translate-x-6"></span>
+        <div class="md:col-span-3 flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-[var(--border)]">
+          <label class="flex items-center gap-3 cursor-pointer group">
+            <input v-model="recurringForm.reportGain" type="checkbox" class="sr-only peer" />
+            <div class="h-5 w-9 bg-slate-700 rounded-full peer peer-checked:bg-emerald-500 transition-colors relative after:content-[''] after:absolute after:top-1 after:left-1 after:h-3 after:w-3 after:bg-white after:rounded-full after:transition-transform peer-checked:after:translate-x-4"></div>
+            <span class="text-xs font-bold text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] transition-colors uppercase tracking-widest">Income / Gain</span>
           </label>
-        </div>
-        <div class="md:col-span-2">
-          <button type="submit" :class="[primaryButtonClass, 'w-full']">{{ recurringForm.submitLabel }}</button>
+          <div class="flex gap-2">
+             <button v-if="editingRecurringId" type="button" @click="resetRecurringForm" class="btn-secondary px-8 py-3 rounded-2xl border border-[var(--border)] text-sm font-bold text-[var(--text-primary)]">Cancel</button>
+             <button type="submit" class="btn-primary px-12 py-3 min-w-[200px] text-base text-[var(--text-primary)]">{{ recurringForm.submitLabel }}</button>
+          </div>
         </div>
       </form>
-      <div
-        v-if="recurringMessage.text"
-        :class="[
-          'mt-4 rounded-full px-4 py-2 text-center text-sm font-medium',
-          recurringMessage.type === 'success'
-            ? 'bg-emerald-500/20 text-emerald-200'
-            : 'bg-rose-500/20 text-rose-200'
-        ]"
-      >
-        {{ recurringMessage.text }}
-      </div>
+      
+      <transition name="fade">
+        <div v-if="recurringMessage.text" :class="['mt-6 p-4 rounded-2xl text-center text-sm font-bold', recurringMessage.type === 'success' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400']">
+          {{ recurringMessage.text }}
+        </div>
+      </transition>
 
-      <h3 class="mt-10 text-center text-lg font-semibold text-[var(--text-primary)]">Existing Recurring Transactions</h3>
-      <div
-        v-if="state.recurringExpenses.length === 0"
-        class="mt-4 rounded-3xl border border-dashed border-[var(--border)] bg-[var(--bg-secondary)]/60 py-10 text-center text-base italic text-[var(--text-secondary)]"
-      >
-        No recurring transactions configured.
-      </div>
-      <div v-else class="mt-6 space-y-3">
-        <div
-          v-for="expense in state.recurringExpenses"
-          :key="expense.id"
-          class="flex flex-col gap-3 rounded-3xl border border-[var(--border)] bg-[var(--bg-secondary)]/60 px-5 py-4 shadow-card backdrop-blur sm:flex-row sm:items-center sm:justify-between"
-        >
-          <div class="space-y-2 text-sm text-[var(--text-secondary)]">
-            <strong class="block text-base text-[var(--text-primary)]">{{ expense.name }}</strong>
-            <div class="flex flex-wrap items-center gap-2">
-              <span>{{ formatCurrency(expense.amount) }}</span>
-              <span>• {{ expense.interval }}</span>
-              <span>• Starts {{ formatDate(expense.startDate) }}</span>
-              <span v-if="expense.occurrences && expense.occurrences > 0">• {{ expense.occurrences }} occurrences</span>
+      <div class="mt-12">
+        <h3 class="text-sm font-black uppercase tracking-widest text-[var(--text-secondary)] mb-6 text-center">Active Automations</h3>
+        <div v-if="state.recurringExpenses.length === 0" class="py-10 text-center glass-card rounded-3xl border-dashed italic text-[var(--text-secondary)] text-sm">
+           No recurring tasks found.
+        </div>
+        <div v-else class="grid gap-4">
+          <div
+            v-for="expense in state.recurringExpenses"
+            :key="expense.id"
+            class="flex flex-col gap-4 p-5 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border)] sm:flex-row sm:items-center sm:justify-between group hover:border-[var(--accent)]/40 transition-all shadow-sm"
+          >
+            <div class="flex items-center gap-4">
+               <div class="h-10 w-10 rounded-xl bg-[var(--bg-primary)] flex items-center justify-center text-[var(--accent)] group-hover:scale-110 transition-transform">
+                  <i class="fa-solid fa-repeat"></i>
+               </div>
+               <div class="space-y-0.5">
+                  <div class="font-black text-[var(--text-primary)] tracking-tight">{{ expense.name }}</div>
+                  <div class="flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase">
+                    <span>{{ formatCurrency(expense.amount) }}</span>
+                    <span>•</span>
+                    <span class="text-[var(--accent)]">{{ expense.interval }}</span>
+                    <span>•</span>
+                    <span>Started {{ formatDate(expense.startDate) }}</span>
+                  </div>
+               </div>
             </div>
-            <div v-if="expense.tags && expense.tags.length" class="text-xs uppercase tracking-wide text-[var(--text-secondary)]">
-              Tags: <span class="font-medium text-[var(--text-primary)]">{{ expense.tags.join(', ') }}</span>
+            <div class="flex items-center gap-2">
+              <button type="button" class="h-9 w-9 flex items-center justify-center rounded-lg hover:bg-[var(--bg-primary)] text-[var(--text-secondary)] hover:text-indigo-400 transition-all" @click="editRecurring(expense)">
+                <i class="fa-solid fa-pen-to-square"></i>
+              </button>
+              <button type="button" class="h-9 w-9 flex items-center justify-center rounded-lg hover:bg-rose-500/10 text-rose-500 transition-all" @click="openDeleteRecurring(expense)">
+                <i class="fa-solid fa-trash-can"></i>
+              </button>
             </div>
-          </div>
-          <div class="flex items-center gap-2">
-            <button type="button" :class="iconButtonTiny" @click="editRecurring(expense)">
-              <i class="fa-solid fa-pen-to-square"></i>
-            </button>
-            <button type="button" :class="iconDangerButtonTiny" @click="openDeleteRecurring(expense)">
-              <i class="fa-solid fa-trash-can"></i>
-            </button>
           </div>
         </div>
       </div>
     </div>
+
+    <!-- Import/Export -->
+    <div class="glass-card p-6 md:p-8 rounded-3xl">
+      <div class="flex items-center gap-3 mb-8">
+         <div class="h-10 w-10 bg-sky-500/20 text-sky-500 rounded-xl flex items-center justify-center">
+            <i class="fa-solid fa-file-export text-xl"></i>
+         </div>
+         <h2 class="text-xl font-black tracking-tight text-[var(--text-primary)]">Data Transfer</h2>
+      </div>
+
+      <div class="grid gap-8 md:grid-cols-2">
+         <!-- Export -->
+         <div class="space-y-6">
+            <h3 class="text-xs font-black uppercase tracking-widest text-[var(--text-secondary)] px-2">Export Data</h3>
+            <div class="space-y-4 bg-[var(--bg-elevated)] p-6 rounded-3xl border border-[var(--border)]">
+               <label class="flex items-center gap-3 cursor-pointer group">
+                  <input v-model="exportAll" type="checkbox" class="sr-only peer" />
+                  <div class="h-5 w-9 bg-slate-700 rounded-full peer peer-checked:bg-[var(--accent)] transition-colors relative after:content-[''] after:absolute after:top-1 after:left-1 after:h-3 after:w-3 after:bg-white after:rounded-full after:transition-transform peer-checked:after:translate-x-4"></div>
+                  <span class="text-xs font-bold text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] transition-colors">Everything (Lifetime)</span>
+               </label>
+
+               <div v-if="!exportAll" class="space-y-4 animate-in fade-in duration-300">
+                  <select v-model="exportDateFilter" class="input-modern w-full h-11 text-xs font-bold text-[var(--text-primary)]">
+                    <option value="month">This Month</option>
+                    <option value="week">This Week</option>
+                    <option value="today">Today</option>
+                    <option value="range">Custom Range</option>
+                  </select>
+                  <div v-if="exportDateFilter === 'range'" class="grid grid-cols-2 gap-2">
+                     <input v-model="exportRangeStart" type="date" class="input-modern text-[10px] font-bold text-[var(--text-primary)]" />
+                     <input v-model="exportRangeEnd" type="date" class="input-modern text-[10px] font-bold text-[var(--text-primary)]" />
+                  </div>
+               </div>
+               
+               <button @click="exportCsv" :disabled="exportingCsv" class="btn-primary w-full h-12 text-sm shadow-indigo-500/10 text-[var(--text-primary)]">
+                  {{ exportingCsv ? 'Preparing...' : 'Generate CSV Download' }}
+               </button>
+            </div>
+         </div>
+
+         <!-- Import -->
+         <div class="space-y-6">
+            <h3 class="text-xs font-black uppercase tracking-widest text-[var(--text-secondary)] px-2">Import Data</h3>
+            <div class="flex flex-col items-center justify-center gap-4 bg-[var(--bg-elevated)] p-6 rounded-3xl border border-dashed border-[var(--border)] group hover:border-[var(--accent)] transition-colors h-full min-h-[200px]">
+               <i class="fa-solid fa-cloud-arrow-up text-4xl text-[var(--text-secondary)] group-hover:text-[var(--accent)] transition-colors"></i>
+               <label for="csv-import-file" class="cursor-pointer text-center">
+                  <span class="text-sm font-bold text-[var(--text-primary)] block mb-1">Click to upload CSV</span>
+                  <span class="text-[10px] font-medium text-[var(--text-secondary)]">Standard ExpenseOwl Format</span>
+               </label>
+               <input id="csv-import-file" type="file" accept=".csv" hidden @change="(event) => handleImport(event, '/import/csv')" />
+            </div>
+         </div>
+      </div>
+
+      <transition name="fade">
+        <div v-if="importSummary" class="mt-8 p-6 rounded-3xl bg-[var(--bg-elevated)] border border-[var(--border)] animate-in slide-in-from-bottom duration-500">
+          <div class="flex items-center gap-3 mb-4">
+             <i class="fa-solid fa-circle-check text-emerald-500"></i>
+             <h4 class="font-black text-sm tracking-tight text-[var(--text-primary)]">Import Successful</h4>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center text-[var(--text-primary)]">
+             <div class="p-3 rounded-2xl bg-[var(--bg-primary)]">
+                <div class="text-[10px] font-bold text-[var(--text-secondary)] uppercase mb-1">Total</div>
+                <div class="text-lg font-black">{{ importSummary.totalProcessed }}</div>
+             </div>
+             <div class="p-3 rounded-2xl bg-[var(--bg-primary)]">
+                <div class="text-[10px] font-bold text-[var(--text-secondary)] uppercase mb-1 text-emerald-400">Saved</div>
+                <div class="text-lg font-black text-emerald-400">{{ importSummary.imported }}</div>
+             </div>
+             <div class="p-3 rounded-2xl bg-[var(--bg-primary)]">
+                <div class="text-[10px] font-bold text-[var(--text-secondary)] uppercase mb-1 text-rose-400">Skipped</div>
+                <div class="text-lg font-black text-rose-400">{{ importSummary.skipped }}</div>
+             </div>
+             <div class="p-3 rounded-2xl bg-[var(--bg-primary)]">
+                <div class="text-[10px] font-bold text-[var(--text-secondary)] uppercase mb-1">New Cats</div>
+                <div class="text-lg font-black truncate px-1" :title="importSummary.newCategories">{{ importSummary.newCategories }}</div>
+             </div>
+          </div>
+        </div>
+      </transition>
+
+      <transition name="fade">
+        <div v-if="importMessage.text || exportMessage.text" class="mt-6 p-4 rounded-2xl text-center text-xs font-bold" :class="[ (importMessage.type === 'success' || exportMessage.type === 'success') ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400']">
+          {{ importMessage.text || exportMessage.text }}
+        </div>
+      </transition>
+    </div>
   </section>
 
+  <!-- Modals -->
   <transition name="fade">
-    <div
-      v-if="showDeleteBudget"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
-      @click.self="closeDeleteBudget"
-    >
-      <div class="w-full max-w-md rounded-3xl border border-[var(--border)] bg-[var(--bg-secondary)]/95 p-6 shadow-card backdrop-blur">
-        <h3 class="text-lg font-semibold text-[var(--text-primary)]">Delete Budget</h3>
-        <p class="mt-2 text-sm text-[var(--text-secondary)]">
-          Are you sure you want to remove the budget for
-          <span class="font-semibold text-[var(--text-primary)]">{{ budgetToDelete?.category }}</span>? Any overrides or adjustments for this month will also be cleared.
+    <div v-if="showDeleteBudget" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm px-4" @click.self="closeDeleteBudget">
+      <div class="w-full max-w-sm glass-card rounded-3xl p-8 animate-in zoom-in duration-300">
+        <h3 class="text-xl font-black text-center tracking-tight text-[var(--text-primary)]">Delete Budget?</h3>
+        <p class="mt-3 text-sm text-[var(--text-secondary)] text-center leading-relaxed font-medium">
+          Remove budget for <span class="text-[var(--text-primary)] font-bold">{{ budgetToDelete?.category }}</span>? This clears all monthly settings.
         </p>
-        <div class="mt-6 flex justify-end gap-3">
-          <button :class="primaryButtonClass" @click="closeDeleteBudget">Cancel</button>
-          <button :class="[primaryButtonClass, 'bg-rose-500 text-white hover:bg-rose-500/90']" @click="confirmDeleteBudget">
-            Delete
-          </button>
+        <div class="mt-8 grid grid-cols-2 gap-4">
+          <button class="px-6 py-3 rounded-2xl bg-[var(--bg-elevated)] font-bold text-sm text-[var(--text-primary)]" @click="closeDeleteBudget">Keep it</button>
+          <button class="px-6 py-3 rounded-2xl bg-rose-600 text-white font-bold text-sm" @click="confirmDeleteBudget">Delete</button>
         </div>
       </div>
     </div>
   </transition>
 
   <transition name="fade">
-    <div
-      v-if="showDeleteRecurring"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
-      @click.self="closeDeleteRecurring"
-    >
-      <div class="w-full max-w-md rounded-3xl border border-[var(--border)] bg-[var(--bg-secondary)]/95 p-6 shadow-card backdrop-blur">
-        <h3 class="text-lg font-semibold text-[var(--text-primary)]">Delete Recurring Expense</h3>
-        <p class="mt-2 text-sm text-[var(--text-secondary)]">
-          Are you sure you want to remove this recurring transaction? Future occurrences will be deleted.
+    <div v-if="showDeleteRecurring" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm px-4" @click.self="closeDeleteRecurring">
+      <div class="w-full max-w-sm glass-card rounded-3xl p-8 animate-in zoom-in duration-300">
+        <h3 class="text-xl font-black text-center tracking-tight text-[var(--text-primary)]">Stop Automation?</h3>
+        <p class="mt-3 text-sm text-[var(--text-secondary)] text-center leading-relaxed font-medium">
+          Future occurrences for this transaction will be deleted.
         </p>
-        <div class="mt-6 flex justify-end gap-3">
-          <button :class="primaryButtonClass" @click="closeDeleteRecurring">Cancel</button>
-          <button :class="[primaryButtonClass, 'bg-rose-500 text-white hover:bg-rose-500/90']" @click="confirmDeleteRecurring">
-            Delete
-          </button>
+        <div class="mt-8 grid grid-cols-2 gap-4">
+          <button class="px-6 py-3 rounded-2xl bg-[var(--bg-elevated)] font-bold text-sm text-[var(--text-primary)]" @click="closeDeleteRecurring">Nevermind</button>
+          <button class="px-6 py-3 rounded-2xl bg-rose-600 text-white font-bold text-sm" @click="confirmDeleteRecurring">Stop it</button>
         </div>
       </div>
     </div>
@@ -568,32 +546,11 @@
 import { ref, reactive, computed, watch, onMounted, nextTick } from 'vue';
 import TagInput from '../components/TagInput.vue';
 import state, { loadInitialData, refreshExpenses, refreshRecurringExpenses, refreshBudgets, refreshBudgetSummaries } from '../stores/appState';
-import { apiFetch } from '../lib/api';
+import { apiFetch, getAIContext, updateAIContext, getAIConfig, updateAIConfig } from '../lib/api';
 import { encryptPayload } from '../lib/encryption';
 import { currencyBehaviors, formatCurrency as formatCurrencyRaw, getISODateWithLocalTime, formatMonth as formatMonthLabel } from '../lib/utils';
 
-const primaryButtonClass =
-  'inline-flex items-center justify-center gap-2 rounded-full border border-[var(--border)] bg-[var(--bg-secondary)] px-5 py-2 text-sm font-medium text-[var(--text-primary)] transition duration-150 ease-out hover:bg-[var(--accent)] hover:text-white hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40 focus:ring-offset-2 focus:ring-offset-[var(--bg-primary)] disabled:cursor-not-allowed disabled:opacity-50';
-
-const inputClass =
-  'w-full rounded-xl border border-[var(--border)] bg-[var(--bg-primary)] px-4 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40';
-
-const checkboxClass =
-  'h-4 w-4 rounded border-[var(--border)] bg-[var(--bg-primary)] text-[var(--accent)] focus:ring-[var(--accent)]/60 focus:ring-offset-0';
-
-const cardClass =
-  'rounded-3xl border border-[var(--border)] bg-[var(--bg-secondary)]/80 p-6 shadow-card backdrop-blur';
-
-const iconButtonTiny =
-  'inline-flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--bg-secondary)] text-xs text-[var(--text-primary)] transition duration-150 hover:bg-[var(--accent)] hover:text-white hover:shadow-md disabled:cursor-not-allowed disabled:opacity-40';
-
-const iconDangerButtonTiny =
-  'inline-flex h-8 w-8 items-center justify-center rounded-full border border-rose-500/40 bg-rose-500/10 text-xs text-rose-400 transition duration-150 hover:bg-rose-500/20 hover:text-white';
-
-const infoLinkClass =
-  'font-semibold text-[var(--text-primary)] underline decoration-dotted underline-offset-4 transition hover:text-[var(--accent)]';
-
-const currencyOptions = Object.keys(currencyBehaviors);
+const primaryButtonClass = 'btn-primary';
 
 const categories = ref([]);
 const newCategory = ref('');
@@ -611,6 +568,17 @@ const endOfMonthMessage = ref({ text: '', type: '' });
 const theme = ref(localStorage.getItem('theme') || 'system');
 const themeMessage = ref({ text: '', type: '' });
 
+const aiContext = ref('');
+const aiContextMessage = ref({ text: '', type: '' });
+
+const aiConfig = ref({
+  provider: 'openai',
+  model: 'gpt-4o',
+  baseUrl: '',
+  apiKey: '',
+});
+const aiConfigMessage = ref({ text: '', type: '' });
+
 const importMessage = ref({ text: '', type: '' });
 const exportMessage = ref({ text: '', type: '' });
 const exportingCsv = ref(false);
@@ -620,7 +588,6 @@ const exportRangeEnd = ref('');
 const exportAll = ref(false);
 const importSummary = ref(null);
 const csvImportRef = ref(null);
-const csvImportOldRef = ref(null);
 
 const budgetForm = ref(createBudgetForm());
 const budgetMessage = ref({ text: '', type: '' });
@@ -767,10 +734,45 @@ watch(budgetMonth, (value, oldValue) => {
     loadBudgetSummaries();
   }
 });
+
 onMounted(async () => {
   await loadInitialData();
   await loadBudgetSummaries();
+  try {
+    const [context, config] = await Promise.all([
+      getAIContext(),
+      getAIConfig()
+    ]);
+    aiContext.value = context;
+    if (config) {
+      aiConfig.value = { ...aiConfig.value, ...config };
+    }
+  } catch (err) {
+    console.error('Failed to load AI settings', err);
+  }
 });
+
+async function saveAIContext() {
+  try {
+    await updateAIContext(aiContext.value);
+    aiContextMessage.value = { text: 'AI context saved successfully.', type: 'success' };
+    dismissAfter(() => (aiContextMessage.value = { text: '', type: '' }));
+  } catch (err) {
+    aiContextMessage.value = { text: err.message || 'Failed to save AI context', type: 'error' };
+    dismissAfter(() => (aiContextMessage.value = { text: '', type: '' }));
+  }
+}
+
+async function saveAIConfig() {
+  try {
+    await updateAIConfig(aiConfig.value);
+    aiConfigMessage.value = { text: 'AI config saved successfully.', type: 'success' };
+    dismissAfter(() => (aiConfigMessage.value = { text: '', type: '' }));
+  } catch (err) {
+    aiConfigMessage.value = { text: err.message || 'Failed to save AI config', type: 'error' };
+    dismissAfter(() => (aiConfigMessage.value = { text: '', type: '' }));
+  }
+}
 
 function createBudgetForm() {
   return {
@@ -1528,3 +1530,32 @@ function dismissAfter(callback) {
   }, 3000);
 }
 </script>
+
+<style scoped>
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-in {
+  animation: fadeIn 0.5s ease-out fill-mode-both;
+}
+
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 10px;
+}
+</style>

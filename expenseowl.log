@@ -1,0 +1,5 @@
+nohup: ignoring input
+2026/05/30 21:21:17 Connected to PostgreSQL database
+2026/05/30 21:21:17 OPENAI_API_KEY not set; AI expense parsing disabled
+2026/05/30 21:21:17 Starting server on port 9080...
+2026/05/30 21:21:17 Server failed to start: listen tcp :9080: bind: address already in use

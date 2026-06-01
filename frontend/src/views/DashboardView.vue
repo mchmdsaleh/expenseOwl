@@ -1,270 +1,174 @@
 <template>
-  <section class="space-y-6">
-    <div class="flex flex-col items-center gap-3 md:flex-row md:items-center md:justify-between">
-      <div v-if="dateFilter === 'month'" class="flex items-center justify-center gap-4">
-        <button
-          :class="[iconButtonClass, dateFilter !== 'month' && 'pointer-events-none opacity-50']"
-          :disabled="dateFilter !== 'month'"
-          @click="gotoPrevMonth"
-        >
-          <i class="fa-solid fa-arrow-left"></i>
-        </button>
-        <div class="min-w-[200px] text-center text-2xl font-bold">{{ periodLabel }}</div>
-        <button
-          :class="[iconButtonClass, dateFilter !== 'month' && 'pointer-events-none opacity-50']"
-          :disabled="dateFilter !== 'month'"
-          @click="gotoNextMonth"
-        >
-          <i class="fa-solid fa-arrow-right"></i>
-        </button>
+  <section class="space-y-8 animate-in fade-in duration-1000 text-[var(--text-primary)] pb-20">
+    <!-- Header: Period Selector -->
+    <div class="flex flex-col gap-6 md:flex-row md:items-center md:justify-between px-2">
+      <div>
+        <h1 class="text-4xl font-black tracking-tighter">
+          Halo, <span class="text-[var(--accent)]">{{ firstName || 'Bro' }}</span>!
+        </h1>
+        <p class="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-[0.4em] mt-2 flex items-center gap-2">
+          <span class="inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          Summary is ready
+        </p>
       </div>
-      <div v-else class="min-w-[200px] text-center text-2xl font-bold">{{ periodLabel }}</div>
-      <div
-        v-if="userDisplayName"
-        class="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-secondary)]/70 px-4 py-2 text-sm font-medium text-[var(--text-primary)] md:w-auto md:justify-start"
-      >
-        <i class="fa-solid fa-circle-user text-[var(--accent)]"></i>
-        <span>{{ userDisplayName }}</span>
+
+      <div class="flex items-center gap-2 bg-[var(--bg-secondary)] p-1.5 rounded-3xl border border-[var(--border)] shadow-2xl glass-card text-[var(--text-primary)]">
+        <button class="flex h-10 w-10 items-center justify-center rounded-2xl transition-all hover:bg-[var(--bg-elevated)] active:scale-90" @click="gotoPrevMonth">
+          <i class="fa-solid fa-chevron-left text-xs"></i>
+        </button>
+        <div class="px-6 text-[10px] font-black uppercase tracking-[0.2em] min-w-[150px] text-center">{{ periodLabel }}</div>
+        <button class="flex h-10 w-10 items-center justify-center rounded-2xl transition-all hover:bg-[var(--bg-elevated)] active:scale-90" @click="gotoNextMonth">
+          <i class="fa-solid fa-chevron-right text-xs"></i>
+        </button>
       </div>
     </div>
 
-    <div class="flex flex-wrap items-center justify-between gap-2">
-      <div class="flex flex-wrap items-center gap-2">
-        <div class="relative">
-          <select v-model="dateFilter" :class="filterSelectClass">
-            <option value="month">This Month</option>
-            <option value="week">This Week</option>
-            <option value="today">Today</option>
-            <option value="yesterday">Yesterday</option>
-            <option value="range">Custom Range</option>
-          </select>
-          <i class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] pointer-events-none text-xs"></i>
+    <!-- Premium Wallet Card -->
+    <div class="relative overflow-hidden rounded-[24px] md:rounded-[48px] bg-[#121212] p-5 md:p-12 text-white shadow-2xl transition-all hover:shadow-indigo-500/10 group mx-1 md:mx-2">
+      <div class="absolute -right-20 -top-20 h-80 w-80 rounded-full bg-[var(--accent)] opacity-10 blur-[100px] transition-opacity group-hover:opacity-20"></div>
+      <div class="absolute -bottom-20 -left-20 h-80 w-80 rounded-full bg-violet-600 opacity-10 blur-[100px] transition-opacity group-hover:opacity-20"></div>
+
+      <div class="relative z-10 flex flex-col h-full justify-between gap-8 md:gap-12 text-white">
+        <div class="flex justify-between items-start">
+          <div class="space-y-1 md:space-y-2 min-w-0">
+            <p class="text-[10px] font-black uppercase tracking-[0.4em] opacity-60">Balance</p>
+            <h2 class="text-2xl md:text-5xl font-black tracking-tight tabular-nums leading-none truncate">
+              {{ formatCurrency(balance) }}
+            </h2>
+          </div>
+          <div class="h-12 w-12 md:h-16 md:w-16 bg-white/10 rounded-2xl md:rounded-3xl flex items-center justify-center border border-white/20 backdrop-blur-xl shadow-inner text-white shrink-0 ml-2">
+            <i class="fa-solid fa-wallet text-xl md:text-2xl text-white"></i>
+          </div>
         </div>
-        <div
-          v-if="dateFilter === 'range'"
-          class="flex w-full flex-wrap items-center gap-2 md:ml-4 md:w-auto md:flex-nowrap"
-        >
-          <label :class="rangeInputWrapperClass">
-            <i class="fa-solid fa-calendar-day shrink-0 text-sm text-[var(--text-secondary)]"></i>
-            <div class="flex min-w-[140px] flex-1 flex-col gap-1">
-              <span :class="rangeInputLabelClass">Start</span>
-              <input v-model="rangeStart" type="date" :class="rangeDateInputClass" />
-            </div>
-          </label>
-          <label :class="rangeInputWrapperClass">
-            <i class="fa-solid fa-calendar-check shrink-0 text-sm text-[var(--text-secondary)]"></i>
-            <div class="flex min-w-[140px] flex-1 flex-col gap-1">
-              <span :class="rangeInputLabelClass">End</span>
-              <input v-model="rangeEnd" type="date" :class="rangeDateInputClass" />
-            </div>
-          </label>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 md:gap-10 pt-6 md:pt-10 border-t border-white/10">
+          <div class="group/stat">
+            <p class="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300 mb-2">Inflow</p>
+            <p class="text-lg md:text-2xl font-black tabular-nums text-white truncate">{{ formatCurrency(income) }}</p>
+          </div>
+          <div class="group/stat">
+            <p class="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-rose-300 mb-2">Outflow</p>
+            <p class="text-lg md:text-2xl font-black tabular-nums text-white truncate">{{ formatCurrency(totalExpenses) }}</p>
+          </div>
         </div>
-      </div>
-      <div class="shrink-0">
-        <AddExpenseSpeedDial
-          :manual-open="showExpenseForm"
-          :typing-open="showTypingForm"
-          :primary-button-class="primaryButtonClass"
-          :speed-dial-button-class="speedDialButtonClass"
-          @open-manual="handleOpenManual"
-          @open-typing="handleOpenTyping"
-          @close-all="handleCloseAddPanels"
-        />
       </div>
     </div>
-    <p v-if="rangeValidationMessage" class="text-xs italic text-amber-300">{{ rangeValidationMessage }}</p>
 
-    <div v-if="showExpenseForm" id="addExpenseContainer" ref="manualCardRef">
-      <div :class="cardClass">
-        <form class="grid gap-4 md:grid-cols-2" @submit.prevent="submitExpense">
-          <div class="flex flex-col gap-2">
-            <label class="text-sm font-medium text-[var(--text-secondary)]" for="name">Name</label>
-            <input id="name" v-model="form.name" type="text" :class="inputClass" required />
+    <!-- Data Layout -->
+    <div class="grid gap-8 lg:grid-cols-12 items-start px-2">
+      <!-- Analytics Section -->
+      <div class="lg:col-span-7">
+        <div class="glass-card p-4 md:p-8 rounded-[20px] md:rounded-[32px] h-full flex flex-col shadow-xl min-h-[480px]">
+           <div class="flex items-center justify-between mb-6">
+              <h3 class="text-xl font-black tracking-tight text-[var(--text-primary)]">Spending Analysis</h3>
+              <select v-model="dateFilter" class="bg-[var(--bg-elevated)] text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-2xl border border-[var(--border)] appearance-none cursor-pointer text-[var(--text-primary)]">
+                 <option value="month">Monthly</option>
+                 <option value="week">Weekly</option>
+                 <option value="today">Today</option>
+              </select>
+           </div>
+
+           <div v-if="!hasExpenseData" class="flex-1 flex items-center justify-center border-4 border-dashed border-[var(--border)] rounded-[20px] md:rounded-[40px] italic text-[var(--text-secondary)] font-bold uppercase tracking-widest opacity-30 text-[var(--text-primary)]">No Data</div>
+           <div v-else class="grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)] items-start gap-6 md:gap-8 flex-1">
+              <!-- Stabilized chart container -->
+              <div class="relative h-56 w-56 md:h-64 md:w-64 mx-auto lg:mx-0 shrink-0 flex items-center justify-center">
+                 <canvas ref="chartCanvas" class="relative z-10"></canvas>
+                 <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-0 text-[var(--text-primary)]">
+                    <span class="text-[10px] font-bold uppercase text-[var(--text-secondary)] tracking-wide opacity-80">Total</span>
+                    <span class="text-xl md:text-2xl font-black tabular-nums leading-none mt-2">{{ formatCurrency(totalExpenses) }}</span>
+                 </div>
+              </div>
+
+              <div class="w-full space-y-2 max-h-[360px] overflow-y-auto pr-2 custom-scrollbar text-[var(--text-primary)]">
+                <div
+                  v-for="entry in legendEntries"
+                  :key="entry.category"
+                  class="p-3 rounded-xl bg-[var(--bg-elevated)]/30 border border-transparent hover:border-[var(--accent)]/30 transition-all cursor-pointer group"
+                  :class="[entry.disabled && 'opacity-35 grayscale']"
+                  @click="toggleCategory(entry.category)"
+                >
+                  <div class="flex items-center gap-2.5 min-w-0">
+                    <div class="h-3.5 w-3.5 rounded-full shrink-0" :style="{ backgroundColor: entry.color }"></div>
+                    <span class="text-sm font-black leading-tight break-words">{{ entry.category }}</span>
+                  </div>
+                  <div class="mt-1.5 flex items-end justify-between gap-3">
+                    <span class="text-xs font-semibold text-[var(--text-secondary)]">{{ entry.percentage?.toFixed(1) }}%</span>
+                    <span class="text-base md:text-lg font-black tabular-nums leading-none tracking-tight whitespace-nowrap">{{ formatCurrency(entry.total) }}</span>
+                  </div>
+                </div>
+              </div>
+           </div>
+        </div>
+      </div>
+
+      <!-- Budget Column -->
+      <div class="lg:col-span-5 text-[var(--text-primary)]">
+        <div v-if="budgetSummaries.length" class="glass-card p-6 md:p-10 rounded-[24px] md:rounded-[48px] h-full flex flex-col shadow-xl border-t-8 border-t-[var(--accent)] text-[var(--text-primary)]">
+          <div class="flex items-start justify-between mb-12">
+            <h3 class="text-2xl font-black tracking-tighter">Budgets</h3>
+            <div v-if="overallBudgetStatus" :class="['text-[9px] font-black uppercase px-3 py-1 rounded-xl border-2', overallBudgetStatus.className]">{{ overallBudgetStatus.label }}</div>
           </div>
-          <div class="flex flex-col gap-2">
-            <label class="text-sm font-medium text-[var(--text-secondary)]" for="category">Category</label>
-            <select id="category" v-model="form.category" :class="inputClass" required>
-              <option value="" disabled>Choose category</option>
-              <option v-for="category in categories" :key="category" :value="category">
-                {{ category }}
-              </option>
-            </select>
+
+          <div class="space-y-10 flex-1 overflow-y-auto pr-2 custom-scrollbar mt-12">
+            <div v-for="item in budgetSummaries" :key="item.id" class="space-y-4 group">
+              <div class="flex items-end justify-between px-1 text-[var(--text-primary)]">
+                <div class="flex flex-col">
+                  <span class="text-lg font-black tracking-tight">{{ item.category }}</span>
+                  <span class="text-[9px] font-black uppercase text-[var(--text-secondary)] mt-1 tracking-widest">{{ item.statusLabel }}</span>
+                </div>
+                <div class="text-right">
+                   <div class="text-sm font-black">{{ formatCurrency(item.actual) }}</div>
+                   <div class="text-[9px] font-bold text-[var(--text-secondary)] uppercase">of {{ formatCurrency(item.amount) }}</div>
+                </div>
+              </div>
+              <div class="h-4 w-full rounded-full bg-[var(--bg-elevated)] p-1 border border-[var(--border)] overflow-hidden shadow-inner">
+                <div
+                  class="h-full rounded-full transition-all duration-1000 relative"
+                  :class="[
+                    item.status === 'over' ? 'bg-gradient-to-r from-rose-700 to-rose-400' : 
+                    item.status === 'warning' ? 'bg-gradient-to-r from-orange-500 to-amber-300' : 
+                    'bg-gradient-to-r from-emerald-600 to-teal-400'
+                  ]"
+                  :style="{ width: `${Math.min(item.percentage, 100)}%` }"
+                >
+                  <div class="absolute inset-0 bg-white/20 animate-pulse mix-blend-overlay"></div>
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="flex flex-col gap-2">
-            <label class="text-sm font-medium text-[var(--text-secondary)]">Tags</label>
-            <TagInput v-model="form.tags" :suggestions="state.tags" />
-          </div>
-          <div class="flex flex-col gap-2">
-            <label class="text-sm font-medium text-[var(--text-secondary)]" for="amount">Amount</label>
-            <input
-              id="amount"
-              :value="formattedAmount"
-              inputmode="decimal"
-              :class="inputClass"
-              required
-              @input="handleAmountInput"
-              @blur="normalizeAmount"
-            />
-          </div>
-          <div class="flex flex-col gap-2">
-            <label class="text-sm font-medium text-[var(--text-secondary)]" for="date">Date</label>
-            <input id="date" v-model="form.date" type="date" :class="inputClass" required />
-          </div>
-          <div class="flex flex-col gap-2">
-            <label class="text-sm font-medium text-[var(--text-secondary)] mb-2" for="reportGain">Report Gain</label>
-            <label class="relative inline-flex h-6 w-12 cursor-pointer items-center">
-              <input
-                id="reportGain"
-                v-model="form.reportGain"
-                type="checkbox"
-                class="peer sr-only"
-              />
-              <span class="absolute inset-0 rounded-full bg-[var(--border)] transition-colors duration-200 peer-checked:bg-[var(--accent)]"></span>
-              <span class="absolute left-1 h-4 w-4 rounded-full bg-white transition-transform duration-200 peer-checked:translate-x-6"></span>
-            </label>
-          </div>
-          <div class="md:col-span-2">
-            <button type="submit" :class="[primaryButtonClass, 'w-full']">{{ form.submitLabel }}</button>
-          </div>
+          <button @click="router.push('/settings')" class="w-full py-4 mt-10 rounded-3xl bg-[var(--bg-elevated)] font-black uppercase text-[10px] transition-all hover:bg-[var(--bg-secondary)] border border-[var(--border)] shadow-xl text-[var(--text-primary)]">Adjust Limits</button>
+        </div>
+        <div v-else class="glass-card p-6 md:p-12 rounded-[24px] md:rounded-[48px] flex flex-col items-center justify-center text-center gap-8 border-4 border-dashed border-[var(--border)] h-full opacity-60 text-[var(--text-primary)]">
+           <i class="fa-solid fa-piggy-bank text-4xl text-[var(--accent)]"></i>
+           <h3 class="text-xl font-black uppercase tracking-widest">No Budgets Set</h3>
+           <button @click="router.push('/settings')" class="btn-primary px-8 h-12">Set Up Now</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Add FAB -->
+    <div class="fixed bottom-24 right-4 md:bottom-10 md:right-10 z-40 flex flex-col gap-3 md:gap-4">
+       <button @click="handleOpenTyping" class="h-16 w-16 bg-white dark:bg-slate-800 text-[var(--accent)] rounded-full shadow-2xl flex items-center justify-center border border-[var(--border)] hover:scale-110 active:scale-95 transition-all"><i class="fa-solid fa-keyboard text-xl"></i></button>
+       <button @click="handleOpenManual" class="h-20 w-20 bg-[var(--accent)] text-white rounded-[16px] md:rounded-[32px] shadow-2xl flex items-center justify-center shadow-indigo-500/40 hover:scale-110 active:scale-95 transition-all"><i class="fa-solid fa-plus text-3xl"></i></button>
+    </div>
+
+    <!-- Manual Form Overlay -->
+    <div v-if="showExpenseForm" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xl px-4" @click.self="handleCloseAddPanels">
+      <div class="w-full max-w-4xl glass-card rounded-[24px] md:rounded-[48px] p-6 md:p-12 shadow-2xl relative border-2 border-[var(--accent)] animate-in zoom-in duration-500 text-[var(--text-primary)]">
+        <button @click="handleCloseAddPanels" class="absolute top-8 right-8 h-12 w-12 rounded-2xl bg-[var(--bg-elevated)] text-[var(--text-secondary)] flex items-center justify-center hover:text-rose-500 transition-colors shadow-lg"><i class="fa-solid fa-xmark text-xl"></i></button>
+        <h3 class="text-3xl font-black tracking-tighter mb-10">New Transaction</h3>
+        <form class="grid gap-10 md:grid-cols-2 text-[var(--text-primary)]" @submit.prevent="submitExpense">
+          <div class="space-y-3"><label class="text-[11px] font-black uppercase text-[var(--text-secondary)]">Description</label><input v-model="form.name" type="text" class="input-modern w-full text-xl h-16 text-[var(--text-primary)]" placeholder="E.g. Coffee" required /></div>
+          <div class="space-y-3"><label class="text-[11px] font-black uppercase text-[var(--text-secondary)]">Category</label><select v-model="form.category" class="input-modern w-full h-16 font-bold text-[var(--text-primary)]" required><option v-for="c in categories" :key="c" :value="c">{{ c }}</option></select></div>
+          <div class="space-y-3"><label class="text-[11px] font-black uppercase text-[var(--text-secondary)]">Amount</label><div class="relative"><input :value="formattedAmount" @input="handleAmountInput" @blur="normalizeAmount" inputmode="decimal" class="input-modern w-full h-16 text-3xl font-black text-[var(--text-primary)] pl-6 tabular-nums" required /><span class="absolute right-6 top-1/2 -translate-y-1/2 text-xs font-black text-[var(--accent)] opacity-40 uppercase tracking-widest">IDR</span></div></div>
+          <div class="space-y-3"><label class="text-[11px] font-black uppercase text-[var(--text-secondary)]">Date</label><input v-model="form.date" type="date" class="input-modern w-full h-16 font-bold text-[var(--text-primary)]" required /></div>
+          <div class="md:col-span-2 pt-6"><button type="submit" class="btn-primary w-full h-20 text-2xl font-black shadow-2xl text-white">Confirm Record</button></div>
         </form>
-        <div
-          v-if="formMessage.text"
-          :class="[
-            'mt-4 rounded-full px-4 py-2 text-center text-sm font-medium',
-            formMessage.type === 'success'
-              ? 'bg-emerald-500/20 text-emerald-200'
-              : 'bg-rose-500/20 text-rose-200'
-          ]"
-        >
-          {{ formMessage.text }}
-        </div>
       </div>
     </div>
 
-    <QuickAddExpenseCard
-      v-if="showTypingForm"
-      ref="typingCardRef"
-      :card-class="cardClass"
-      :input-class="inputClass"
-      :primary-button-class="primaryButtonClass"
-      @switch-manual="handleOpenManual"
-      @added="handleQuickAddSuccess"
-    />
-
-    <div class="flex flex-col gap-6 rounded-3xl border border-[var(--border)] bg-[var(--bg-secondary)]/80 p-6 shadow-card backdrop-blur lg:flex-row">
-      <div v-if="!hasExpenseData" class="w-full rounded-3xl border border-dashed border-[var(--border)] bg-[var(--bg-secondary)]/60 py-12 text-center text-base italic text-[var(--text-secondary)]">
-        {{ emptyDashboardMessage }}
-      </div>
-      <template v-else>
-        <div
-          class="flex h-80 flex-1 cursor-pointer items-center justify-center"
-          role="button"
-          aria-label="View detailed transactions"
-          @click="handleChartClick"
-        >
-          <canvas ref="chartCanvas"></canvas>
-        </div>
-        <div class="flex flex-1 flex-col gap-4">
-          <div
-            v-for="entry in legendEntries"
-            :key="entry.category"
-            :class="[
-              legendItemClass,
-              entry.disabled && 'opacity-40'
-            ]"
-            @click="toggleCategory(entry.category)"
-          >
-            <div class="h-4 w-4 rounded-md" :style="{ backgroundColor: entry.color }"></div>
-            <div class="flex flex-1 items-center justify-between gap-3 text-sm text-[var(--text-secondary)]">
-              <span>{{ entry.category }}<template v-if="entry.percentage !== null"> ({{ entry.percentage.toFixed(1) }}%)</template></span>
-              <span class="font-mono text-sm text-[var(--text-secondary)]" v-if="entry.amount !== null">{{ entry.amountFormatted }}</span>
-            </div>
-          </div>
-          <div class="mt-2 flex items-center justify-between rounded-2xl border border-[var(--border)] bg-[var(--bg-primary)]/60 px-4 py-3">
-            <span class="text-sm font-medium text-[var(--text-secondary)]">Total:</span>
-            <span class="font-mono text-base text-[var(--text-primary)]">{{ totalActiveFormatted }}</span>
-          </div>
-        </div>
-      </template>
-    </div>
-
-    <div v-if="budgetSummaries.length" :class="cardClass">
-      <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <h3 class="text-lg font-semibold text-[var(--text-primary)]">Budget Progress</h3>
-        <div class="text-right text-sm text-[var(--text-secondary)]">
-          <div class="font-mono text-base text-[var(--text-primary)]">{{ formatCurrency(totalBudgetRemaining) }} remaining</div>
-          <div
-            v-if="overallBudgetStatus"
-            :class="['text-xs font-medium', overallBudgetStatus.className]"
-          >
-            {{ overallBudgetStatus.label }}
-          </div>
-        </div>
-      </div>
-      <div class="mt-5 space-y-4">
-        <div
-          v-for="item in budgetSummaries"
-          :key="item.id"
-          class="space-y-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-primary)]/60 p-4"
-        >
-          <div class="flex items-center justify-between gap-3">
-            <div class="text-sm font-semibold text-[var(--text-primary)]">{{ item.category }}</div>
-            <div class="text-right text-xs text-[var(--text-secondary)]">
-              <div class="font-mono text-sm text-[var(--text-primary)]">
-                {{ formatCurrency(item.actual) }} / {{ formatCurrency(item.amount) }}
-              </div>
-              <div
-                :class="[
-                  'text-[11px] font-semibold uppercase tracking-wide',
-                  item.status === 'over'
-                    ? 'text-rose-400'
-                    : item.status === 'warning'
-                      ? 'text-amber-300'
-                      : 'text-emerald-300'
-                ]"
-              >
-                {{ item.statusLabel }}
-              </div>
-            </div>
-          </div>
-          <div class="h-2 w-full rounded-full bg-[var(--border)]/70">
-            <div
-              class="h-2 rounded-full transition-all"
-              :class="item.status === 'over' ? 'bg-rose-500' : item.status === 'warning' ? 'bg-amber-400' : 'bg-emerald-500'"
-              :style="{ width: `${Math.min(item.percentage, 100).toFixed(1)}%` }"
-            ></div>
-          </div>
-          <div class="flex justify-between text-[11px] text-[var(--text-secondary)]">
-            <span>Spent: {{ formatCurrency(item.actual) }}</span>
-            <span>Remaining: {{ formatCurrency(item.remaining) }}</span>
-          </div>
-          <div class="flex flex-wrap gap-3 text-[11px] text-[var(--text-secondary)]">
-            <span v-if="item.overrideAmount != null">Override: {{ formatCurrency(item.overrideAmount || 0) }}</span>
-            <span v-if="item.adjustmentAmount">Adjustment: {{ formatCurrency(item.adjustmentAmount) }}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div v-if="hasExpenseData" class="grid gap-4 md:grid-cols-3">
-      <div :class="cashflowCardClass">
-        <div class="text-sm font-medium text-[var(--text-secondary)]">Income</div>
-        <div class="text-2xl font-bold text-emerald-400">{{ formatCurrency(income) }}</div>
-      </div>
-      <div :class="cashflowCardClass">
-        <div class="text-sm font-medium text-[var(--text-secondary)]">Expenses</div>
-        <div class="text-2xl font-bold text-rose-400">{{ formatCurrency(totalExpenses) }}</div>
-      </div>
-      <div :class="cashflowCardClass">
-        <div class="text-sm font-medium text-[var(--text-secondary)]">Balance</div>
-        <div
-          class="text-2xl font-bold"
-          :class="balance >= 0 ? 'text-emerald-400' : 'text-rose-400'"
-        >
-          {{ formatCurrency(balance) }}
-        </div>
-      </div>
-    </div>
+    <!-- Smart Add Overlay -->
+    <QuickAddExpenseCard v-if="showTypingForm" ref="typingCardRef" :card-class="'fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-3xl px-6'" :input-class="'input-modern w-full h-24 text-3xl md:text-4xl font-black text-[var(--text-primary)] px-4 md:px-10 shadow-2xl rounded-[20px] md:rounded-[48px] border-4 border-indigo-600 text-center placeholder:text-slate-700'" :primary-button-class="'hidden'" @added="handleQuickAddSuccess" @close="handleCloseAddPanels" />
   </section>
 </template>
 
@@ -273,679 +177,210 @@ import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRouter } from 'vue-router';
 import { Chart, registerables } from 'chart.js';
 import state, { loadInitialData, refreshExpenses, refreshBudgetSummaries } from '../stores/appState';
-import TagInput from '../components/TagInput.vue';
-import AddExpenseSpeedDial from '../components/AddExpenseSpeedDial.vue';
 import QuickAddExpenseCard from '../components/QuickAddExpenseCard.vue';
-import {
-  formatMonth,
-  getMonthExpenses,
-  filterExpensesByRange,
-  formatCurrency as formatCurrencyRaw,
-  getISODateWithLocalTime,
-  colorPalette,
-  formatWeekRange,
-  formatDayLabel,
-  formatRangeLabel,
-  getCycleAnchor,
-} from '../lib/utils';
+import { formatMonth, getMonthExpenses, filterExpensesByRange, formatCurrency as formatCurrencyRaw, getISODateWithLocalTime, colorPalette, getCycleAnchor } from '../lib/utils';
 import { apiFetch } from '../lib/api';
 import { encryptPayload } from '../lib/encryption';
 
-Chart.register(...registerables);
-Chart.defaults.color = '#b3b3b3';
-Chart.defaults.borderColor = '#606060';
-Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+Chart.register(...registerables); 
+Chart.defaults.color = '#8b949e'; 
+Chart.defaults.borderColor = 'transparent';
+Chart.defaults.font.family = 'Inter, sans-serif';
 
-const chartCanvas = ref(null);
-let chartInstance = null;
+const chartCanvas = ref(null); 
+let chartInstance = null; 
 const router = useRouter();
 
-const currentDate = ref(new Date());
-const monthCursor = ref(new Date());
+const currentDate = ref(new Date()); 
+const monthCursor = ref(new Date()); 
 const dateFilter = ref('month');
-const showExpenseForm = ref(false);
+const showExpenseForm = ref(false); 
+const showTypingForm = ref(false); 
 const disabledCategories = ref(new Set());
-const categoryColors = ref({});
-const rangeStart = ref(formatDateForInput(daysAgo(6)));
-const rangeEnd = ref(formatDateForInput(new Date()));
+const categoryColors = ref({}); 
+const rangeStart = ref(new Date().toISOString().split('T')[0]); 
+const rangeEnd = ref(new Date().toISOString().split('T')[0]);
 
-const form = ref(createDefaultForm());
-const formMessage = ref({ text: '', type: '' });
-const rawAmount = ref('');
-const showTypingForm = ref(false);
-const manualCardRef = ref(null);
+const form = ref({ name: '', category: '', tags: [], amount: null, date: new Date().toISOString().split('T')[0], reportGain: false });
+const formMessage = ref({ text: '', type: '' }); 
+const rawAmount = ref(''); 
 const typingCardRef = ref(null);
 
-const userDisplayName = computed(() => {
-  const first = (state.user?.firstName || '').trim();
-  const last = (state.user?.lastName || '').trim();
-  const full = `${first} ${last}`.trim();
-  return full || state.user?.email || '';
-});
-
-const iconButtonClass =
-  'inline-flex h-11 w-11 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--bg-secondary)] text-lg text-[var(--text-primary)] transition duration-150 ease-out hover:bg-[var(--accent)] hover:text-white hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40 focus:ring-offset-2 focus:ring-offset-[var(--bg-primary)]';
-
-const primaryButtonClass =
-  'inline-flex items-center justify-center gap-2 rounded-full border border-[var(--border)] bg-[var(--bg-secondary)] px-5 py-2 text-sm font-medium text-[var(--text-primary)] transition duration-150 ease-out hover:bg-[var(--accent)] hover:text-white hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40 focus:ring-offset-2 focus:ring-offset-[var(--bg-primary)] disabled:cursor-not-allowed disabled:opacity-50';
-
-const inputClass =
-  'w-full rounded-xl border border-[var(--border)] bg-[var(--bg-primary)] px-4 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40';
-
-const checkboxClass =
-  'h-4 w-4 rounded border-[var(--border)] bg-[var(--bg-primary)] text-[var(--accent)] focus:ring-[var(--accent)]/60 focus:ring-offset-0';
-
-const filterSelectClass =
-  'min-w-[180px] w-auto rounded-full border border-[var(--border)] bg-[var(--bg-secondary)] ' +
-  'h-11 pl-4 pr-12 appearance-none text-sm text-[var(--text-primary)] ' +
-  'focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40';
-
-const rangeInputWrapperClass =
-  'flex w-full items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-secondary)]/70 px-4 py-3 ' +
-  'shadow-sm transition duration-150 ease-out md:flex-1 focus-within:border-[var(--accent)] focus-within:bg-[var(--bg-primary)]/80 focus-within:shadow-lg';
-
-const rangeInputLabelClass =
-  'text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--text-secondary)]';
-
-const rangeDateInputClass =
-  'w-full appearance-none border-0 bg-transparent p-0 text-sm font-medium text-[var(--text-primary)] ' +
-  'focus:outline-none focus:ring-0';
-
-const cardClass =
-  'rounded-3xl border border-[var(--border)] bg-[var(--bg-secondary)]/80 p-6 shadow-card backdrop-blur';
-
-const legendItemClass =
-  'flex items-center gap-4 rounded-2xl border border-transparent px-3 py-2 text-sm transition duration-150 ease-out hover:bg-[var(--bg-primary)]/60';
-
-const cashflowCardClass =
-  'flex flex-col items-center justify-center rounded-3xl border border-[var(--border)] bg-[var(--bg-secondary)]/80 px-6 py-6 text-center shadow-card backdrop-blur';
-
-const speedDialButtonClass =
-  'flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--bg-secondary)]/90 px-4 py-2 text-sm font-medium text-[var(--text-primary)] transition duration-150 ease-out hover:bg-[var(--accent)] hover:text-white hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40 focus:ring-offset-2 focus:ring-offset-[var(--bg-primary)]';
-
+const firstName = computed(() => state.user?.firstName || ''); 
 const categories = computed(() => state.categories);
-const baseBudgets = computed(() => state.budgets || []);
-const monthlyBudgets = computed(() => {
-  const summaries = Array.isArray(state.budgetSummaries) ? state.budgetSummaries : [];
-  if (summaries.length > 0) {
-    return summaries.map((summary) => ({
-      id: summary.id,
-      category: summary.category,
-      baseAmount: summary.amount,
-      effectiveAmount: summary.effectiveAmount ?? summary.amount,
-      overrideAmount: summary.overrideAmount ?? null,
-      adjustmentAmount: summary.adjustmentAmount ?? 0,
-    }));
-  }
-  return baseBudgets.value.map((budget) => ({
-    id: budget.id,
-    category: budget.category,
-    baseAmount: budget.amount,
-    effectiveAmount: budget.amount,
-    overrideAmount: null,
-    adjustmentAmount: 0,
-  }));
-});
-const formattedAmount = computed(() => {
-  if (!rawAmount.value) return '';
+
+const formattedAmount = computed(() => { 
+  if (!rawAmount.value) return ''; 
   const numeric = Number(rawAmount.value.replace(/[^0-9.-]/g, '')) || 0;
-  return new Intl.NumberFormat('en-US', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }).format(numeric);
+  return new Intl.NumberFormat('en-US').format(numeric); 
 });
 
-const monthExpenses = computed(() => getMonthExpenses(state.expenses, monthCursor.value, state.startDate, state.endOfMonth));
 const displayedExpenses = computed(() => {
-  if (dateFilter.value === 'month') {
-    return monthExpenses.value;
-  }
-  if (dateFilter.value === 'range') {
-    return filterExpensesByRange(
-      state.expenses,
-      'range',
-      currentDate.value,
-      state.startDate,
-      state.endOfMonth,
-      { start: rangeStart.value, end: rangeEnd.value }
-    );
-  }
+  if (dateFilter.value === 'month') return getMonthExpenses(state.expenses, monthCursor.value, state.startDate, state.endOfMonth);
+  if (dateFilter.value === 'range') return filterExpensesByRange(state.expenses, 'range', currentDate.value, state.startDate, state.endOfMonth, { start: rangeStart.value, end: rangeEnd.value });
   return filterExpensesByRange(state.expenses, dateFilter.value, currentDate.value, state.startDate, state.endOfMonth);
 });
-const hasExpenseData = computed(() => displayedExpenses.value.some((expense) => expense.amount < 0));
 
-const income = computed(() => displayedExpenses.value.filter((exp) => exp.amount > 0).reduce((sum, exp) => sum + exp.amount, 0));
-const totalExpenses = computed(() => displayedExpenses.value.filter((exp) => exp.amount < 0).reduce((sum, exp) => sum + Math.abs(exp.amount), 0));
+const hasExpenseData = computed(() => displayedExpenses.value.some(e => e.amount < 0));
+const income = computed(() => displayedExpenses.value.filter(e => e.amount > 0).reduce((s, e) => s + e.amount, 0));
+const totalExpenses = computed(() => displayedExpenses.value.filter(e => e.amount < 0).reduce((s, e) => s + Math.abs(e.amount), 0));
 const balance = computed(() => income.value - totalExpenses.value);
 
 const periodLabel = computed(() => {
-  if (dateFilter.value === 'today') {
-    return formatDayLabel(currentDate.value);
-  }
-  if (dateFilter.value === 'yesterday') {
-    const yesterday = new Date(currentDate.value);
-    yesterday.setDate(yesterday.getDate() - 1);
-    return formatDayLabel(yesterday);
-  }
-  if (dateFilter.value === 'week') {
-    return formatWeekRange(currentDate.value);
-  }
-  if (dateFilter.value === 'range') {
-    return formatRangeLabel(rangeStart.value, rangeEnd.value);
-  }
-  return formatMonth(currentDate.value);
+  if (dateFilter.value === 'today') return 'Today';
+  if (dateFilter.value === 'week') return 'This Week';
+  if (dateFilter.value === 'range') return 'Range';
+  return formatMonth(monthCursor.value);
 });
 
-const emptyDashboardMessage = computed(() => {
-  if (dateFilter.value === 'yesterday') {
-    return 'No expenses recorded yesterday.';
-  }
-  if (dateFilter.value === 'range') {
-    return 'No expenses recorded in this range.';
-  }
-  if (dateFilter.value === 'today') {
-    return 'No expenses recorded today.';
-  }
-  if (dateFilter.value === 'week') {
-    return 'No expenses recorded this week.';
-  }
-  return 'No expenses recorded this month.';
-});
-
-const legendEntries = computed(() => buildLegendEntries());
-const totalActiveExpenses = computed(() => {
-  return displayedExpenses.value
-    .filter((exp) => {
-      if (exp.amount >= 0) return false;
-      const category = normalizeCategoryName(exp.category);
-      return !disabledCategories.value.has(category);
-    })
-    .reduce((sum, exp) => sum + Math.abs(exp.amount), 0);
-});
-const totalActiveFormatted = computed(() => formatCurrency(totalActiveExpenses.value));
-
-const rangeValidationMessage = computed(() => {
-  if (dateFilter.value !== 'range') return '';
-  if (!rangeStart.value || !rangeEnd.value) {
-    return 'Select both start and end dates';
-  }
-  if (new Date(rangeStart.value) > new Date(rangeEnd.value)) {
-    return 'Start date must be before end date';
-  }
-  return '';
+const legendEntries = computed(() => {
+  const breakdown = calculateCategoryBreakdown(displayedExpenses.value);
+  return breakdown.map(item => ({
+    ...item,
+    color: categoryColors.value[item.category],
+    amountFormatted: formatCurrency(item.total),
+    disabled: disabledCategories.value.has(item.category)
+  }));
 });
 
 const budgetSummaries = computed(() => {
-  if (!monthlyBudgets.value.length) return [];
-  const totals = monthExpenses.value.reduce((acc, exp) => {
-    if (exp.amount < 0) {
-      const key = exp.category || 'Uncategorized';
-      acc[key] = (acc[key] || 0) + Math.abs(exp.amount);
-    }
-    return acc;
-  }, {});
-  return monthlyBudgets.value
-    .map((budget) => {
-      const limit = budget.effectiveAmount ?? budget.baseAmount;
-      const actual = totals[budget.category] || 0;
-      const remaining = limit - actual;
-      const percentage = limit > 0 ? Math.min(100, (actual / limit) * 100) : 0;
-      let status = 'ok';
-      if (remaining < 0) {
-        status = 'over';
-      } else if (percentage >= 80) {
-        status = 'warning';
-      }
-      const statusLabel = status === 'over'
-        ? 'Over budget'
-        : status === 'warning'
-          ? 'Approaching limit'
-          : 'On track';
-      return {
-        id: budget.id,
-        category: budget.category,
-        amount: limit,
-        actual,
-        remaining,
-        percentage,
-        status,
-        statusLabel,
-        overrideAmount: budget.overrideAmount,
-        adjustmentAmount: budget.adjustmentAmount,
-      };
-    })
-    .sort((a, b) => a.category.localeCompare(b.category));
+  const t = getMonthExpenses(state.expenses, monthCursor.value, state.startDate, state.endOfMonth).reduce((a, e) => { if (e.amount < 0) { const k = e.category || 'Misc'; a[k] = (a[k] || 0) + Math.abs(e.amount); } return a; }, {});
+  return (state.budgetSummaries || []).map(b => { 
+    const a = t[b.category] || 0; 
+    const l = b.effectiveAmount || b.amount; 
+    const p = l > 0 ? (a / l) * 100 : 0; 
+    let s = 'ok'; 
+    if (a > l) s = 'over'; 
+    else if (p > 80) s = 'warning'; 
+    return { ...b, actual: a, amount: l, percentage: p, status: s, statusLabel: s.toUpperCase() }; 
+  }).sort((a,b) => b.actual - a.actual);
 });
 
-const totalBudgeted = computed(() => budgetSummaries.value.reduce((sum, item) => sum + item.amount, 0));
-const totalBudgetActual = computed(() => budgetSummaries.value.reduce((sum, item) => sum + item.actual, 0));
-const totalBudgetRemaining = computed(() => totalBudgeted.value - totalBudgetActual.value);
-const overallBudgetStatus = computed(() => {
-  if (!budgetSummaries.value.length || totalBudgeted.value === 0) return null;
-  if (totalBudgetRemaining.value < 0) {
-    return { label: 'Over budget', className: 'text-rose-400' };
-  }
-  const usageRatio = totalBudgetActual.value / totalBudgeted.value;
-  if (usageRatio >= 0.8) {
-    return { label: 'Approaching limit', className: 'text-amber-300' };
-  }
-  return { label: 'On track', className: 'text-emerald-300' };
+const overallBudgetStatus = computed(() => { 
+  const l = budgetSummaries.value.reduce((s,i) => s+i.amount, 0); 
+  const a = budgetSummaries.value.reduce((s,i) => s+i.actual, 0); 
+  if (l === 0) return null; 
+  if (a > l) return { label: 'BONCOS BRO', className: 'text-rose-500 border-rose-500/30' }; 
+  if (a > l * 0.8) return { label: 'WARNING', className: 'text-amber-500 border-amber-500/30' }; 
+  return { label: 'ON TRACK', className: 'text-emerald-500 border-emerald-500/30' }; 
 });
 
-async function loadBudgetsForCurrentMonth() {
-  try {
-    await refreshBudgetSummaries(monthCursor.value);
-  } catch (error) {
-    console.error('Failed to load monthly budgets', error);
-  }
+function calculateCategoryBreakdown(ex) { 
+  const ts = {}; let o = 0; 
+  ex.forEach(e => { 
+    if (e.amount < 0) { 
+      const a = Math.abs(e.amount); 
+      const c = normalizeCategoryName(e.category); 
+      if (!disabledCategories.value.has(c)) { 
+        ts[c] = (ts[c] || 0) + a; 
+        o += a; 
+      } 
+    } 
+  }); 
+  return Object.entries(ts).map(([category, total]) => ({ category, total, percentage: o > 0 ? (total/o)*100 : 0 })).sort((a,b) => b.total - a.total); 
 }
 
-function alignCurrentCycle(baseDate = currentDate.value, { updateCurrent = true, updateCursor = true } = {}) {
-  const aligned = getCycleAnchor(baseDate, state.startDate, state.endOfMonth);
-  if (updateCursor) {
-    monthCursor.value = new Date(aligned);
-  }
-  if (updateCurrent) {
-    currentDate.value = new Date(aligned);
-  }
-  return new Date(aligned);
+function normalizeCategoryName(c) { return (typeof c === 'string' && c.trim()) || 'Misc'; }
+
+function assignCategoryColors() { 
+  const cs = { ...categoryColors.value }; 
+  const cats = Array.from(new Set([...(state.categories || []), ...state.expenses.map(e => normalizeCategoryName(e.category))])); 
+  cats.forEach((c, i) => { if (!cs[c]) cs[c] = colorPalette[i % colorPalette.length]; }); 
+  categoryColors.value = cs; 
 }
 
-watch(
-  () => state.expenses,
-  () => {
-    assignCategoryColors();
-    updateChart();
-  }
-);
-
-watch(displayedExpenses, () => {
-  assignCategoryColors();
-  updateChart();
-});
-
-watch(
-  () => [state.startDate, state.endOfMonth],
-  async () => {
-    if (dateFilter.value === 'month') {
-      alignCurrentCycle(monthCursor.value);
-      await loadBudgetsForCurrentMonth();
-      assignCategoryColors();
-      updateChart();
-    } else {
-      alignCurrentCycle(monthCursor.value, { updateCurrent: false, updateCursor: true });
-    }
-  }
-);
-
-watch(disabledCategories, updateChart, { deep: true });
-
-watch(
-  dateFilter,
-  async (next, prev) => {
-    if (next === 'month') {
-      alignCurrentCycle(monthCursor.value);
-      await loadBudgetsForCurrentMonth();
-    } else {
-      currentDate.value = new Date();
-    }
-    if (next === 'range' && prev !== 'range') {
-      rangeStart.value = formatDateForInput(daysAgo(6));
-      rangeEnd.value = formatDateForInput(new Date());
-    }
-    disabledCategories.value = new Set();
-    await nextTick();
-    assignCategoryColors();
-    updateChart();
-  }
-);
-
-onMounted(async () => {
-  await loadInitialData();
-  alignCurrentCycle();
-  await loadBudgetsForCurrentMonth();
-  monthCursor.value = new Date(currentDate.value);
-  assignCategoryColors();
-  updateChart();
-});
-
-onBeforeUnmount(() => {
-  if (chartInstance) {
-    chartInstance.destroy();
-    chartInstance = null;
-  }
-});
-
-function daysAgo(amount) {
-  const date = new Date();
-  date.setDate(date.getDate() - amount);
-  return date;
+function alignCurrentCycle(d = currentDate.value) { 
+  const a = getCycleAnchor(d, state.startDate, state.endOfMonth); 
+  monthCursor.value = new Date(a); 
+  return a; 
 }
 
-function formatDateForInput(date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+async function gotoPrevMonth() { 
+  const d = new Date(monthCursor.value); d.setMonth(d.getMonth() - 1); 
+  alignCurrentCycle(d); 
+  await refreshBudgetSummaries(monthCursor.value); 
+  updateChart(); 
 }
 
-function createDefaultForm() {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, '0');
-  const day = String(today.getDate()).padStart(2, '0');
-  return {
-    name: '-',
-    category: '',
-    tags: [],
-    amount: null,
-    date: `${year}-${month}-${day}`,
-    reportGain: false,
-    submitLabel: 'Add Expense',
-  };
+async function gotoNextMonth() { 
+  const d = new Date(monthCursor.value); d.setMonth(d.getMonth() + 1); 
+  alignCurrentCycle(d); 
+  await refreshBudgetSummaries(monthCursor.value); 
+  updateChart(); 
 }
 
-function resetForm() {
-  form.value = createDefaultForm();
-  rawAmount.value = '';
-}
-
-function setFormMessage(text, type) {
-  formMessage.value = { text, type };
-  if (text) {
-    setTimeout(() => {
-      formMessage.value = { text: '', type: '' };
-    }, 3000);
-  }
-}
-
-async function scrollToAddSection(target) {
-  await nextTick();
-  let element = null;
-  if (target === 'manual') {
-    element = manualCardRef.value;
-  } else if (typingCardRef.value) {
-    element =
-      typeof typingCardRef.value.getContainer === 'function'
-        ? typingCardRef.value.getContainer()
-        : typingCardRef.value.$el ?? typingCardRef.value;
-  }
-  if (element && typeof element.scrollIntoView === 'function') {
-    const rect = element.getBoundingClientRect();
-    const offset = Math.max(window.pageYOffset + rect.top - 80, 0);
-    window.scrollTo({ top: offset, behavior: 'smooth' });
-  }
-}
-
-function handleOpenManual() {
-  resetForm();
-  showTypingForm.value = false;
-  showExpenseForm.value = true;
-  scrollToAddSection('manual');
-}
-
-async function handleOpenTyping() {
-  showExpenseForm.value = false;
-  showTypingForm.value = true;
-  await nextTick();
-  typingCardRef.value?.reset?.();
-  scrollToAddSection('typing');
-}
-
-function handleCloseAddPanels() {
-  showExpenseForm.value = false;
-  showTypingForm.value = false;
-  resetForm();
-  typingCardRef.value?.reset?.();
-}
-
-async function handleQuickAddSuccess() {
-  await refreshExpenses();
-}
-
-function normalizeCategoryName(category) {
-  return (typeof category === 'string' && category.trim()) || 'Uncategorized';
-}
-
-function assignCategoryColors() {
-  const colors = { ...categoryColors.value };
-  const baseCategories = Array.isArray(state.categories) ? state.categories : [];
-  const allCategories = Array.from(
-    new Set([
-      ...baseCategories.map((category) => normalizeCategoryName(category)),
-      ...state.expenses.map((expense) => normalizeCategoryName(expense.category)),
-    ]),
-  );
-  allCategories.forEach((category) => {
-    if (!colors[category]) {
-      const nextIndex = Object.keys(colors).length;
-      colors[category] = colorPalette[nextIndex % colorPalette.length];
-    }
-  });
-  categoryColors.value = colors;
-}
-
-async function gotoPrevMonth() {
-  if (dateFilter.value !== 'month') return;
-  const date = new Date(monthCursor.value);
-  date.setMonth(date.getMonth() - 1);
-  alignCurrentCycle(date);
-  await loadBudgetsForCurrentMonth();
-  await nextTick();
-  assignCategoryColors();
-  updateChart();
-}
-
-async function gotoNextMonth() {
-  if (dateFilter.value !== 'month') return;
-  const date = new Date(monthCursor.value);
-  date.setMonth(date.getMonth() + 1);
-  alignCurrentCycle(date);
-  await loadBudgetsForCurrentMonth();
-  await nextTick();
-  assignCategoryColors();
-  updateChart();
-}
-
-function calculateCategoryBreakdown(expenses) {
-  const categoryTotals = {};
-  let totalAmount = 0;
-  expenses.forEach((exp) => {
-    if (exp.amount < 0) {
-      const amount = Math.abs(exp.amount);
-      const category = normalizeCategoryName(exp.category);
-      if (disabledCategories.value.has(category)) return;
-      categoryTotals[category] = (categoryTotals[category] || 0) + amount;
-      totalAmount += amount;
-    }
-  });
-  return Object.entries(categoryTotals)
-    .map(([category, total]) => ({
-      category,
-      total,
-      percentage: totalAmount > 0 ? (total / totalAmount) * 100 : 0,
-    }))
-    .sort((a, b) => b.total - a.total);
-}
-
-function buildLegendEntries() {
-  const breakdown = calculateCategoryBreakdown(displayedExpenses.value);
-  const categoryMap = new Map(breakdown.map((item) => [item.category, item]));
-  const currentMonthCategories = Array.from(
-    new Set(
-      displayedExpenses.value
-        .filter((exp) => exp.amount < 0)
-        .map((exp) => normalizeCategoryName(exp.category))
-    )
-  );
-  currentMonthCategories.sort((a, b) => {
-    const dataA = categoryMap.get(a);
-    const dataB = categoryMap.get(b);
-    if (dataA && dataB) return dataB.total - dataA.total;
-    if (dataA) return -1;
-    if (dataB) return 1;
-    return a.localeCompare(b);
-  });
-  return currentMonthCategories.map((category) => {
-    const entry = categoryMap.get(category);
-    const disabled = disabledCategories.value.has(category);
-    return {
-      category,
-      color: categoryColors.value[category] || '#4ECDC4',
-      amount: entry ? entry.total : null,
-      amountFormatted: entry ? formatCurrency(entry.total) : '',
-      percentage: entry ? entry.percentage : null,
-      disabled,
-    };
-  });
-}
-
-function formatCurrency(amount) {
-  return formatCurrencyRaw(amount, state.currency);
-}
-
-function handleAmountInput(event) {
-  const value = event.target.value;
-  rawAmount.value = value.replace(/[^0-9.-]/g, '');
-}
-
-function normalizeAmount(event) {
-  const numeric = Number(rawAmount.value.replace(/[^0-9.-]/g, '')) || 0;
-  rawAmount.value = numeric === 0 ? '' : String(numeric);
-  event.target.value = formattedAmount.value;
-}
-
-async function postExpense(body) {
-  const payload = { ...body };
-  const blob = await encryptPayload(payload);
-  if (blob) {
-    payload.blob = blob;
-  }
-  const response = await apiFetch('/expense', {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.error || 'Failed to add expense');
-  }
-}
+function formatCurrency(amt) { return formatCurrencyRaw(amt, state.currency); }
+function handleAmountInput(e) { rawAmount.value = e.target.value.replace(/[^0-9.-]/g, ''); }
+function normalizeAmount(e) { const n = Number(rawAmount.value) || 0; rawAmount.value = n === 0 ? '' : String(n); e.target.value = formattedAmount.value; }
+function toggleCategory(c) { const n = new Set(disabledCategories.value); if (n.has(c)) n.delete(c); else n.add(c); disabledCategories.value = n; }
 
 async function submitExpense() {
-  if (!form.value.category) {
-    setFormMessage('Please select a category', 'error');
-    return;
-  }
-  let amount = Number(rawAmount.value.replace(/[^0-9.-]/g, ''));
-  if (Number.isNaN(amount) || amount === 0) {
-    setFormMessage('Please enter a valid amount', 'error');
-    return;
-  }
-  const normalizedAmount = form.value.reportGain ? Math.abs(amount) : -Math.abs(amount);
-  const payload = {
-    name: form.value.name,
-    category: form.value.category,
-    amount: normalizedAmount,
-    date: getISODateWithLocalTime(form.value.date),
-    tags: form.value.tags,
-  };
-  try {
-    await postExpense(payload);
-    setFormMessage('Expense added successfully!', 'success');
-    resetForm();
-    await refreshExpenses();
-  } catch (error) {
-    console.error('Error adding expense', error);
-    setFormMessage(error.message || 'Failed to add expense', 'error');
-  }
+  if (!form.value.category) return setFormMessage('Choose category', 'error'); 
+  const amt = Number(rawAmount.value.replace(/[^0-9.-]/g, '')) || 0; if (amt === 0) return setFormMessage('Invalid amount', 'error');
+  const p = { name: form.value.name, category: form.value.category, amount: form.value.reportGain ? Math.abs(amt) : -Math.abs(amt), date: getISODateWithLocalTime(form.value.date), tags: form.value.tags };
+  try { 
+    const b = await encryptPayload(p); if (b) p.blob = b; 
+    const r = await apiFetch('/expense', { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(p) }); 
+    if (!r.ok) throw new Error('Failed'); 
+    setFormMessage('Success!', 'success'); resetForm(); await refreshExpenses(); handleCloseAddPanels(); 
+  } catch (e) { setFormMessage(e.message, 'error'); }
 }
 
-function toggleCategory(category) {
-  const next = new Set(disabledCategories.value);
-  if (next.has(category)) {
-    next.delete(category);
-  } else {
-    next.add(category);
-  }
-  disabledCategories.value = next;
-}
+function handleOpenManual() { showExpenseForm.value = true; }
+function handleOpenTyping() { showTypingForm.value = true; }
+function handleCloseAddPanels() { showExpenseForm.value = false; showTypingForm.value = false; resetForm(); }
+function handleQuickAddSuccess() { refreshExpenses(); handleCloseAddPanels(); }
+function setFormMessage(t, type) { formMessage.value = { text: t, type }; setTimeout(() => formMessage.value = { text: '', type: '' }, 3000); }
 
 function updateChart() {
-  if (!chartCanvas.value) return;
-  if (!hasExpenseData.value) {
-    if (chartInstance) {
-      chartInstance.destroy();
-      chartInstance = null;
-    }
-    return;
-  }
-  const breakdown = calculateCategoryBreakdown(displayedExpenses.value);
-  if (chartInstance) {
-    chartInstance.destroy();
-  }
-  chartInstance = new Chart(chartCanvas.value, {
-    type: 'doughnut',
-    data: {
-      labels: breakdown.map((item) => item.category),
-      datasets: [
-        {
-          data: breakdown.map((item) => item.total),
-          backgroundColor: breakdown.map((item) => categoryColors.value[item.category]),
-          borderColor: '#1a1a1a',
-          borderWidth: 1,
-        },
-      ],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            label(context) {
-              const value = context.raw;
-              const total = context.dataset.data.reduce((sum, val) => sum + val, 0);
-              const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
-              return `${context.label}: ${formatCurrency(value)} (${percentage}%)`;
-            },
-          },
-        },
-      },
-    },
+  if (!chartCanvas.value || !hasExpenseData.value) { if (chartInstance) chartInstance.destroy(); return; }
+  const b = calculateCategoryBreakdown(displayedExpenses.value); 
+  if (chartInstance) chartInstance.destroy();
+  chartInstance = new Chart(chartCanvas.value, { 
+    type: 'doughnut', 
+    data: { 
+      labels: b.map(i => i.category), 
+      datasets: [{ 
+        data: b.map(i => i.total), 
+        backgroundColor: b.map(i => categoryColors.value[i.category]), 
+        borderColor: 'transparent', 
+        cutout: '74%', 
+        borderRadius: 8, 
+        spacing: 2,
+        hoverOffset: 6 
+      }] 
+    }, 
+    options: { 
+      responsive: true, 
+      maintainAspectRatio: false, 
+      layout: { padding: 10 },
+      animation: { duration: 900, easing: 'easeOutCubic' }, 
+      plugins: { 
+        legend: { display: false }, 
+        tooltip: { 
+          backgroundColor: '#000', 
+          padding: 16, 
+          titleFont: { size: 14, weight: '900' }, 
+          bodyFont: { size: 12, weight: 'bold' }, 
+          cornerRadius: 16, 
+          displayColors: true,
+          callbacks: { label: (c) => ` ${formatCurrency(c.raw)} (${((c.raw/b.reduce((s,i)=>s+i.total,0))*100).toFixed(1)}%)` } 
+        } 
+      } 
+    } 
   });
 }
 
-function handleChartClick(event) {
-  if (!hasExpenseData.value || !chartInstance) return;
-  const query = buildTableNavigationQuery();
-  const elements = chartInstance.getElementsAtEventForMode(
-    event.nativeEvent ?? event,
-    'nearest',
-    { intersect: true },
-    true
-  );
-  if (Array.isArray(elements) && elements.length > 0) {
-    const { index } = elements[0];
-    const category = chartInstance.data.labels?.[index];
-    if (typeof category === 'string' && category.trim()) {
-      query.category = category.trim();
-    }
-  }
-  router.push({ name: 'table', query }).catch(() => {});
-}
-
-function buildTableNavigationQuery() {
-  const query = { filter: dateFilter.value };
-  if (dateFilter.value === 'range') {
-    if (rangeStart.value) query.start = rangeStart.value;
-    if (rangeEnd.value) query.end = rangeEnd.value;
-  } else if (dateFilter.value === 'month') {
-    query.cursor = formatDateForInput(monthCursor.value);
-  } else {
-    query.anchor = formatDateForInput(currentDate.value);
-  }
-  return query;
-}
+watch(displayedExpenses, () => { assignCategoryColors(); updateChart(); });
+onMounted(async () => { await loadInitialData(); alignCurrentCycle(); await refreshBudgetSummaries(monthCursor.value); assignCategoryColors(); updateChart(); });
+onBeforeUnmount(() => { if (chartInstance) chartInstance.destroy(); });
 </script>
+
+<style scoped>
+.custom-scrollbar::-webkit-scrollbar { width: 3px; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+.animate-in { animation: fadeIn 1s cubic-bezier(0.16, 1, 0.3, 1) fill-mode-both; }
+.fade-enter-active, .fade-leave-active { transition: all 0.4s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; transform: scale(0.95); }
+</style>

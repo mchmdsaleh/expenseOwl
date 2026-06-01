@@ -55,7 +55,7 @@
           {{ profileSuccess }}
         </div>
 
-        <div class="flex items-center gap-3">
+        <div class="flex flex-wrap items-center gap-3">
           <button
             type="submit"
             class="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[var(--bg-secondary)] hover:border-[var(--border)] disabled:opacity-50"

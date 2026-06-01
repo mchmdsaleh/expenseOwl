@@ -55,6 +55,12 @@ type Storage interface {
 	RemoveMultipleExpenses(userID string, ids []string) error
 	UpdateExpense(userID, id string, expense Expense) error
 
+	// AI Configuration
+	GetAIContext(userID string) (string, error)
+	UpdateAIContext(userID, context string) error
+	GetAIConfig(userID string) (*AIConfig, error)
+	UpdateAIConfig(userID string, config AIConfig) error
+
 	// Potential Future Feature: Multi-currency
 	// GetConversions(userID string) (map[string]float64, error)
 	// UpdateConversions(userID string, conversions map[string]float64) error
@@ -67,7 +73,16 @@ type Config struct {
 	StartDate         int                `json:"startDate"`
 	EndOfMonth        bool               `json:"endOfMonth"`
 	RecurringExpenses []RecurringExpense `json:"recurringExpenses"`
+	AIContext         string             `json:"aiContext"`
+	AIConfig          *AIConfig          `json:"aiConfig"`
 	// Tags              []string           `json:"tags"`
+}
+
+type AIConfig struct {
+	Provider string `json:"provider"` // openai, anthropic, google, custom
+	Model    string `json:"model"`
+	BaseURL  string `json:"baseUrl"`
+	APIKey   string `json:"apiKey"`
 }
 
 type RecurringExpense struct {

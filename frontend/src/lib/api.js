@@ -102,3 +102,60 @@ export async function revokeTelegramLink(id) {
     throw new Error(data?.error || 'Failed to revoke Telegram link');
   }
 }
+
+// AI Chatbot & Configuration
+export async function getAIContext() {
+  const response = await apiFetch('/api/v1/ai/context');
+  if (!response.ok) throw new Error('Failed to load AI context');
+  const data = await response.json();
+  return data.context;
+}
+
+export async function updateAIContext(context) {
+  const response = await apiFetch('/api/v1/ai/context/edit', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ context }),
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data?.error || 'Failed to update AI context');
+  }
+}
+
+export async function getAIConfig() {
+  const response = await apiFetch('/api/v1/ai/config');
+  if (!response.ok) throw new Error('Failed to load AI config');
+  return response.json();
+}
+
+export async function updateAIConfig(config) {
+  const response = await apiFetch('/api/v1/ai/config/edit', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(config),
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data?.error || 'Failed to update AI config');
+  }
+}
+
+export async function sendChatMessage(messages, files = []) {
+  const formData = new FormData();
+  formData.append('messages', JSON.stringify(messages));
+  files.forEach((file) => {
+    formData.append('files', file);
+  });
+
+  const response = await apiFetch('/api/v1/chat', {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data?.error || 'AI failed to respond');
+  }
+  return response.json();
+}
