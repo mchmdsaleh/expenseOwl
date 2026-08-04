@@ -12,14 +12,25 @@
         </p>
       </div>
 
-      <div class="flex items-center gap-2 bg-[var(--bg-secondary)] p-1.5 rounded-3xl border border-[var(--border)] shadow-2xl glass-card text-[var(--text-primary)]">
-        <button class="flex h-10 w-10 items-center justify-center rounded-2xl transition-all hover:bg-[var(--bg-elevated)] active:scale-90" @click="gotoPrevMonth">
-          <i class="fa-solid fa-chevron-left text-xs"></i>
+      <div class="flex items-center gap-2 md:gap-3">
+        <button
+          type="button"
+          class="flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border)] shadow-2xl glass-card text-[var(--text-primary)] transition-all hover:bg-[var(--bg-elevated)] active:scale-90"
+          :title="hideNumbers ? 'Show numbers' : 'Hide numbers'"
+          :aria-pressed="hideNumbers"
+          @click="toggleHideNumbers"
+        >
+          <i :class="hideNumbers ? 'fa-solid fa-eye-slash text-xs' : 'fa-solid fa-eye text-xs'"></i>
         </button>
-        <div class="px-6 text-[10px] font-black uppercase tracking-[0.2em] min-w-[150px] text-center">{{ periodLabel }}</div>
-        <button class="flex h-10 w-10 items-center justify-center rounded-2xl transition-all hover:bg-[var(--bg-elevated)] active:scale-90" @click="gotoNextMonth">
-          <i class="fa-solid fa-chevron-right text-xs"></i>
-        </button>
+        <div class="flex items-center gap-2 bg-[var(--bg-secondary)] p-1.5 rounded-3xl border border-[var(--border)] shadow-2xl glass-card text-[var(--text-primary)]">
+          <button class="flex h-10 w-10 items-center justify-center rounded-2xl transition-all hover:bg-[var(--bg-elevated)] active:scale-90" @click="gotoPrevMonth">
+            <i class="fa-solid fa-chevron-left text-xs"></i>
+          </button>
+          <div class="px-6 text-[10px] font-black uppercase tracking-[0.2em] min-w-[150px] text-center">{{ periodLabel }}</div>
+          <button class="flex h-10 w-10 items-center justify-center rounded-2xl transition-all hover:bg-[var(--bg-elevated)] active:scale-90" @click="gotoNextMonth">
+            <i class="fa-solid fa-chevron-right text-xs"></i>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -92,7 +103,7 @@
                     <span class="text-sm font-black leading-tight break-words">{{ entry.category }}</span>
                   </div>
                   <div class="mt-1.5 flex items-end justify-between gap-3">
-                    <span class="text-xs font-semibold text-[var(--text-secondary)]">{{ entry.percentage?.toFixed(1) }}%</span>
+                    <span class="text-xs font-semibold text-[var(--text-secondary)]">{{ formatPercent(entry.percentage) }}</span>
                     <span class="text-base md:text-lg font-black tabular-nums leading-none tracking-tight whitespace-nowrap">{{ formatCurrency(entry.total) }}</span>
                   </div>
                 </div>
@@ -174,11 +185,11 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { Chart, registerables } from 'chart.js';
 import state, { loadInitialData, refreshExpenses, refreshBudgetSummaries } from '../stores/appState';
 import QuickAddExpenseCard from '../components/QuickAddExpenseCard.vue';
-import { formatMonth, getMonthExpenses, filterExpensesByRange, formatCurrency as formatCurrencyRaw, getISODateWithLocalTime, colorPalette, getCycleAnchor } from '../lib/utils';
+import { formatMonth, getMonthExpenses, filterExpensesByRange, formatCurrency as formatCurrencyRaw, maskCurrency as maskCurrencyRaw, getISODateWithLocalTime, colorPalette, getCycleAnchor } from '../lib/utils';
 import { apiFetch } from '../lib/api';
 import { encryptPayload } from '../lib/encryption';
 
@@ -189,7 +200,11 @@ Chart.defaults.font.family = 'Inter, sans-serif';
 
 const chartCanvas = ref(null); 
 let chartInstance = null; 
+const route = useRoute();
 const router = useRouter();
+const hideNumbers = ref(false);
+const NUMBER_VISIBILITY_QUERY_KEY = 'hideNumbers';
+const NUMBER_VISIBILITY_STORAGE_KEY = 'expenseowl_dashboard_hide_numbers';
 
 const currentDate = ref(new Date()); 
 const monthCursor = ref(new Date()); 
@@ -214,6 +229,41 @@ const formattedAmount = computed(() => {
   const numeric = Number(rawAmount.value.replace(/[^0-9.-]/g, '')) || 0;
   return new Intl.NumberFormat('en-US').format(numeric); 
 });
+
+function readHideNumbersPreference() {
+  const raw = route.query[NUMBER_VISIBILITY_QUERY_KEY];
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === '') return true;
+    if (['1', 'true', 'yes', 'on'].includes(normalized)) return true;
+    if (['0', 'false', 'no', 'off'].includes(normalized)) return false;
+  }
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem(NUMBER_VISIBILITY_STORAGE_KEY) === '1';
+  }
+  return false;
+}
+
+function persistHideNumbersPreference(value) {
+  hideNumbers.value = !!value;
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(NUMBER_VISIBILITY_STORAGE_KEY, hideNumbers.value ? '1' : '0');
+  }
+}
+
+function syncHideNumbersPreference() {
+  persistHideNumbersPreference(readHideNumbersPreference());
+}
+
+function toggleHideNumbers() {
+  const nextValue = !hideNumbers.value;
+  persistHideNumbersPreference(nextValue);
+  const query = { ...route.query };
+  if (nextValue) query[NUMBER_VISIBILITY_QUERY_KEY] = '1';
+  else delete query[NUMBER_VISIBILITY_QUERY_KEY];
+  router.replace({ path: route.path, query });
+}
 
 const displayedExpenses = computed(() => {
   if (dateFilter.value === 'month') return getMonthExpenses(state.expenses, monthCursor.value, state.startDate, state.endOfMonth);
@@ -309,7 +359,8 @@ async function gotoNextMonth() {
   updateChart(); 
 }
 
-function formatCurrency(amt) { return formatCurrencyRaw(amt, state.currency); }
+function formatCurrency(amt) { return hideNumbers.value ? maskCurrencyRaw(amt, state.currency) : formatCurrencyRaw(amt, state.currency); }
+function formatPercent(value) { return hideNumbers.value ? '\u2022\u2022\u2022' : `${Number(value || 0).toFixed(1)}%`; }
 function handleAmountInput(e) { rawAmount.value = e.target.value.replace(/[^0-9.-]/g, ''); }
 function normalizeAmount(e) { const n = Number(rawAmount.value) || 0; rawAmount.value = n === 0 ? '' : String(n); e.target.value = formattedAmount.value; }
 function toggleCategory(c) { const n = new Set(disabledCategories.value); if (n.has(c)) n.delete(c); else n.add(c); disabledCategories.value = n; }
@@ -364,7 +415,7 @@ function updateChart() {
           bodyFont: { size: 12, weight: 'bold' }, 
           cornerRadius: 16, 
           displayColors: true,
-          callbacks: { label: (c) => ` ${formatCurrency(c.raw)} (${((c.raw/b.reduce((s,i)=>s+i.total,0))*100).toFixed(1)}%)` } 
+          callbacks: { label: (c) => ` ${formatCurrency(c.raw)} (${hideNumbers.value ? '\u2022\u2022\u2022' : ((c.raw/b.reduce((s,i)=>s+i.total,0))*100).toFixed(1) + '%'})` } 
         } 
       } 
     } 
@@ -372,7 +423,8 @@ function updateChart() {
 }
 
 watch(displayedExpenses, () => { assignCategoryColors(); updateChart(); });
-onMounted(async () => { await loadInitialData(); alignCurrentCycle(); await refreshBudgetSummaries(monthCursor.value); assignCategoryColors(); updateChart(); });
+watch(() => route.query[NUMBER_VISIBILITY_QUERY_KEY], syncHideNumbersPreference);
+onMounted(async () => { syncHideNumbersPreference(); await loadInitialData(); alignCurrentCycle(); await refreshBudgetSummaries(monthCursor.value); assignCategoryColors(); updateChart(); });
 onBeforeUnmount(() => { if (chartInstance) chartInstance.destroy(); });
 </script>
 
