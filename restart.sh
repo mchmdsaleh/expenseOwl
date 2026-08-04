@@ -16,6 +16,15 @@ echo "[restart.sh] Starting restart at $(date)" | tee -a "$LOG"
 
 cd "$ROOT_DIR" || { echo "[restart.sh] ERROR: cannot cd $ROOT_DIR" | tee -a "$LOG"; exit 1; }
 
+# Load environment if available
+if [ -f ".env" ]; then
+  echo "[restart.sh] Loading .env" | tee -a "$LOG"
+  set -a
+  # shellcheck disable=SC1091
+  . "$ROOT_DIR/.env"
+  set +a
+fi
+
 # Build frontend if present
 if [ -d "frontend" ]; then
   echo "[restart.sh] Building frontend..." | tee -a "$LOG"

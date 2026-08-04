@@ -55,6 +55,12 @@ export function formatCurrency(amount, currency = 'usd') {
   return isNegative ? `-${base}` : base;
 }
 
+export function maskCurrency(amount, currency = 'usd') {
+  return formatCurrency(amount, currency)
+    .replace(/[0-9]/g, "\u2022")
+    .replace(/-/g, "\u2022");
+}
+
 export function getUserTimeZone() {
   return Intl.DateTimeFormat().resolvedOptions().timeZone;
 }
